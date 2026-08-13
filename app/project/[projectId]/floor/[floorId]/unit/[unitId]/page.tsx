@@ -73,6 +73,13 @@ export default function WindowEntryPage() {
   const [precision, setPrecision] = usePrecision();
   const [error, setError] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  // Bumped only when a genuinely different window becomes the draft (loaded
+  // for edit, or cleared after Save · next). Used for the Keypad's remount
+  // key — draft.id is NOT usable there: it flips null -> uuid when the row is
+  // lazily created on the first digit tap, which would remount the keypad
+  // mid-entry and swallow that digit.
+  const [draftSeq, setDraftSeq] = useState(0);
   const [unitNoteOpen, setUnitNoteOpen] = useState(false);
 
   const draftRef = useRef(draft);
@@ -162,6 +169,10 @@ export default function WindowEntryPage() {
 
   function patchDraft(patch: Partial<Omit<DraftWindow, "id" | "tag_base">>) {
     setDraft((d) => ({ ...d, ...patch }));
+    // Keep the ref in lockstep synchronously — the queued lazy-create below
+    // reads draftRef.current, and the effect that syncs it has not run yet,
+    // so without this the created row persists the pre-tap values.
+    draftRef.current = { ...draftRef.current, ...patch };
 
     if (draft.id) {
       const id = draft.id;
@@ -274,6 +285,7 @@ export default function WindowEntryPage() {
     setNoteOpen(Boolean(w.note));
     setActiveField(0);
     setError(null);
+    setDraftSeq((n) => n + 1);
   }
 
   function handleSaveNext() {
@@ -306,6 +318,12 @@ export default function WindowEntryPage() {
     });
     setActiveField(0);
     setNoteOpen(false);
+    setDraftSeq((n) => n + 1);
+    // Brief visual confirmation on the button itself — the data is already
+    // durable (autosave writes on every tap), this just closes the loop for
+    // someone measuring fast and not watching the header indicator.
+    setJustSaved(true);
+    window.setTimeout(() => setJustSaved(false), 1200);
   }
 
   async function handleUnitNoteChange(note: string) {
@@ -488,7 +506,7 @@ export default function WindowEntryPage() {
         // window is loaded, and which field/panel within it — so the keypad
         // always seeds its digit buffer fresh instead of reconciling stale
         // typing state against a different value (see Keypad's docstring).
-        key={`${draft.id ?? "new"}-${activeIsHeight ? "height" : `width-${activeField}`}`}
+        key={`${draftSeq}-${activeIsHeight ? "height" : `width-${activeField}`}`}
         valueSixteenths={activeIsHeight ? draft.height : (draft.widths[activeField as number] ?? 0)}
         onChange={(v) => (activeIsHeight ? patchDraft({ height: v }) : setPanelWidth(activeField as number, v))}
         precision={precision}
@@ -558,13 +576,18 @@ export default function WindowEntryPage() {
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      <button
-        type="button"
-        onClick={handleSaveNext}
-        className="min-h-14 rounded-xl bg-blue-600 text-base font-semibold text-white"
-      >
-        Save · next window
-      </button>
+      <div className="sticky bottom-3 z-20 -mx-1 px-1">
+        <button
+          type="button"
+          onClick={handleSaveNext}
+          aria-live="polite"
+          className={`min-h-14 w-full rounded-xl text-base font-semibold text-white shadow-lg transition-colors ${
+            justSaved ? "bg-green-600" : "bg-blue-600 active:bg-blue-700"
+          }`}
+        >
+          {justSaved ? "✓ Saved" : "Save · next window"}
+        </button>
+      </div>
 
       <div className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-neutral-500">This unit&apos;s windows</h2>

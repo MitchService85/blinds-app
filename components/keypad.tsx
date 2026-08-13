@@ -57,6 +57,10 @@ interface KeypadProps {
 export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange }: KeypadProps) {
   const [whole, setWhole] = useState(() => String(Math.floor(valueSixteenths / 16)));
   const [frac, setFrac] = useState(() => valueSixteenths % 16);
+  // True until the first digit is tapped. The buffer still holds the seeded
+  // value (e.g. the sticky height prefill of 87) — the first digit should
+  // REPLACE that, not append to it, or "87" + tap 6 + tap 3 yields 876.
+  const [pristine, setPristine] = useState(true);
 
   const commit = (nextWhole: string, nextFrac: number) => {
     const wholeNum = nextWhole === "" ? 0 : parseInt(nextWhole, 10);
@@ -64,25 +68,30 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
   };
 
   const tapDigit = (d: string) => {
-    const next = (whole === "0" ? "" : whole) + d;
+    const base = pristine || whole === "0" ? "" : whole;
+    const next = base + d;
     if (next.replace(/^0+/, "").length > MAX_WHOLE_DIGITS) return;
+    setPristine(false);
     setWhole(next);
     commit(next, frac);
   };
 
   const tapBackspace = () => {
+    setPristine(false);
     const next = whole.slice(0, -1);
     setWhole(next);
     commit(next, frac);
   };
 
   const tapClear = () => {
+    setPristine(false);
     setWhole("0");
     setFrac(0);
     commit("0", 0);
   };
 
   const tapFraction = (sixteenths: number) => {
+    setPristine(false);
     setFrac(sixteenths);
     commit(whole, sixteenths);
   };
