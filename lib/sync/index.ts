@@ -393,7 +393,17 @@ export async function signInWithEmail(email: string): Promise<{ error: string | 
       emailRedirectTo: isBrowser() ? window.location.origin : undefined,
     },
   });
-  return { error: error ? error.message : null };
+  if (!error) return { error: null };
+  // Supabase's built-in sender is a testing service capped at a couple of
+  // messages an hour; say so rather than surfacing "email rate limit
+  // exceeded", which reads like a fault in the app.
+  if (/rate limit/i.test(error.message)) {
+    return {
+      error:
+        "Too many sign-in emails this hour (the built-in sender allows about two). Wait an hour, or add custom SMTP for unlimited sends.",
+    };
+  }
+  return { error: error.message };
 }
 
 /**
