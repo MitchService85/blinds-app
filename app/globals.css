@@ -24,3 +24,21 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Field-use guards (job-site phones):
+   1. No horizontal scroll, ever — a stray wide element must clip, not push
+      the page sideways.
+   2. Text controls never render below 16px — iOS Safari auto-zooms the page
+      when focusing a smaller input and leaves it zoomed, which shows up as
+      "the app doesn't fit the screen any more". */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+input,
+textarea,
+select {
+  font-size: max(16px, 1em);
+}
