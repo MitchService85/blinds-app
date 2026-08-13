@@ -49,6 +49,12 @@ export interface Unit extends SyncedRow {
   floor_id: string;
   number: string;
   status: UnitStatus;
+  /**
+   * Free-text field note for the unit — punch-list reality from the job site:
+   * "shim", "needs fascia", "PRIORITY", swap tracking. Not exported to the
+   * factory spreadsheet.
+   */
+  note: string;
   sort_order: number;
 }
 

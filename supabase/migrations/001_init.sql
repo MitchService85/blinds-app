@@ -108,6 +108,8 @@ create table if not exists units (
   floor_id uuid not null references floors (id) on delete cascade,
   number text not null,
   status text not null default 'active' check (status in ('active', 'na', 'done')),
+  -- free-text punch-list note from the job site; never exported to the factory sheet
+  note text not null default '',
   sort_order integer not null default 0
 );
 

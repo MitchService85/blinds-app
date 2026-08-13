@@ -1,0 +1,99 @@
+import seedData from "@/fixtures/seed-projects.json";
+import { createFloor, createProject, createUnit, createWindow, getMeta, setMeta } from "./db";
+import type { BuildingType, ControlOverride, Deduct, FloorDefaults, UnitStatus } from "./types";
+
+const SEED_FLAG = "seeded_v1";
+
+// The fixture JSON has the right shape but `resolveJsonModule` widens its
+// literal fields (e.g. "residential" -> string). These local interfaces just
+// describe what generate_seed.py actually produces so the loop below can
+// cast narrow at the one place it matters (the lib/db.ts write calls).
+interface SeedWindow {
+  tag_base: string;
+  tag_index: number;
+  widths: number[];
+  height: number;
+  control_override: string | null;
+  deduct: string | null;
+  longer_chain: boolean;
+  note: string;
+}
+
+interface SeedUnit {
+  number: string;
+  status: string;
+  windows: SeedWindow[];
+}
+
+interface SeedFloor {
+  label: string;
+  defaults: FloorDefaults;
+  units: SeedUnit[];
+}
+
+interface SeedProject {
+  name: string;
+  address: string;
+  building_type: string;
+  tag_chips: string[];
+  floors: SeedFloor[];
+}
+
+/**
+ * Populate IndexedDB from fixtures/seed-projects.json on first app load, so
+ * Mike sees the app populated with real jobs (Arbour House L2 + L4, 44
+ * Charles Batch 3) instead of an empty dashboard. Guarded by a meta flag so
+ * it only ever runs once per device; seeded rows are normal rows afterward
+ * (editable, exportable, syncable) — see spec: Seed data.
+ */
+export async function seedIfNeeded(): Promise<void> {
+  const alreadySeeded = await getMeta<boolean>(SEED_FLAG);
+  if (alreadySeeded) return;
+
+  const projects = (seedData as { projects: SeedProject[] }).projects;
+
+  for (const project of projects) {
+    const p = await createProject({
+      name: project.name,
+      address: project.address,
+      building_type: project.building_type as BuildingType,
+      tag_chips: project.tag_chips,
+    });
+
+    for (const floor of project.floors) {
+      const f = await createFloor({
+        project_id: p.id,
+        label: floor.label,
+        defaults: floor.defaults,
+      });
+
+      let unitSortOrder = 0;
+      for (const unit of floor.units) {
+        const u = await createUnit({
+          floor_id: f.id,
+          number: unit.number,
+          status: unit.status as UnitStatus,
+          sort_order: unitSortOrder++,
+        });
+
+        let windowSortOrder = 0;
+        for (const w of unit.windows) {
+          await createWindow({
+            unit_id: u.id,
+            tag_base: w.tag_base,
+            tag_index: w.tag_index,
+            widths: w.widths,
+            height: w.height,
+            control_override: w.control_override as ControlOverride,
+            deduct: w.deduct as Deduct,
+            longer_chain: w.longer_chain,
+            note: w.note,
+            sort_order: windowSortOrder++,
+          });
+        }
+      }
+    }
+  }
+
+  await setMeta(SEED_FLAG, true);
+}

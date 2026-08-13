@@ -154,10 +154,11 @@ export async function getFloor(id: string): Promise<Floor | undefined> {
 // ---------------------------------------------------------------------------
 
 export async function createUnit(
-  input: Omit<Unit, "id" | "updated_at" | "deleted">
+  input: Omit<Unit, "id" | "updated_at" | "deleted" | "note"> & { note?: string }
 ): Promise<Unit> {
   return writeRow(db.units, "units", {
     ...input,
+    note: input.note ?? "",
     id: newId(),
     updated_at: "",
     deleted: false,
