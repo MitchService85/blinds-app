@@ -32,3 +32,36 @@ describe("sync engine (unconfigured / local-only)", () => {
     expect(error).toBe("Sync isn't configured on this build.");
   });
 });
+
+describe("extractTokenHash", () => {
+  const LINK =
+    "https://lmrtferwbyqpfhomtieu.supabase.co/auth/v1/verify" +
+    "?token=b7f3c1a9e2d84&type=magiclink&redirect_to=http://localhost:3000";
+
+  it("pulls the token out of a real magic link", async () => {
+    const { extractTokenHash } = await import("./index");
+    expect(extractTokenHash(LINK)).toBe("b7f3c1a9e2d84");
+  });
+
+  it("handles a link with a trailing newline from a paste", async () => {
+    const { extractTokenHash } = await import("./index");
+    expect(extractTokenHash(`${LINK}\n`.trim())).toBe("b7f3c1a9e2d84");
+  });
+
+  it("returns null for a 6-digit code so it goes down the OTP path", async () => {
+    const { extractTokenHash } = await import("./index");
+    expect(extractTokenHash("483920")).toBeNull();
+  });
+
+  it("reads token_hash from a fragment-style link", async () => {
+    const { extractTokenHash } = await import("./index");
+    expect(
+      extractTokenHash("https://app.example.com/#token_hash=abc123def&type=magiclink"),
+    ).toBe("abc123def");
+  });
+
+  it("treats a bare long token as a hash", async () => {
+    const { extractTokenHash } = await import("./index");
+    expect(extractTokenHash("pkce_9f8e7d6c5b4a3")).toBe("pkce_9f8e7d6c5b4a3");
+  });
+});

@@ -40,7 +40,9 @@ export function SyncStatusInner() {
       return;
     }
     setSent(true);
-    setMessage("Check your email for a 6-digit code.");
+    setMessage(
+      "Check your email. Long-press the sign-in link, Copy Link, and paste it below. (Ignore that the link itself opens a broken page.)"
+    );
   }
 
   async function submitCode() {
@@ -115,12 +117,11 @@ export function SyncStatusInner() {
                 {sent && (
                   <input
                     type="text"
-                    inputMode="numeric"
                     autoComplete="one-time-code"
                     value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                    placeholder="6-digit code"
-                    className="mb-2 min-h-12 w-full rounded-lg border border-neutral-300 px-3 text-lg tracking-widest dark:border-neutral-700 dark:bg-neutral-900"
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="Paste link, or 6-digit code"
+                    className="mb-2 min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
                   />
                 )}
                 {message && (
@@ -128,11 +129,11 @@ export function SyncStatusInner() {
                 )}
                 <button
                   type="button"
-                  disabled={busy || (sent ? code.length < 6 : !email.includes("@"))}
+                  disabled={busy || (sent ? code.trim().length < 6 : !email.includes("@"))}
                   onClick={sent ? submitCode : sendCode}
                   className="min-h-12 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  {busy ? "…" : sent ? "Verify code" : "Email me a code"}
+                  {busy ? "…" : sent ? "Sign in" : "Email me a sign-in link"}
                 </button>
                 {sent && (
                   <button
@@ -140,7 +141,7 @@ export function SyncStatusInner() {
                     onClick={sendCode}
                     className="mt-2 min-h-10 w-full text-xs text-neutral-500"
                   >
-                    Send another code
+                    Send another email
                   </button>
                 )}
               </>

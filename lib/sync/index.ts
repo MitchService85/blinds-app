@@ -396,20 +396,51 @@ export async function signInWithEmail(email: string): Promise<{ error: string | 
   return { error: error ? error.message : null };
 }
 
-/** Finish sign-in with the 6-digit code from the email. */
+/**
+ * Finish sign-in from the email — accepts either form:
+ *
+ *  - the 6-digit code (needs {{ .Token }} in the Magic Link email template);
+ *  - the whole magic link, pasted. The link's `token` query param is the
+ *    same one-time hash, and verifying it here is a direct API call, so it
+ *    works even though the link's own redirect target isn't allowlisted
+ *    (it lands on localhost) — and it signs in *this* app rather than
+ *    whatever browser the link would have opened.
+ */
 export async function verifyCode(
   email: string,
-  token: string
+  input: string
 ): Promise<{ error: string | null }> {
   if (!supabase) return { error: "Sync isn't configured on this build." };
-  const { error } = await supabase.auth.verifyOtp({
-    email,
-    token: token.trim(),
-    type: "email",
-  });
+  const raw = input.trim();
+  if (!raw) return { error: "Paste the link or enter the code from your email." };
+
+  const tokenHash = extractTokenHash(raw);
+  const { error } = tokenHash
+    ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" })
+    : await supabase.auth.verifyOtp({ email, token: raw, type: "email" });
+
   if (error) return { error: error.message };
   void syncOnce();
   return { error: null };
+}
+
+/**
+ * Pull the one-time token out of a pasted magic link. Returns null for a
+ * plain numeric code, which goes down the email-OTP path instead.
+ */
+export function extractTokenHash(input: string): string | null {
+  if (/^\d{4,8}$/.test(input)) return null;
+  try {
+    const url = new URL(input);
+    const fromQuery = url.searchParams.get("token") ?? url.searchParams.get("token_hash");
+    if (fromQuery) return fromQuery;
+    // Some templates land the tokens in the fragment instead.
+    const frag = new URLSearchParams(url.hash.replace(/^#/, ""));
+    return frag.get("token_hash") ?? frag.get("token");
+  } catch {
+    // Not a URL — treat a long opaque string as a raw token hash.
+    return input.length > 8 ? input : null;
+  }
 }
 
 export async function signOutUser(): Promise<void> {
