@@ -2135,6 +2135,2258 @@
    ]
   },
   {
+   "name": "Alcon 2665 Meadowpine",
+   "address": "2665 Meadowpine Blvd",
+   "building_type": "commercial",
+   "tag_chips": [
+    "Office",
+    "Boardroom",
+    "Reception",
+    "Kitchen",
+    "Corridor"
+   ],
+   "floors": [
+    {
+     "label": "All Areas",
+     "defaults": {
+      "roll": false,
+      "drive": "R",
+      "tight": false,
+      "extra_note": "",
+      "d_value": "0.5",
+      "color_codes": {
+       "bed": "YUNOWH",
+       "liv": "PWS1WHIT",
+       "studio": "PWS3PLAT",
+       "kitchen": ""
+      }
+     },
+     "units": [
+      {
+       "number": "Level 1 - FE",
+       "status": "done",
+       "windows": [
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1028
+         ],
+         "height": 1560,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Front Entrance"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1010
+         ],
+         "height": 1560,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Front Entrance"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1010
+         ],
+         "height": 1560,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Front Entrance"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1010
+         ],
+         "height": 1560,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Front Entrance"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1006
+         ],
+         "height": 1560,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Front Entrance"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          924
+         ],
+         "height": 1560,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Front Entrance"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1560,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Front Entrance"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          856
+         ],
+         "height": 1560,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Front Entrance"
+        }
+       ]
+      },
+      {
+       "number": "Level 1",
+       "status": "done",
+       "windows": [
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          726
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1088
+         ],
+         "height": 1376,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Reverse Roll - Interior Window"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          688
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          696
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1088
+         ],
+         "height": 1376,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Reverse Roll - Interior Window"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          876
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          922
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          688
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          696
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          918
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          924
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          692
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          686
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          918
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          926
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          708
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          708
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          684
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          722
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          262
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1088
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          680
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          680
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          708
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          708
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          918
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          922
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          680
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          688
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          922
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          732
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          730
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          732
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          678
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          924
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          922
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          732
+         ],
+         "height": 1080,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        }
+       ]
+      },
+      {
+       "number": "L1- Snake Corridor",
+       "status": "done",
+       "windows": [
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          554
+         ],
+         "height": 1576,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Snake Corridor"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          554
+         ],
+         "height": 1576,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Snake Corridor"
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          554
+         ],
+         "height": 1576,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": "Snake Corridor"
+        }
+       ]
+      },
+      {
+       "number": "Level 2",
+       "status": "done",
+       "windows": [
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          808
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          864
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          830
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          828
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          876
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          824
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          808
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          880
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          822
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          808
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          816
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          816
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          832
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          828
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          820
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          820
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          332
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          380
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          932
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          944
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          380
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          328
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          924
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          924
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          856
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          820
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          828
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          828
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          924
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          820
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          820
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          918
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          816
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          820
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          816
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          824
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          918
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          922
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          816
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          820
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          816
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          824
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          918
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          922
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          808
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          828
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1024
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          612
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          816
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          826
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          960
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          816
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          820
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          916
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          1304
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          340
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        },
+        {
+         "tag_base": "",
+         "tag_index": 0,
+         "widths": [
+          920
+         ],
+         "height": 1132,
+         "control_override": null,
+         "deduct": null,
+         "longer_chain": false,
+         "note": ""
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
    "name": "44 Charles Batch 3",
    "address": "44 Charles St",
    "building_type": "residential",

@@ -40,8 +40,13 @@ function floorInput(floor: SeedFloor) {
 
 const projects = (seed as { projects: { name: string; floors: SeedFloor[] }[] })
   .projects;
-const arbour = projects[0];
-const charles = projects[1];
+const byName = (n: string) => {
+  const p = projects.find((p) => p.name.includes(n));
+  if (!p) throw new Error(`seed project ${n} missing`);
+  return p;
+};
+const arbour = byName("Arbour");
+const charles = byName("44 Charles");
 
 describe("checkFloor against real project data", () => {
   it("flags exactly the two asymmetric bays in 44 Charles Batch 3", () => {

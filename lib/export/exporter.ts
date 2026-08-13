@@ -157,7 +157,10 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
     if (unit.status === "na") continue;
 
     unit.windows.forEach((w) => {
-      const tagLabel = `${unit.number}-${windowTagLabel(w)}`;
+      // Untagged windows (office/zone runs like Alcon) export as the bare
+      // unit/zone label — no "-" suffix.
+      const tag = windowTagLabel(w);
+      const tagLabel = tag ? `${unit.number}-${tag}` : unit.number;
       const control = w.control_override ?? input.defaults.drive;
       const noteString = buildNoteString(input.defaults, w.note, w.longer_chain);
 

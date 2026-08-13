@@ -65,3 +65,31 @@ describe("suggestedFilename", () => {
     ).toBe("Arbour House 15 Neighborhood Lane - Level 4.xlsx");
   });
 });
+
+describe("untagged zone windows (office format)", () => {
+  it("exports bare zone label with no dash suffix", async () => {
+    const input = {
+      project_name: "Alcon 2665 Meadowpine",
+      floor_label: "All Areas",
+      export_date: "2026-08-12",
+      defaults: {
+        roll: false, drive: "R" as const, tight: false, extra_note: "",
+        d_value: "0.5",
+        color_codes: { bed: "", liv: "", studio: "", kitchen: "" },
+      },
+      units: [{
+        number: "Level 1 - FE", status: "done",
+        windows: [{
+          tag_base: "", tag_index: 0, widths: [1028], height: 1560,
+          control_override: null, deduct: null, longer_chain: false,
+          note: "Front Entrance", sort_order: 0,
+        }],
+      }],
+    };
+    const wb = await buildWorkbook(input);
+    const sheet = wb.getWorksheet("Window Shades")!;
+    expect(sheet.getCell(10, 1).value).toBe("Level 1 - FE");
+    expect(sheet.getCell(10, 5).value).toBe(64.25);
+    expect(sheet.getCell(10, 11).value).toBe("Front Entrance");
+  });
+});
