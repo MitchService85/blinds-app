@@ -114,6 +114,10 @@ Units marked N/A are skipped. Rows ordered by unit number, then window sort orde
 
 **Golden-file test:** exporter output for the Level 4 data must cell-for-cell match the delivered `Arbour House 15 Neighborhood Lane - Level 4.xlsx` (values, not styling bytes). This is the regression gate for any exporter change.
 
+## Sanity checks (non-blocking)
+
+On marking a unit done and on export, `lib/checks.ts` warns on suspicious entries — v1 rule: 3-panel bay side widths differing by more than 1.5" (validated against real data: catches the known 44 Charles error with zero false positives across all three projects). Warnings list the unit/window and both values; entry and export are never blocked.
+
 ## Error handling
 
 - Sync failures retry with backoff; never surface as blocking errors, only the pending count.
