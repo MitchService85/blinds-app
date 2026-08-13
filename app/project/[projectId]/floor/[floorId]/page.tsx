@@ -86,10 +86,19 @@ export default function FloorPage() {
     })();
   }, [projectId, floorId]);
 
+  /**
+   * Suggest the next unit number by incrementing the *last-added* unit's
+   * number — but only when that number is purely numeric ("430" -> "431").
+   * Commercial jobs use free-text zone labels ("Level 1 - FE", "L1- Snake
+   * Corridor") as the unit "number"; those must never get auto-incremented
+   * from, so the field is just left blank for the tech to type their own.
+   */
   function nextUnitNumber(): string {
-    const numeric = units.map((u) => parseInt(u.number, 10)).filter((n) => !Number.isNaN(n));
-    if (numeric.length === 0) return "";
-    return String(Math.max(...numeric) + 1);
+    if (units.length === 0) return "";
+    const sorted = [...units].sort((a, b) => a.sort_order - b.sort_order);
+    const last = sorted[sorted.length - 1].number.trim();
+    if (!/^\d+$/.test(last)) return "";
+    return String(parseInt(last, 10) + 1);
   }
 
   function openAddUnit() {
@@ -228,14 +237,15 @@ export default function FloorPage() {
 
       {addingUnit && (
         <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-          <label className="mb-1 block text-sm text-neutral-500">Unit number</label>
+          <label className="mb-1 block text-sm text-neutral-500">Unit number or zone label</label>
           <input
             value={newUnitNumber}
             onChange={(e) => {
               setNewUnitNumber(e.target.value);
               setAddError(null);
             }}
-            inputMode="numeric"
+            placeholder={`e.g. "431" or "Level 1 - FE"`}
+            type="text"
             autoFocus
             className="min-h-12 w-full rounded-lg border border-neutral-300 px-3 text-lg dark:border-neutral-700 dark:bg-neutral-900"
           />

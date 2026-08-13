@@ -65,9 +65,14 @@ export function UnitTile({
         onClick={(e) => {
           if (menuOpen) e.preventDefault();
         }}
-        className={`flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-lg border px-2 py-2 text-center ${UNIT_STATE_TILE_CLASSES[state]}`}
+        className={`flex min-h-16 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border px-2 py-2 text-center ${UNIT_STATE_TILE_CLASSES[state]}`}
       >
-        <span className="text-base font-semibold">{unit.number}</span>
+        {/* Commercial zone labels ("L1- Snake Corridor") can be much longer
+            than a residential unit number — truncate with an ellipsis here;
+            the unit screen's header shows the name in full. */}
+        <span className="w-full truncate text-sm font-semibold" title={unit.number}>
+          {unit.number}
+        </span>
         <span className="text-[11px] opacity-80">
           {state === "na" ? "N/A" : windowCount > 0 ? `${windowCount} win` : "—"}
         </span>

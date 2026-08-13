@@ -21,7 +21,13 @@ import { syncUnitTagIndices } from "@/components/window-tags";
 
 interface DraftWindow {
   id: string | null;
-  tag_base: string;
+  /**
+   * null = no tag chosen yet (nothing tappable has happened for this draft).
+   * "" = explicitly "No tag" — valid for office/zone-run entry (see spec:
+   * Alcon 2665 Meadowpine), never routed through computeTagLabels/numbered.
+   * Anything else = a real room tag.
+   */
+  tag_base: string | null;
   widths: number[];
   height: number;
   control_override: ControlOverride;
@@ -33,7 +39,7 @@ interface DraftWindow {
 function blankDraft(): DraftWindow {
   return {
     id: null,
-    tag_base: "",
+    tag_base: null,
     widths: [0],
     height: 0,
     control_override: null,
@@ -74,11 +80,22 @@ export default function WindowEntryPage() {
     draftRef.current = draft;
   }, [draft]);
 
+  const windowsRef = useRef(windows);
+  useEffect(() => {
+    windowsRef.current = windows;
+  }, [windows]);
+
+  // Serializes the "no row yet, create it on first real edit" path in
+  // patchDraft below so a fast burst of digit taps (rapid-fire zone-run
+  // entry) can't race and create duplicate window rows.
+  const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
+
   const refreshWindows = useCallback(async () => {
     const ws = await listWindows(unitId);
     ws.sort((a, b) => a.sort_order - b.sort_order);
     setWindows(ws);
     setFloorWindows((prev) => [...prev.filter((w) => w.unit_id !== unitId), ...ws]);
+    return ws;
   }, [unitId]);
 
   useEffect(() => {
@@ -92,6 +109,11 @@ export default function WindowEntryPage() {
       setUnit(u);
       setFloor(f);
       setProject(p ?? null);
+      if (p?.building_type === "commercial") {
+        // Office/zone-run jobs are almost always untagged windows — default
+        // the "No tag" chip so rapid-fire entry never needs an extra tap.
+        setDraft((d) => (d.tag_base === null && d.id === null ? { ...d, tag_base: "" } : d));
+      }
 
       const allUnits = await listUnits(floorId);
       const all: WindowRecord[] = [];
@@ -138,8 +160,9 @@ export default function WindowEntryPage() {
     return matches[0].height;
   }
 
-  function patchDraft(patch: Partial<Omit<DraftWindow, "id">>) {
+  function patchDraft(patch: Partial<Omit<DraftWindow, "id" | "tag_base">>) {
     setDraft((d) => ({ ...d, ...patch }));
+
     if (draft.id) {
       const id = draft.id;
       const current = windows.find((w) => w.id === id);
@@ -148,7 +171,35 @@ export default function WindowEntryPage() {
         void upsertWindow(merged);
         setWindows((ws) => ws.map((w) => (w.id === id ? merged : w)));
       }
+      return;
     }
+
+    if (draft.tag_base === null) return; // nothing chosen yet — nothing to persist
+
+    // A tag is already set (commercial "No tag" auto-default, or carried
+    // over from Save · next) but no row exists yet. Create it now, on the
+    // first real edit, so rapid-fire zone-run entry is just width-tap-save —
+    // queued so a fast burst of taps can't race and create duplicate rows.
+    writeQueueRef.current = writeQueueRef.current.then(async () => {
+      if (draftRef.current.id !== null) return; // an earlier queued turn already created it
+      const latest = draftRef.current;
+      const created = await createWindow({
+        unit_id: unitId,
+        tag_base: latest.tag_base ?? "",
+        tag_index: 0,
+        widths: latest.widths,
+        height: latest.height,
+        control_override: latest.control_override,
+        deduct: latest.deduct,
+        longer_chain: latest.longer_chain,
+        note: latest.note,
+        sort_order: windowsRef.current.length,
+      });
+      draftRef.current = { ...draftRef.current, id: created.id };
+      setDraft((d) => (d.id === null ? { ...d, id: created.id } : d));
+      await syncUnitTagIndices(unitId);
+      await refreshWindows();
+    });
   }
 
   async function selectTag(tag: string) {
@@ -226,8 +277,8 @@ export default function WindowEntryPage() {
   }
 
   function handleSaveNext() {
-    if (!draft.tag_base) {
-      setError("Pick a room tag.");
+    if (draft.tag_base === null) {
+      setError("Pick a tag — or No tag.");
       return;
     }
     if (draft.widths.some((w) => w <= 0)) {
@@ -239,7 +290,20 @@ export default function WindowEntryPage() {
       return;
     }
     setError(null);
-    setDraft(blankDraft());
+    setDraft({
+      id: null,
+      // Carry the tag and height forward — rapid-fire zone-run entry (see
+      // spec: office format) is then just width-tap-save repeated; the row
+      // for this next window is created lazily by patchDraft on the first
+      // width tap, so focus can go straight to width entry.
+      tag_base: draft.tag_base,
+      widths: [0],
+      height: draft.height,
+      control_override: null,
+      deduct: null,
+      longer_chain: false,
+      note: "",
+    });
     setActiveField(0);
     setNoteOpen(false);
   }
@@ -249,10 +313,13 @@ export default function WindowEntryPage() {
     if (unit) await updateUnit(unit.id, { note });
   }
 
+  /** Preview of the tag suffix for a real (non-empty) draft.tag_base only —
+   * untagged ("No tag") windows never go through computeTagLabels; see
+   * caller and components/window-tags.ts. */
   function previewLabel(): string {
     if (!draft.tag_base) return "";
     const draftId = draft.id ?? "__draft__";
-    const others = windows.filter((w) => w.id !== draftId);
+    const others = windows.filter((w) => w.id !== draftId && w.tag_base !== "");
     const forCalc = [
       ...others.map((w) => ({ id: w.id, tag_base: w.tag_base, sort_order: w.sort_order, deleted: false })),
       {
@@ -269,7 +336,14 @@ export default function WindowEntryPage() {
 
   if (!unit) return <main className="p-4 text-sm text-neutral-500">Loading…</main>;
 
-  const windowLabels = computeTagLabels(windows);
+  // Untagged windows (zone runs) never get numbered — see
+  // components/window-tags.ts. Their display label is just their 1-based
+  // position in the unit's (sort_order-ordered) window list.
+  const windowLabels = computeTagLabels(windows.filter((w) => w.tag_base !== ""));
+  function displayLabelFor(w: WindowRecord): string {
+    if (w.tag_base === "") return `#${windows.findIndex((x) => x.id === w.id) + 1}`;
+    return windowLabels.get(w.id) ?? w.tag_base;
+  }
   const activeIsHeight = activeField === "height";
 
   return (
@@ -278,15 +352,20 @@ export default function WindowEntryPage() {
         <button
           type="button"
           onClick={() => router.push(`/project/${projectId}/floor/${floorId}`)}
-          className="min-h-11 min-w-11 text-xl"
+          className="min-h-11 min-w-11 shrink-0 text-xl"
         >
           ←
         </button>
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold">Unit {unit.number}</h1>
+        <div className="min-w-0 flex-1">
+          {/* Full unit number / zone label, no truncation — the floor
+              grid's tiles are where long labels ("L1- Snake Corridor")
+              get ellipsis-truncated instead. */}
+          <h1 className="text-xl font-semibold break-words">Unit {unit.number}</h1>
           {floor && <div className="text-sm text-neutral-500">{floor.label}</div>}
         </div>
-        {draft.id && <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ saved</span>}
+        {draft.id && (
+          <span className="shrink-0 text-xs text-emerald-600 dark:text-emerald-400">✓ saved</span>
+        )}
       </header>
 
       <button
@@ -310,6 +389,19 @@ export default function WindowEntryPage() {
       )}
 
       <div className="flex flex-wrap gap-2">
+        {/* Room tag is optional — office/zone-run jobs (Alcon-style) enter
+            dozens of untagged windows in walking order. */}
+        <button
+          type="button"
+          onClick={() => selectTag("")}
+          className={`min-h-11 rounded-full border border-dashed px-4 text-sm font-medium ${
+            draft.tag_base === ""
+              ? "border-blue-600 bg-blue-600 text-white"
+              : "border-neutral-300 bg-white text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+          }`}
+        >
+          No tag
+        </button>
         {(project?.tag_chips ?? []).map((tag) => (
           <button
             key={tag}
@@ -325,11 +417,11 @@ export default function WindowEntryPage() {
           </button>
         ))}
       </div>
-      {draft.tag_base && (
+      {draft.tag_base !== null && (
         <div className="text-sm text-neutral-500">
           Will save as{" "}
           <span className="font-mono font-semibold text-neutral-900 dark:text-neutral-100">
-            {unit.number}-{previewLabel()}
+            {draft.tag_base === "" ? unit.number : `${unit.number}-${previewLabel()}`}
           </span>
         </div>
       )}
@@ -487,7 +579,7 @@ export default function WindowEntryPage() {
             }`}
           >
             <div>
-              <div className="font-medium">{windowLabels.get(w.id) ?? w.tag_base}</div>
+              <div className="font-medium">{displayLabelFor(w)}</div>
               <div className="text-neutral-500">
                 {w.widths.map((width) => formatFraction(floorToEighth(width))).join(" + ")} ×{" "}
                 {formatFraction(floorToEighth(w.height))}

@@ -1,8 +1,16 @@
 import seedData from "@/fixtures/seed-projects.json";
-import { createFloor, createProject, createUnit, createWindow, getMeta, setMeta } from "./db";
+import { createFloor, createProject, createUnit, createWindow, getMeta, listProjects, setMeta } from "./db";
 import type { BuildingType, ControlOverride, Deduct, FloorDefaults, UnitStatus } from "./types";
 
-const SEED_FLAG = "seeded_v1";
+const SEED_VERSION_KEY = "seed:version";
+/**
+ * Bump this whenever fixtures/seed-projects.json gains a new PROJECT that
+ * existing installs should pick up (e.g. Alcon 2665 Meadowpine added at
+ * version 2). Each version's seed pass inserts only projects whose `name`
+ * doesn't already exist locally — never touches or duplicates a project
+ * that's already there, so Mitch/Mike's in-progress edits are safe.
+ */
+const CURRENT_SEED_VERSION = 2;
 
 // The fixture JSON has the right shape but `resolveJsonModule` widens its
 // literal fields (e.g. "residential" -> string). These local interfaces just
@@ -40,28 +48,34 @@ interface SeedProject {
 }
 
 /**
- * Populate IndexedDB from fixtures/seed-projects.json on first app load, so
- * Mike sees the app populated with real jobs (Arbour House L2 + L4, 44
- * Charles Batch 3) instead of an empty dashboard. Guarded by a meta flag so
- * it only ever runs once per device; seeded rows are normal rows afterward
- * (editable, exportable, syncable) — see spec: Seed data.
+ * Populate IndexedDB from fixtures/seed-projects.json so Mike sees the app
+ * populated with real jobs (Arbour House L2 + L4, 44 Charles Batch 3, Alcon
+ * 2665 Meadowpine) instead of an empty dashboard. Versioned via a meta
+ * counter rather than a one-shot flag: an install that already seeded at an
+ * older version re-runs this, but only *new* projects (by name) from the
+ * fixture actually get inserted — existing projects (and any edits made to
+ * them) are never touched or duplicated. Seeded rows are normal rows
+ * afterward (editable, exportable, syncable) — see spec: Seed data.
  */
 let seedInFlight: Promise<void> | null = null;
 
 export function seedIfNeeded(): Promise<void> {
   // React dev-mode mounts effects twice; without a shared in-flight promise
-  // both invocations pass the meta-flag check and seed everything twice.
+  // both invocations pass the version check and seed everything twice.
   if (!seedInFlight) seedInFlight = doSeed();
   return seedInFlight;
 }
 
 async function doSeed(): Promise<void> {
-  const alreadySeeded = await getMeta<boolean>(SEED_FLAG);
-  if (alreadySeeded) return;
+  const storedVersion = (await getMeta<number>(SEED_VERSION_KEY)) ?? 0;
+  if (storedVersion >= CURRENT_SEED_VERSION) return;
 
   const projects = (seedData as { projects: SeedProject[] }).projects;
+  const existingNames = new Set((await listProjects()).map((p) => p.name));
 
   for (const project of projects) {
+    if (existingNames.has(project.name)) continue;
+
     const p = await createProject({
       name: project.name,
       address: project.address,
@@ -104,5 +118,5 @@ async function doSeed(): Promise<void> {
     }
   }
 
-  await setMeta(SEED_FLAG, true);
+  await setMeta(SEED_VERSION_KEY, CURRENT_SEED_VERSION);
 }

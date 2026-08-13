@@ -78,7 +78,7 @@ describe("untagged zone windows (office format)", () => {
         color_codes: { bed: "", liv: "", studio: "", kitchen: "" },
       },
       units: [{
-        number: "Level 1 - FE", status: "done",
+        number: "Level 1 - FE", status: "done" as const,
         windows: [{
           tag_base: "", tag_index: 0, widths: [1028], height: 1560,
           control_override: null, deduct: null, longer_chain: false,
