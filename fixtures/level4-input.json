@@ -1,0 +1,789 @@
+{
+ "project_name": "Arbour House 15 Neighborhood Lane",
+ "floor_label": "Level 4",
+ "export_date": "2026-08-12",
+ "defaults": {
+  "reverse_roll": true,
+  "drive": "R",
+  "tight_measures": true,
+  "extra_note": "DRILL HOLES IN FASCIA",
+  "d_value": "0.5",
+  "color_codes": {
+   "Bed": "YUNOWH",
+   "Liv": "PWS1WHIT",
+   "Studio": "PWS3PLAT"
+  }
+ },
+ "windows": [
+  {
+   "unit": "401",
+   "tag_base": "LR",
+   "tag_index": 1,
+   "width_sixteenths": 1198,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "Dl",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "401",
+   "tag_base": "LR",
+   "tag_index": 2,
+   "width_sixteenths": 1086,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "Dr",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "402",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1128,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "402",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1288,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "403",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1280,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "403",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1128,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "404",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1134,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "404",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1284,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "405",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1286,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "405",
+   "tag_base": "LR",
+   "tag_index": 1,
+   "width_sixteenths": 516,
+   "height_sixteenths": 1392,
+   "control": "L",
+   "deduct": "Dl",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "405",
+   "tag_base": "LR",
+   "tag_index": 2,
+   "width_sixteenths": 1102,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "405",
+   "tag_base": "LR",
+   "tag_index": 3,
+   "width_sixteenths": 356,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "Dr",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "406",
+   "tag_base": "MBR",
+   "tag_index": 0,
+   "width_sixteenths": 1450,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "406",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1286,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "406",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1284,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "407",
+   "tag_base": "MBR",
+   "tag_index": 0,
+   "width_sixteenths": 1118,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "407",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1126,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "407",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1278,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "408",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1284,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "408",
+   "tag_base": "LR",
+   "tag_index": 1,
+   "width_sixteenths": 1130,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "408",
+   "tag_base": "LR",
+   "tag_index": 2,
+   "width_sixteenths": 978,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "408",
+   "tag_base": "LR",
+   "tag_index": 3,
+   "width_sixteenths": 1118,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "409",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1116,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "409",
+   "tag_base": "LR",
+   "tag_index": 1,
+   "width_sixteenths": 1118,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "409",
+   "tag_base": "LR",
+   "tag_index": 2,
+   "width_sixteenths": 1134,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "409",
+   "tag_base": "MBR",
+   "tag_index": 0,
+   "width_sixteenths": 1294,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "410",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1286,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "410",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1128,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "411",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1128,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "411",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1280,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "412",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1278,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "412",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1454,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "413",
+   "tag_base": "LR",
+   "tag_index": 1,
+   "width_sixteenths": 362,
+   "height_sixteenths": 1392,
+   "control": "L",
+   "deduct": "Dl",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "413",
+   "tag_base": "LR",
+   "tag_index": 2,
+   "width_sixteenths": 1118,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "413",
+   "tag_base": "LR",
+   "tag_index": 3,
+   "width_sixteenths": 514,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "Dr",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "413",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1280,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "414",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1276,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "414",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1130,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "415",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1128,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "415",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1284,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "416",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1280,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "416",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1136,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "418",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1618,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "418",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1500,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "418",
+   "tag_base": "MBR",
+   "tag_index": 1,
+   "width_sixteenths": 1816,
+   "height_sixteenths": 1392,
+   "control": "L",
+   "deduct": "Dl",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA. Width reduced 3\" for corner (raw measure was 116 1/2)"
+  },
+  {
+   "unit": "418",
+   "tag_base": "MBR",
+   "tag_index": 2,
+   "width_sixteenths": 1250,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "Dr",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "419",
+   "tag_base": "BR",
+   "tag_index": 1,
+   "width_sixteenths": 1120,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "419",
+   "tag_base": "BR",
+   "tag_index": 2,
+   "width_sixteenths": 1128,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "419",
+   "tag_base": "BR",
+   "tag_index": 22,
+   "width_sixteenths": 1126,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "419",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1128,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "419",
+   "tag_base": "MBR",
+   "tag_index": 0,
+   "width_sixteenths": 1284,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "420",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1278,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "420",
+   "tag_base": "LR",
+   "tag_index": 1,
+   "width_sixteenths": 512,
+   "height_sixteenths": 1392,
+   "control": "L",
+   "deduct": "Dl",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "420",
+   "tag_base": "LR",
+   "tag_index": 2,
+   "width_sixteenths": 1118,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "420",
+   "tag_base": "LR",
+   "tag_index": 3,
+   "width_sixteenths": 362,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "Dr",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "421",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1482,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "421",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1282,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "422",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1284,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "422",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1124,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "423",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1126,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "423",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1280,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "424",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1284,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "424",
+   "tag_base": "LR",
+   "tag_index": 1,
+   "width_sixteenths": 1120,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "424",
+   "tag_base": "LR",
+   "tag_index": 2,
+   "width_sixteenths": 1120,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "424",
+   "tag_base": "BR",
+   "tag_index": 2,
+   "width_sixteenths": 1122,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "425",
+   "tag_base": "LR",
+   "tag_index": 1,
+   "width_sixteenths": 1118,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "425",
+   "tag_base": "LR",
+   "tag_index": 2,
+   "width_sixteenths": 1126,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "425",
+   "tag_base": "MBR",
+   "tag_index": 0,
+   "width_sixteenths": 1288,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "426",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1282,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "426",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1606,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "427",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1616,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "427",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1284,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "428",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 1280,
+   "height_sixteenths": 1008,
+   "control": "R",
+   "deduct": null,
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "428",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1128,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "429",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1126,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "429",
+   "tag_base": "BR",
+   "tag_index": 0,
+   "width_sixteenths": 928,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  },
+  {
+   "unit": "430",
+   "tag_base": "LR",
+   "tag_index": 0,
+   "width_sixteenths": 1142,
+   "height_sixteenths": 1392,
+   "control": "R",
+   "deduct": "D",
+   "note_full": "TIGHT MEASURES. DRILL HOLES IN FASCIA"
+  }
+ ]
+}
