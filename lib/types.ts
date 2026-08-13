@@ -61,8 +61,13 @@ export interface WindowRecord extends SyncedRow {
   tag_base: string;
   /** 0 = unnumbered (single window of this tag_base in the unit) */
   tag_index: number;
-  /** Width in integer sixteenths of an inch */
-  width: number;
+  /**
+   * Panel widths in integer sixteenths of an inch, left to right.
+   * Most windows have one panel; bay windows (e.g. 44 Charles) have 3 panels
+   * sharing one tag/height/options — export emits one row per panel with the
+   * same tag.
+   */
+  widths: number[];
   /** Height in integer sixteenths of an inch */
   height: number;
   control_override: ControlOverride;
