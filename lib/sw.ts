@@ -21,9 +21,21 @@ export interface ServiceWorkerUpdateState {
 export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
+  const userRequestedReloadRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+
+    // Never run the service worker against the dev server: it intercepts
+    // HMR/dev requests and Turbopack responds with hard reloads, producing an
+    // infinite reload loop. Also unregister any worker left over from a
+    // previous production visit on this origin.
+    if (process.env.NODE_ENV !== "production") {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const reg of regs) reg.unregister();
+      });
       return;
     }
 
@@ -57,7 +69,10 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
 
     let reloading = false;
     const onControllerChange = () => {
-      if (reloading) return;
+      // Only reload when the user explicitly accepted the update via
+      // reload(); the first-install claim also fires controllerchange and
+      // must never yank the page out from under an entry session.
+      if (reloading || !userRequestedReloadRef.current) return;
       reloading = true;
       window.location.reload();
     };
@@ -70,6 +85,7 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
   }, []);
 
   const reload = useCallback(() => {
+    userRequestedReloadRef.current = true;
     const worker = waitingWorkerRef.current;
     if (worker) {
       worker.postMessage({ type: "SKIP_WAITING" });

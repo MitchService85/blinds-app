@@ -46,7 +46,16 @@ interface SeedProject {
  * it only ever runs once per device; seeded rows are normal rows afterward
  * (editable, exportable, syncable) — see spec: Seed data.
  */
-export async function seedIfNeeded(): Promise<void> {
+let seedInFlight: Promise<void> | null = null;
+
+export function seedIfNeeded(): Promise<void> {
+  // React dev-mode mounts effects twice; without a shared in-flight promise
+  // both invocations pass the meta-flag check and seed everything twice.
+  if (!seedInFlight) seedInFlight = doSeed();
+  return seedInFlight;
+}
+
+async function doSeed(): Promise<void> {
   const alreadySeeded = await getMeta<boolean>(SEED_FLAG);
   if (alreadySeeded) return;
 
