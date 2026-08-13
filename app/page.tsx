@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { seedIfNeeded } from "@/lib/seed";
-import { listFloors, listProjects, listUnits } from "@/lib/db";
+import { listFloors, listProjects, listUnits, listWindows } from "@/lib/db";
 import type { Project } from "@/lib/types";
 import { JobCard, type FloorProgress } from "@/components/job-card";
 import { SyncStatus } from "@/components/sync-status";
@@ -30,11 +30,17 @@ export default function Home() {
         for (const floor of floors) {
           const units = await listUnits(floor.id);
           const relevant = units.filter((u) => u.status !== "na");
+          let blinds = 0;
+          for (const unit of relevant) {
+            const windows = await listWindows(unit.id);
+            blinds += windows.reduce((n, w) => n + w.widths.length, 0);
+          }
           floorProgress.push({
             id: floor.id,
             label: floor.label,
             done: relevant.filter((u) => u.status === "done").length,
             total: relevant.length,
+            blinds,
           });
         }
         nextRows.push({ project, floors: floorProgress });

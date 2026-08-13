@@ -6,6 +6,8 @@ export interface FloorProgress {
   label: string;
   done: number;
   total: number;
+  /** Total blinds on the floor (each bay panel is one blind) */
+  blinds: number;
 }
 
 interface JobCardProps {
@@ -43,6 +45,7 @@ export function JobCard({ project, floors }: JobCardProps) {
               className="min-h-9 rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-medium active:bg-neutral-100 dark:border-neutral-700 dark:active:bg-neutral-800"
             >
               {f.label} {f.total > 0 && f.done === f.total ? "✓" : `${f.done}/${f.total}`}
+              <span className="ml-1 text-neutral-400">· {f.blinds}</span>
             </Link>
           ))}
         </div>
