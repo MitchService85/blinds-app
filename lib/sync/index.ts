@@ -49,9 +49,18 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const isBrowser = () => typeof window !== "undefined";
 
-const supabase: SupabaseClient | null =
+/** Tables live in the `blinds` schema (see createClient below). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BlindsClient = SupabaseClient<any, "blinds">;
+
+const supabase: BlindsClient | null =
   SUPABASE_URL && SUPABASE_ANON_KEY
     ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        // The app's tables live in a dedicated `blinds` schema, not `public`:
+        // the Supabase org is at its free-project cap, so this database is
+        // shared with HyperFocus (which owns `public`). See
+        // supabase/migrations/001_init.sql.
+        db: { schema: "blinds" },
         auth: {
           persistSession: isBrowser(),
           autoRefreshToken: isBrowser(),
@@ -183,7 +192,7 @@ export async function drainOutbox(): Promise<void> {
 }
 
 async function pushBatch(
-  client: SupabaseClient,
+  client: BlindsClient,
   table: OutboxTableName,
   rowIds: string[],
   rowMap: Map<string, number[]>
@@ -264,7 +273,7 @@ export async function pullSince(): Promise<void> {
   }
 }
 
-async function pullTable(client: SupabaseClient, table: OutboxTableName): Promise<void> {
+async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<void> {
   const watermarkKey = `sync:watermark:${table}`;
   const stored = await db.meta.get(watermarkKey);
   let cursor = (stored?.value as string | undefined) ?? "1970-01-01T00:00:00.000Z";
