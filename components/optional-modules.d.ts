@@ -17,6 +17,7 @@ declare module "@/lib/sync" {
     pendingCount: number;
     signedIn: boolean;
     signIn: (email: string) => Promise<{ error: string | null }>;
+    verify: (email: string, code: string) => Promise<{ error: string | null }>;
     signOut: () => Promise<void>;
   };
   export function forceSync(): Promise<void>;

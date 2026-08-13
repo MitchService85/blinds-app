@@ -377,16 +377,39 @@ async function refreshSnapshot(): Promise<void> {
 // Auth
 // ---------------------------------------------------------------------------
 
-/** Send a magic-link email. No-op error when sync isn't configured. */
+/**
+ * Email a sign-in code (and link). The emailed 6-digit code is the primary
+ * path: an iOS home-screen app has its own storage container, so a magic
+ * link tapped in Mail opens Safari and signs in *there*, leaving the
+ * installed app still signed out. Typing the code into the app itself
+ * avoids that entirely — see verifyCode below.
+ */
 export async function signInWithEmail(email: string): Promise<{ error: string | null }> {
   if (!supabase) return { error: "Sync isn't configured on this build." };
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
+      shouldCreateUser: true,
       emailRedirectTo: isBrowser() ? window.location.origin : undefined,
     },
   });
   return { error: error ? error.message : null };
+}
+
+/** Finish sign-in with the 6-digit code from the email. */
+export async function verifyCode(
+  email: string,
+  token: string
+): Promise<{ error: string | null }> {
+  if (!supabase) return { error: "Sync isn't configured on this build." };
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: token.trim(),
+    type: "email",
+  });
+  if (error) return { error: error.message };
+  void syncOnce();
+  return { error: null };
 }
 
 export async function signOutUser(): Promise<void> {
@@ -454,8 +477,10 @@ export interface SyncStatus {
   state: SyncState;
   pendingCount: number;
   signedIn: boolean;
-  /** Send a magic-link email. Returns an error message on failure, else null. */
+  /** Email a sign-in code. Returns an error message on failure, else null. */
   signIn: (email: string) => Promise<{ error: string | null }>;
+  /** Finish sign-in with the 6-digit code from that email. */
+  verify: (email: string, code: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -475,6 +500,10 @@ export function useSyncStatus(): SyncStatus {
   }, []);
 
   const signIn = useCallback((email: string) => signInWithEmail(email), []);
+  const verify = useCallback(
+    (email: string, code: string) => verifyCode(email, code),
+    []
+  );
   const signOut = useCallback(() => signOutUser(), []);
 
   return {
@@ -482,6 +511,7 @@ export function useSyncStatus(): SyncStatus {
     pendingCount: snapshot.pendingCount,
     signedIn: snapshot.signedIn,
     signIn,
+    verify,
     signOut,
   };
 }
