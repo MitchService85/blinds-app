@@ -416,12 +416,35 @@ export async function verifyCode(
 
   const tokenHash = extractTokenHash(raw);
   const { error } = tokenHash
-    ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" })
+    ? await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        // A first-ever sign-in emails a "Confirm signup" link (type=signup);
+        // later ones are type=magiclink. Trust the link's own type.
+        type: extractOtpType(raw),
+      })
     : await supabase.auth.verifyOtp({ email, token: raw, type: "email" });
 
-  if (error) return { error: error.message };
+  if (error) {
+    const spent = /expired|invalid|not found/i.test(error.message);
+    return {
+      error: spent
+        ? "That link was already used — opening it spends it. Tap \u201cSend another email\u201d, then copy the new link WITHOUT opening it."
+        : error.message,
+    };
+  }
   void syncOnce();
   return { error: null };
+}
+
+/** The link carries its own OTP type; fall back to a plain magic link. */
+function extractOtpType(input: string): "magiclink" | "signup" | "invite" | "recovery" {
+  try {
+    const t = new URL(input).searchParams.get("type");
+    if (t === "signup" || t === "invite" || t === "recovery") return t;
+  } catch {
+    // not a URL — fall through
+  }
+  return "magiclink";
 }
 
 /**

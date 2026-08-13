@@ -40,9 +40,7 @@ export function SyncStatusInner() {
       return;
     }
     setSent(true);
-    setMessage(
-      "Check your email. Long-press the sign-in link, Copy Link, and paste it below. (Ignore that the link itself opens a broken page.)"
-    );
+    setMessage(null);
   }
 
   async function submitCode() {
@@ -114,6 +112,15 @@ export function SyncStatusInner() {
                   placeholder="you@example.com"
                   className="mb-2 min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
                 />
+                {sent && (
+                  <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                    <p className="mb-1 font-semibold">Don&apos;t tap the link in the email.</p>
+                    <p>
+                      Opening it uses it up. Long-press the link → <b>Copy Link</b> → paste
+                      it below.
+                    </p>
+                  </div>
+                )}
                 {sent && (
                   <input
                     type="text"
