@@ -32,7 +32,7 @@ Supabase magic-link email sign-in, once per device; both emails allowlisted (ms@
   - Residential: LR, BR, MBR, Kit, Studio, Den, Bath
   - Commercial: Office, Boardroom, Reception, Kitchen, Corridor
   - Chip set is editable per project (add/remove tags).
-- Floors: add floors by number/name (e.g. "L4"). Per-floor defaults, set once, shown as a bar inside the floor and applied to every window:
+- Floors: add groups by number/name — a physical floor ("L4") or an arbitrary batch of units scattered around the building ("Batch 3", as in 44 Charles). Per-floor defaults, set once, shown as a bar inside the floor and applied to every window:
   - Roll: Reverse (checkbox → "Rev" in export)
   - Drive/control default: Right or Left
   - Tight measures (checkbox)
@@ -47,6 +47,7 @@ Supabase magic-link email sign-in, once per device; both emails allowlisted (ms@
 
 ### 4. Unit view / window entry (the core screen)
 One window at a time:
+- **Panels**: a window holds 1..n panel widths (bay windows: side/centre/side) sharing one tag, height, and options. "+ panel" adds a width field; export emits one row per panel with the repeated tag (matches 44 Charles Batch 3).
 - Room chips (from project chip set). Tapping LR when an LR exists auto-numbers: LR → LR1, LR2… (matches 401-LR1 convention; first window keeps plain tag until a second of the same type is added, then both get numbered — export renames retroactively so numbering is always consistent).
 - Width and Height: whole-inch number pad plus a **fraction row**. No free typing needed; keyboard never opens.
 - **Precision switch (⅛ / ¹⁄₁₆) on the keypad**, persisted per device: in 1/16 mode (laser measure) the fraction row shows sixteenths; the entered value is auto-rounded DOWN to the nearest 1/8 for display and export, with the raw laser reading shown as a hint (“74 3/4 — from 74 13/16”) and kept in storage.
@@ -73,6 +74,10 @@ Postgres (Supabase) and IndexedDB share the same shape. All rows carry `id (uuid
 - **windows**: unit_id, tag_base (LR/BR/…), tag_index (int, 0 = unnumbered), width (stored in SIXTEENTHS as int — no float drift, preserves raw laser readings), height (sixteenths), control_override (null | L | R), deduct (null | Dl | Dr | D), longer_chain (bool), note (text), sort_order
 
 Width/height stored as integer sixteenths of an inch (74 7/8 → 1198; 74 13/16 → 1197). Rounded DOWN to the nearest eighth and converted to decimal only at display/export, so raw 1/16 laser readings survive in the data.
+
+## Seed data
+
+First run loads three real example projects from `fixtures/seed-projects.json` so Mike sees the app populated: Arbour House Level 2 + Level 4, and 44 Charles Batch 3 (48 three-panel bay windows, units scattered across floors). Seeded rows are normal rows — editable, exportable, syncable.
 
 ## Autosave and sync
 
