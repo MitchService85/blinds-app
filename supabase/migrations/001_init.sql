@@ -83,7 +83,10 @@ create table if not exists floors (
   project_id uuid not null references projects (id) on delete cascade,
   label text not null,
   -- { roll, drive, tight, extra_note, d_value, color_codes } — see FloorDefaults in lib/types.ts
-  defaults jsonb not null default '{}'::jsonb
+  defaults jsonb not null default '{}'::jsonb,
+  -- factory order number + site trip count, shown in the floor header for invoicing
+  order_number text not null default '',
+  trips integer
 );
 
 create index if not exists floors_updated_at_idx on floors (updated_at);

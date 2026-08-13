@@ -41,6 +41,10 @@ export interface Floor extends SyncedRow {
   project_id: string;
   label: string;
   defaults: FloorDefaults;
+  /** Factory order number for this floor's batch — shown in the header for invoicing (Mike). */
+  order_number: string;
+  /** Number of site trips for this floor — invoicing input (Mike). */
+  trips: number | null;
 }
 
 export type UnitStatus = "active" | "na" | "done";

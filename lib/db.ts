@@ -116,10 +116,15 @@ export async function getProject(id: string): Promise<Project | undefined> {
 // ---------------------------------------------------------------------------
 
 export async function createFloor(
-  input: Omit<Floor, "id" | "updated_at" | "deleted">
+  input: Omit<Floor, "id" | "updated_at" | "deleted" | "order_number" | "trips"> & {
+    order_number?: string;
+    trips?: number | null;
+  }
 ): Promise<Floor> {
   return writeRow(db.floors, "floors", {
     ...input,
+    order_number: input.order_number ?? "",
+    trips: input.trips ?? null,
     id: newId(),
     updated_at: "",
     deleted: false,
