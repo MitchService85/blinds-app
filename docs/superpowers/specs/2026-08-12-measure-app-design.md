@@ -75,6 +75,10 @@ Postgres (Supabase) and IndexedDB share the same shape. All rows carry `id (uuid
 
 Width/height stored as integer sixteenths of an inch (74 7/8 → 1198; 74 13/16 → 1197). Rounded DOWN to the nearest eighth and converted to decimal only at display/export, so raw 1/16 laser readings survive in the data.
 
+## Install mode (added 2026-08-13, Mitch-approved)
+
+Floor view gains a Measure | Install toggle. Install lens per unit: install = null → "staged" (🟢 dropped off/handoff-ready) → "done" (✅), both steps optional (solo installs jump to done); install_blocked (⚠️ yellow) is an independent flag requiring a unit note, overrides display until cleared. Tap = action sheet (Staged/Complete/Blocked/Clear + Open unit). Counts in header; blocked notes listed; dashboard chips show install line once a floor has activity. Rides on unit rows — syncs, offline, never exported.
+
 ## Seed data
 
 First run loads three real example projects from `fixtures/seed-projects.json` so Mike sees the app populated: Arbour House Level 2 + Level 4, and 44 Charles Batch 3 (48 three-panel bay windows, units scattered across floors). Seeded rows are normal rows — editable, exportable, syncable.

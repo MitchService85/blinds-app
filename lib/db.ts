@@ -154,11 +154,17 @@ export async function getFloor(id: string): Promise<Floor | undefined> {
 // ---------------------------------------------------------------------------
 
 export async function createUnit(
-  input: Omit<Unit, "id" | "updated_at" | "deleted" | "note"> & { note?: string }
+  input: Omit<Unit, "id" | "updated_at" | "deleted" | "note" | "install" | "install_blocked"> & {
+    note?: string;
+    install?: Unit["install"];
+    install_blocked?: boolean;
+  }
 ): Promise<Unit> {
   return writeRow(db.units, "units", {
     ...input,
     note: input.note ?? "",
+    install: input.install ?? null,
+    install_blocked: input.install_blocked ?? false,
     id: newId(),
     updated_at: "",
     deleted: false,

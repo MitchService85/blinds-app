@@ -45,6 +45,9 @@ export interface Floor extends SyncedRow {
 
 export type UnitStatus = "active" | "na" | "done";
 
+/** Install lifecycle: null = not started, "staged" = 🟢 ready/handoff, "done" = ✅ */
+export type InstallStatus = null | "staged" | "done";
+
 export interface Unit extends SyncedRow {
   floor_id: string;
   number: string;
@@ -55,6 +58,13 @@ export interface Unit extends SyncedRow {
    * factory spreadsheet.
    */
   note: string;
+  /** Install progress, independent of measure status. Both steps optional. */
+  install: InstallStatus;
+  /**
+   * ⚠️ yellow ball: install blocked by an issue (note explains). Overrides the
+   * install color until cleared; can be set at any install state.
+   */
+  install_blocked: boolean;
   sort_order: number;
 }
 

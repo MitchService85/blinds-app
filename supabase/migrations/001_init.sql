@@ -110,6 +110,10 @@ create table if not exists units (
   status text not null default 'active' check (status in ('active', 'na', 'done')),
   -- free-text punch-list note from the job site; never exported to the factory sheet
   note text not null default '',
+  -- install lifecycle (independent of measure status); both steps optional
+  install text check (install in ('staged', 'done')),
+  -- yellow-ball flag: install blocked by an issue described in note
+  install_blocked boolean not null default false,
   sort_order integer not null default 0
 );
 
