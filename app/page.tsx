@@ -7,6 +7,7 @@ import { listFloors, listProjects, listUnits, listWindows } from "@/lib/db";
 import type { Project } from "@/lib/types";
 import { JobCard, type FloorProgress } from "@/components/job-card";
 import { SyncStatus } from "@/components/sync-status";
+import { blockedOf, installOf } from "@/components/status";
 
 interface ProjectRow {
   project: Project;
@@ -35,12 +36,26 @@ export default function Home() {
             const windows = await listWindows(unit.id);
             blinds += windows.reduce((n, w) => n + w.widths.length, 0);
           }
+
+          let installStaged = 0;
+          let installDone = 0;
+          let installBlocked = 0;
+          for (const unit of relevant) {
+            if (blockedOf(unit)) installBlocked++;
+            else if (installOf(unit) === "staged") installStaged++;
+            else if (installOf(unit) === "done") installDone++;
+          }
+          const hasInstallActivity = installStaged + installDone + installBlocked > 0;
+
           floorProgress.push({
             id: floor.id,
             label: floor.label,
             done: relevant.filter((u) => u.status === "done").length,
             total: relevant.length,
             blinds,
+            install: hasInstallActivity
+              ? { staged: installStaged, done: installDone, blocked: installBlocked }
+              : null,
           });
         }
         nextRows.push({ project, floors: floorProgress });

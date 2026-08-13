@@ -13,11 +13,17 @@ import {
   updateUnit,
 } from "@/lib/db";
 import { checkUnitWindows, type MeasurementWarning } from "@/lib/checks";
-import type { Floor, FloorDefaults, Project, Unit, UnitStatus, WindowRecord } from "@/lib/types";
+import type { Floor, FloorDefaults, InstallStatus, Project, Unit, UnitStatus, WindowRecord } from "@/lib/types";
 import { UnitTile } from "@/components/unit-tile";
+import { InstallTile } from "@/components/install-tile";
+import { InstallActionSheet, type InstallAction } from "@/components/install-action-sheet";
+import { blockedOf, installOf } from "@/components/status";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { ExportButton } from "@/components/export-button";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
+
+type FloorMode = "measure" | "install";
+const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
 
 interface FloorPageData {
   project: Project | null;
@@ -56,6 +62,22 @@ export default function FloorPage() {
   const [addError, setAddError] = useState<string | null>(null);
   const [doneWarnings, setDoneWarnings] = useState<MeasurementWarning[] | null>(null);
   const [noteUnitId, setNoteUnitId] = useState<string | null>(null);
+  const [mode, setMode] = useState<FloorMode>("measure");
+  const [installSheetUnitId, setInstallSheetUnitId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(`${FLOOR_MODE_KEY_PREFIX}${floorId}`);
+    // One-time sync from an external store (localStorage) on mount, guarded
+    // to client-only so the server-rendered/hydration-time default
+    // ("measure") never mismatches — not a props/state mirroring anti-pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (stored === "measure" || stored === "install") setMode(stored);
+  }, [floorId]);
+
+  function selectMode(next: FloorMode) {
+    setMode(next);
+    window.localStorage.setItem(`${FLOOR_MODE_KEY_PREFIX}${floorId}`, next);
+  }
 
   const warningsByUnit = useMemo(() => {
     const map = new Map<string, MeasurementWarning[]>();
@@ -65,6 +87,29 @@ export default function FloorPage() {
     }
     return map;
   }, [units, windowsByUnit]);
+
+  const installSummary = useMemo(() => {
+    let staged = 0;
+    let done = 0;
+    let blocked = 0;
+    let toGo = 0;
+    const blockedUnits: Unit[] = [];
+    for (const u of units) {
+      if (u.status === "na") continue;
+      const isBlocked = blockedOf(u);
+      const install = installOf(u);
+      if (isBlocked) {
+        blocked++;
+        blockedUnits.push(u);
+      } else if (install === "staged") {
+        staged++;
+      } else if (install === "done") {
+        done++;
+      }
+      if (!isBlocked && install !== "done") toGo++;
+    }
+    return { staged, done, blocked, toGo, blockedUnits };
+  }, [units]);
 
   async function refresh() {
     const data = await loadFloorPageData(projectId, floorId);
@@ -137,6 +182,48 @@ export default function FloorPage() {
     await refresh();
   }
 
+  /**
+   * Staged/Complete/Clear are simple writes that close the sheet. Blocked
+   * always sets install_blocked, but doesn't touch install itself (blocked
+   * is an independent overlay — see Unit.install_blocked): if the unit's
+   * note is empty, it hands off straight to the existing note sheet (a
+   * block needs an explanation); if a note already exists, the action sheet
+   * stays open showing it (see InstallActionSheet).
+   */
+  async function handleInstallAction(unitId: string, action: InstallAction) {
+    const unit = units.find((u) => u.id === unitId);
+    if (!unit) return;
+
+    let patch: { install?: InstallStatus; install_blocked?: boolean };
+    switch (action) {
+      case "staged":
+        patch = { install: "staged", install_blocked: false };
+        break;
+      case "complete":
+        patch = { install: "done", install_blocked: false };
+        break;
+      case "clear":
+        patch = { install: null, install_blocked: false };
+        break;
+      case "blocked":
+        patch = { install_blocked: true };
+        break;
+    }
+    await updateUnit(unitId, patch);
+
+    if (action === "blocked") {
+      if (!unit.note) {
+        setInstallSheetUnitId(null);
+        setNoteUnitId(unitId);
+      }
+      // else: leave the sheet open so the just-set blocked state + existing
+      // note preview show (refresh below brings in the fresh unit).
+    } else {
+      setInstallSheetUnitId(null);
+    }
+    await refresh();
+  }
+
   function openNoteEditor(unitId: string) {
     setNoteUnitId(unitId);
   }
@@ -165,13 +252,30 @@ export default function FloorPage() {
         <button
           type="button"
           onClick={() => router.push(`/project/${projectId}`)}
-          className="min-h-11 min-w-11 text-xl"
+          className="min-h-11 min-w-11 shrink-0 text-xl"
         >
           ←
         </button>
-        <div>
-          <h1 className="text-xl font-semibold">{floor.label}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-semibold">{floor.label}</h1>
           {project && <div className="text-sm text-neutral-500">{project.name}</div>}
+        </div>
+        <div className="flex shrink-0 overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
+          {(["measure", "install"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => selectMode(m)}
+              aria-pressed={mode === m}
+              className={`min-h-9 px-3 text-xs font-medium capitalize ${
+                mode === m
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
+              }`}
+            >
+              {m}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -189,7 +293,7 @@ export default function FloorPage() {
         </div>
       )}
 
-      {doneWarnings && (
+      {mode === "measure" && doneWarnings && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
           <div className="mb-1 flex items-center justify-between gap-2">
             <span className="font-semibold">Marked done — worth a second look</span>
@@ -212,30 +316,54 @@ export default function FloorPage() {
         </div>
       )}
 
+      {mode === "install" && (
+        <>
+          <div className="text-sm text-neutral-600 dark:text-neutral-400">
+            🟢 {installSummary.staged} staged · ✅ {installSummary.done} done · ⚠️{" "}
+            {installSummary.blocked} blocked · {installSummary.toGo} to go
+          </div>
+          {installSummary.blockedUnits.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              {installSummary.blockedUnits.map((u) => (
+                <div key={u.id}>
+                  ⚠️ {u.number} — &quot;{u.note || "no note"}&quot;
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {units.map((unit) => (
-          <UnitTile
-            key={unit.id}
-            unit={unit}
-            windowCount={windowsByUnit.get(unit.id)?.length ?? 0}
-            href={`/project/${projectId}/floor/${floorId}/unit/${unit.id}`}
-            hasWarning={warningsByUnit.has(unit.id)}
-            onSetStatus={(status) => handleSetStatus(unit.id, status)}
-            onDelete={() => handleDeleteUnit(unit.id)}
-            onOpenNote={() => openNoteEditor(unit.id)}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={openAddUnit}
-          className="flex min-h-16 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-400 active:bg-neutral-50 dark:border-neutral-700 dark:active:bg-neutral-900"
-          aria-label="Add unit"
-        >
-          +
-        </button>
+        {mode === "measure"
+          ? units.map((unit) => (
+              <UnitTile
+                key={unit.id}
+                unit={unit}
+                windowCount={windowsByUnit.get(unit.id)?.length ?? 0}
+                href={`/project/${projectId}/floor/${floorId}/unit/${unit.id}`}
+                hasWarning={warningsByUnit.has(unit.id)}
+                onSetStatus={(status) => handleSetStatus(unit.id, status)}
+                onDelete={() => handleDeleteUnit(unit.id)}
+                onOpenNote={() => openNoteEditor(unit.id)}
+              />
+            ))
+          : units.map((unit) => (
+              <InstallTile key={unit.id} unit={unit} onTap={() => setInstallSheetUnitId(unit.id)} />
+            ))}
+        {mode === "measure" && (
+          <button
+            type="button"
+            onClick={openAddUnit}
+            className="flex min-h-16 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-400 active:bg-neutral-50 dark:border-neutral-700 dark:active:bg-neutral-900"
+            aria-label="Add unit"
+          >
+            +
+          </button>
+        )}
       </div>
 
-      {addingUnit && (
+      {mode === "measure" && addingUnit && (
         <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
           <label className="mb-1 block text-sm text-neutral-500">Unit number or zone label</label>
           <input
@@ -287,6 +415,20 @@ export default function FloorPage() {
           unit={units.find((u) => u.id === noteUnitId) ?? null}
           onChange={(note) => handleNoteChange(noteUnitId, note)}
           onClose={() => setNoteUnitId(null)}
+        />
+      )}
+
+      {installSheetUnitId && (
+        <InstallActionSheet
+          unit={units.find((u) => u.id === installSheetUnitId) ?? null}
+          onAction={(action) => handleInstallAction(installSheetUnitId, action)}
+          onOpenUnit={() => router.push(`/project/${projectId}/floor/${floorId}/unit/${installSheetUnitId}`)}
+          onEditNote={() => {
+            const id = installSheetUnitId;
+            setInstallSheetUnitId(null);
+            openNoteEditor(id);
+          }}
+          onClose={() => setInstallSheetUnitId(null)}
         />
       )}
     </main>
