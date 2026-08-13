@@ -1,5 +1,6 @@
 "use client";
 
+import { sortUnitsForDisplay } from "@/lib/unit-sort";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -37,8 +38,7 @@ interface FloorPageData {
 async function loadFloorPageData(projectId: string, floorId: string): Promise<FloorPageData> {
   const [p, f] = await Promise.all([getProject(projectId), getFloor(floorId)]);
   if (!f) return { project: p ?? null, floor: null, units: [], windowsByUnit: new Map() };
-  const us = await listUnits(floorId);
-  us.sort((a, b) => a.sort_order - b.sort_order);
+  const us = sortUnitsForDisplay(await listUnits(floorId));
   const map = new Map<string, WindowRecord[]>();
   await Promise.all(
     us.map(async (u) => {

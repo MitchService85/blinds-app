@@ -1,5 +1,6 @@
 "use client";
 
+import { sortUnitsForDisplay } from "@/lib/unit-sort";
 import { useState } from "react";
 import type { Floor, Unit, WindowRecord } from "@/lib/types";
 import { checkFloor, type MeasurementWarning } from "@/lib/checks";
@@ -66,9 +67,7 @@ export function ExportButton({ projectName, floor, units, windowsByUnit }: Expor
         floor_label: floor.label,
         export_date: new Date().toISOString().slice(0, 10),
         defaults: floor.defaults,
-        units: units
-          .slice()
-          .sort((a, b) => a.sort_order - b.sort_order)
+        units: sortUnitsForDisplay(units)
           .map((u) => ({
             number: u.number,
             status: u.status,
