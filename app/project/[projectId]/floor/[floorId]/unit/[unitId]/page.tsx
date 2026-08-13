@@ -579,7 +579,24 @@ export default function WindowEntryPage() {
             }`}
           >
             <div>
-              <div className="font-medium">{displayLabelFor(w)}</div>
+              <div className="flex items-center gap-1.5 font-medium">
+                {displayLabelFor(w)}
+                {w.deduct && (
+                  <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                    {w.deduct}
+                  </span>
+                )}
+                {w.control_override === "L" && (
+                  <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                    LC
+                  </span>
+                )}
+                {w.longer_chain && (
+                  <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                    CH
+                  </span>
+                )}
+              </div>
               <div className="text-neutral-500">
                 {w.widths.map((width) => formatFraction(floorToEighth(width))).join(" + ")} ×{" "}
                 {formatFraction(floorToEighth(w.height))}

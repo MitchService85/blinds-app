@@ -1,7 +1,7 @@
 "use client";
 
 import { sortUnitsForDisplay } from "@/lib/unit-sort";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   createUnit,
@@ -146,10 +146,23 @@ export default function FloorPage() {
     return String(parseInt(last, 10) + 1);
   }
 
+  const addUnitPanelRef = useRef<HTMLDivElement | null>(null);
+
   function openAddUnit() {
     setNewUnitNumber(nextUnitNumber());
     setAddError(null);
     setAddingUnit(true);
+    // The panel renders below a long grid, behind the sticky Save & exit bar
+    // (and the keyboard on iOS) — bring it into view once it exists. The
+    // second, delayed pass re-centers after the on-screen keyboard resizes
+    // the visual viewport.
+    requestAnimationFrame(() => {
+      addUnitPanelRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      addUnitPanelRef.current?.querySelector("input")?.focus();
+      setTimeout(() => {
+        addUnitPanelRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 350);
+    });
   }
 
   async function handleAddUnit() {
@@ -410,7 +423,7 @@ export default function FloorPage() {
       </div>
 
       {mode === "measure" && addingUnit && (
-        <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+        <div ref={addUnitPanelRef} className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
           <label className="mb-1 block text-sm text-neutral-500">Unit number or zone label</label>
           <input
             value={newUnitNumber}
