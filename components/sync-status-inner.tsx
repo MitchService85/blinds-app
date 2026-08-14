@@ -113,23 +113,21 @@ export function SyncStatusInner() {
                   className="mb-2 min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
                 />
                 {sent && (
-                  <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-                    <p className="mb-1 font-semibold">Don&apos;t tap the link in the email.</p>
-                    <p>
-                      Opening it uses it up. Long-press the link → <b>Copy Link</b> → paste
-                      it below.
+                  <>
+                    <p className="mb-2 text-sm text-neutral-500">
+                      Enter the code we emailed to {email.trim()}.
                     </p>
-                  </div>
-                )}
-                {sent && (
-                  <input
-                    type="text"
-                    autoComplete="one-time-code"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder="Paste link, or 6-digit code"
-                    className="mb-2 min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
-                  />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      autoFocus
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="Code"
+                      className="mb-2 min-h-14 w-full rounded-lg border border-neutral-300 px-3 text-center text-2xl tracking-[0.3em] tabular-nums dark:border-neutral-700 dark:bg-neutral-900"
+                    />
+                  </>
                 )}
                 {message && (
                   <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-300">{message}</p>
@@ -140,7 +138,7 @@ export function SyncStatusInner() {
                   onClick={sent ? submitCode : sendCode}
                   className="min-h-12 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  {busy ? "…" : sent ? "Sign in" : "Email me a sign-in link"}
+                  {busy ? "…" : sent ? "Sign in" : "Email me a code"}
                 </button>
                 {sent && (
                   <button
@@ -148,7 +146,7 @@ export function SyncStatusInner() {
                     onClick={sendCode}
                     className="mt-2 min-h-10 w-full text-xs text-neutral-500"
                   >
-                    Send another email
+                    Send a new code
                   </button>
                 )}
               </>

@@ -438,7 +438,7 @@ export async function verifyCode(
     const spent = /expired|invalid|not found/i.test(error.message);
     return {
       error: spent
-        ? "That link was already used — opening it spends it. Tap \u201cSend another email\u201d, then copy the new link WITHOUT opening it."
+        ? "That code has expired or was already used. Tap \u201cSend a new code\u201d."
         : error.message,
     };
   }
