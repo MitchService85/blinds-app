@@ -10,7 +10,7 @@
 --   alter role authenticator set pgrst.db_schemas = 'public, graphql_public, blinds';
 -- Revert that with `reset pgrst.db_schemas` + `notify pgrst, 'reload config'`.
 --
--- Access model: Supabase magic-link auth, no sign-up flow. Every table is
+-- Access model: emailed one-time CODE (no magic link, no sign-up flow). Every table is
 -- restricted to authenticated users whose JWT email appears in
 -- blinds.allowed_users. The anon role gets nothing.
 
@@ -27,10 +27,10 @@ create table if not exists blinds.allowed_users (
   email text primary key
 );
 
--- Mitch's email, seeded now. Mike's is added later (see build plan: "Deferred
--- to launch conversation") via `insert into blinds.allowed_users (email) values (...)`.
+-- The two people on the crew. Store lowercase: GoTrue lowercases the address
+-- it puts in the JWT, and is_allowed_user() compares against lower(...).
 insert into blinds.allowed_users (email)
-values ('ms@mitchservice.com')
+values ('ms@mitchservice.com'), ('michael@keepitshady.ca')
 on conflict (email) do nothing;
 
 alter table blinds.allowed_users enable row level security;
@@ -52,7 +52,7 @@ as $$
   select exists (
     select 1
     from blinds.allowed_users
-    where email = (auth.jwt() ->> 'email')
+    where email = lower(auth.jwt() ->> 'email')
   );
 $$;
 
