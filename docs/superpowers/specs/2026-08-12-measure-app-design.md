@@ -138,6 +138,8 @@ On marking a unit done and on export, `lib/checks.ts` warns on suspicious entrie
 
 ## Out of scope (v1)
 
+- Drapery (Cleveland Clinic has drapery sections in Mike's notes; Mitch hasn't measured drapery before and wants to design that flow later, once he understands it).
+
 - More than two users, roles, billing.
 - Single-house building type (add later as a chip-set variant).
 - Photos of windows.
