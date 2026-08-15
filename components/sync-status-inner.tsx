@@ -85,10 +85,30 @@ export function SyncStatusInner() {
 
             {status.signedIn ? (
               <>
-                <p className="mb-4 text-sm text-neutral-500">
-                  Signed in. {status.pendingCount} change
-                  {status.pendingCount === 1 ? "" : "s"} waiting to upload.
+                <p className="mb-2 text-sm text-neutral-500">
+                  {status.pendingCount === 0
+                    ? "Everything is synced."
+                    : `Signed in. ${status.pendingCount} change${
+                        status.pendingCount === 1 ? "" : "s"
+                      } waiting to upload.`}
                 </p>
+                {status.errorDetail && (
+                  <p className="mb-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                    Last sync problem: {status.errorDetail}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    await status.syncNow();
+                    setBusy(false);
+                  }}
+                  className="mb-2 min-h-12 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {busy ? "Syncing…" : "Sync now"}
+                </button>
                 <button
                   type="button"
                   onClick={() => status.signOut()}

@@ -16,6 +16,8 @@ declare module "@/lib/sync" {
     state: "local-only" | "synced" | "pending" | "offline" | "error";
     pendingCount: number;
     signedIn: boolean;
+    errorDetail: string | null;
+    syncNow: () => Promise<void>;
     signIn: (email: string) => Promise<{ error: string | null }>;
     verify: (email: string, code: string) => Promise<{ error: string | null }>;
     signOut: () => Promise<void>;

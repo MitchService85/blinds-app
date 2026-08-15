@@ -179,16 +179,52 @@ export async function drainOutbox(): Promise<void> {
       rowMap.set(entry.rowId, entryIds);
     }
 
-    for (const [table, rowMap] of byTable) {
-      for (const rowIdBatch of chunk([...rowMap.keys()], 100)) {
-        await pushBatch(client, table, rowIdBatch, rowMap);
+    // Parent tables first so foreign keys always resolve; one table's
+    // failure must not stop the others from draining.
+    const TABLE_ORDER: OutboxTableName[] = ["projects", "floors", "units", "windows"];
+    let firstError: unknown = null;
+    for (const table of TABLE_ORDER) {
+      const rowMap = byTable.get(table);
+      if (!rowMap) continue;
+      try {
+        for (const rowIdBatch of chunk([...rowMap.keys()], 100)) {
+          await pushBatch(client, table, rowIdBatch, rowMap);
+        }
+      } catch (err) {
+        if (firstError === null) firstError = err;
       }
     }
 
+    if (firstError !== null) throw firstError;
+    lastSyncError = null;
     resetBackoff();
-  } catch {
+  } catch (err) {
+    lastSyncError = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
     scheduleBackoff();
   }
+}
+
+/**
+ * Fill fields that older local rows may lack (features shipped after the row
+ * was written). PostgREST unions the keys of a bulk upsert and fills gaps
+ * with NULL — which a NOT NULL column then rejects ("order_number ... 
+ * violates not-null constraint" was blocking every floors push). Explicit
+ * defaults make every row uniform and NULL-free.
+ */
+function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
+  const r: Record<string, unknown> = { ...(row as unknown as Record<string, unknown>) };
+  if (table === "floors") {
+    r.order_number = r.order_number ?? "";
+    r.trips = r.trips ?? null;
+  } else if (table === "units") {
+    r.note = r.note ?? "";
+    r.install = r.install ?? null;
+    r.install_blocked = r.install_blocked ?? false;
+  } else if (table === "windows") {
+    r.quantity = r.quantity ?? 1;
+    r.note = r.note ?? "";
+  }
+  return r as unknown as SyncedRow;
 }
 
 async function pushBatch(
@@ -235,7 +271,8 @@ async function pushBatch(
   });
 
   if (winners.length > 0) {
-    const { error: upsertError } = await client.from(table).upsert(winners, { onConflict: "id" });
+    const payload = winners.map((row) => normalizeForPush(table, row));
+    const { error: upsertError } = await client.from(table).upsert(payload, { onConflict: "id" });
     if (upsertError) throw upsertError;
   }
 
@@ -327,12 +364,17 @@ interface StatusSnapshot {
   state: SyncState;
   pendingCount: number;
   signedIn: boolean;
+  /** Human-readable detail of the most recent sync failure, if any. */
+  errorDetail: string | null;
 }
+
+let lastSyncError: string | null = null;
 
 let cachedSnapshot: StatusSnapshot = {
   state: supabase ? "offline" : "local-only",
   pendingCount: 0,
   signedIn: false,
+  errorDetail: null,
 };
 
 const listeners = new Set<() => void>();
@@ -369,7 +411,7 @@ async function refreshSnapshot(): Promise<void> {
     state = "synced";
   }
 
-  cachedSnapshot = { state, pendingCount, signedIn };
+  cachedSnapshot = { state, pendingCount, signedIn, errorDetail: lastSyncError };
   notify();
 }
 
@@ -541,6 +583,10 @@ export interface SyncStatus {
   state: SyncState;
   pendingCount: number;
   signedIn: boolean;
+  /** Detail of the most recent sync failure, if any. */
+  errorDetail: string | null;
+  /** Run a full push+pull immediately (the manual "Sync now" button). */
+  syncNow: () => Promise<void>;
   /** Email a sign-in code. Returns an error message on failure, else null. */
   signIn: (email: string) => Promise<{ error: string | null }>;
   /** Finish sign-in with the 6-digit code from that email. */
@@ -570,10 +616,18 @@ export function useSyncStatus(): SyncStatus {
   );
   const signOut = useCallback(() => signOutUser(), []);
 
+  const syncNow = useCallback(async () => {
+    // Manual sync ignores the error backoff — that's the point of the button.
+    resetBackoff();
+    await syncOnce();
+  }, []);
+
   return {
     state: snapshot.state,
     pendingCount: snapshot.pendingCount,
     signedIn: snapshot.signedIn,
+    errorDetail: snapshot.errorDetail,
+    syncNow,
     signIn,
     verify,
     signOut,
