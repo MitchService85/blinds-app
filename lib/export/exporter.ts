@@ -17,6 +17,8 @@ export interface ExportWindow {
   widths: number[];
   /** Height in integer sixteenths of an inch. */
   height: number;
+  /** Identical-blind multiplier (template Q column). Absent/1 = single. */
+  quantity?: number;
   control_override: ControlOverride;
   deduct: Deduct;
   longer_chain: boolean;
@@ -164,8 +166,14 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
       const control = w.control_override ?? input.defaults.drive;
       const noteString = buildNoteString(input.defaults, w.note, w.longer_chain);
 
+      // Identical-blind multiplier (Cleveland Clinic style). One row per
+      // size with the count in Q; a quantity of 1 leaves Q empty, matching
+      // every file the factory has accepted.
+      const quantity = w.quantity ?? 1;
+
       for (const widthSixteenths of w.widths) {
         sheet.getCell(row, 1).value = tagLabel; // A: Tag/Unit
+        if (quantity > 1) sheet.getCell(row, 2).value = quantity; // B: Q
         if (input.defaults.roll) sheet.getCell(row, 4).value = "Rev"; // D: Roll
         sheet.getCell(row, 5).value = toDecimal(floorToEighth(widthSixteenths)); // E: Width
         sheet.getCell(row, 6).value = toDecimal(floorToEighth(w.height)); // F: Height

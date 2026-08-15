@@ -32,6 +32,10 @@ def arbour_floor(path, label, defaults, deduct_source):
         if raw is None:
             break
         unit, base, idx = parse_tag(raw)
+        if unit == "431":
+            # Claude's keypad-test unit (Aug 13) that leaked into the
+            # Downloads copy via an app export — never part of the real order.
+            continue
         note = ws[f"K{r}"].value or ""
         if deduct_source == "J":
             deduct = ws[f"J{r}"].value
@@ -130,6 +134,41 @@ def alcon_floor(path):
     }
 
 
+def cleveland_floor(path):
+    """Office format with the Q column: one row per SIZE, quantity in B
+    (13 identical blinds -> one window with quantity 13). Units are levels
+    (L12/L11/L10); occasional off-template M-column note kept per window."""
+    ws = openpyxl.load_workbook(path)["Window Shades"]
+    units = {}
+    order = []
+    for r in range(10, 200):
+        raw = ws[f"A{r}"].value
+        if raw is None:
+            break
+        level = raw.strip()
+        note = ws[f"M{r}"].value or ""
+        w = {
+            "tag_base": "", "tag_index": 0,
+            "widths": [sixteenths(ws[f"E{r}"].value)],
+            "height": sixteenths(ws[f"F{r}"].value),
+            "quantity": int(ws[f"B{r}"].value or 1),
+            "control_override": None, "deduct": None,
+            "longer_chain": False, "note": note,
+        }
+        if level not in units:
+            units[level] = []
+            order.append(level)
+        units[level].append(w)
+    return {
+        "label": "All Levels",
+        "defaults": {"roll": False, "drive": "R", "tight": True, "extra_note": "",
+                     "d_value": "0.5",
+                     "color_codes": {"bed": "YUNOWH", "liv": "PWS1WHIT",
+                                     "studio": "PWS3PLAT", "kitchen": ""}},
+        "units": [{"number": u, "status": "done", "windows": units[u]} for u in order],
+    }
+
+
 ARBOUR_CODES = {"bed": "YUNOWH", "liv": "PWS1WHIT", "studio": "PWS3PLAT", "kitchen": ""}
 
 seed = {
@@ -159,6 +198,13 @@ seed = {
             "building_type": "commercial",
             "tag_chips": ["Office", "Boardroom", "Reception", "Kitchen", "Corridor"],
             "floors": [alcon_floor(f"{DL}/Alcon 2665 Meadowpine.xlsx")],
+        },
+        {
+            "name": "Cleaveland Clinic - 105 Adelaide St W",
+            "address": "105 Adelaide St W",
+            "building_type": "commercial",
+            "tag_chips": ["Office", "Boardroom", "Reception", "Kitchen", "Corridor"],
+            "floors": [cleveland_floor(f"{DL}/Cleaveland Clinic - 105 Adelaide St W.xlsx")],
         },
         {
             "name": "44 Charles Batch 3",

@@ -201,10 +201,13 @@ export async function getUnit(id: string): Promise<Unit | undefined> {
 // ---------------------------------------------------------------------------
 
 export async function createWindow(
-  input: Omit<WindowRecord, "id" | "updated_at" | "deleted">
+  input: Omit<WindowRecord, "id" | "updated_at" | "deleted" | "quantity"> & {
+    quantity?: number;
+  }
 ): Promise<WindowRecord> {
   return writeRow(db.windows, "windows", {
     ...input,
+    quantity: input.quantity ?? 1,
     id: newId(),
     updated_at: "",
     deleted: false,
@@ -217,13 +220,15 @@ export async function createWindow(
  * and call this on each edit rather than diffing a patch.
  */
 export async function upsertWindow(
-  window: Omit<WindowRecord, "updated_at" | "deleted"> & {
+  window: Omit<WindowRecord, "updated_at" | "deleted" | "quantity"> & {
     updated_at?: string;
     deleted?: boolean;
+    quantity?: number;
   }
 ): Promise<WindowRecord> {
   return writeRow(db.windows, "windows", {
     deleted: false,
+    quantity: window.quantity ?? 1,
     ...window,
     updated_at: window.updated_at ?? "",
   } as WindowRecord);

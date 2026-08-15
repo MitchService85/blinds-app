@@ -93,3 +93,37 @@ describe("untagged zone windows (office format)", () => {
     expect(sheet.getCell(10, 11).value).toBe("Front Entrance");
   });
 });
+
+describe("quantity (Q column)", () => {
+  const base = {
+    project_name: "Cleaveland Clinic - 105 Adelaide St W",
+    floor_label: "All Levels",
+    export_date: "2026-08-14",
+    defaults: {
+      roll: false, drive: "R" as const, tight: true, extra_note: "",
+      d_value: "0.5",
+      color_codes: { bed: "", liv: "", studio: "", kitchen: "" },
+    },
+  };
+
+  it("writes Q for multi-quantity rows and leaves it empty for singles", async () => {
+    const input = {
+      ...base,
+      units: [{
+        number: "L12", status: "done" as const,
+        windows: [
+          { tag_base: "", tag_index: 0, widths: [690], height: 1384, quantity: 13,
+            control_override: null, deduct: null, longer_chain: false, note: "", sort_order: 0 },
+          { tag_base: "", tag_index: 0, widths: [472], height: 1328, quantity: 1,
+            control_override: null, deduct: null, longer_chain: false, note: "", sort_order: 1 },
+        ],
+      }],
+    };
+    const wb = await buildWorkbook(input);
+    const sheet = wb.getWorksheet("Window Shades")!;
+    expect(sheet.getCell(10, 1).value).toBe("L12");
+    expect(sheet.getCell(10, 2).value).toBe(13);   // Q
+    expect(sheet.getCell(10, 5).value).toBe(43.125);
+    expect(sheet.getCell(11, 2).value).toBeNull(); // single: Q empty
+  });
+});

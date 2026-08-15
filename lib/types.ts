@@ -90,6 +90,11 @@ export interface WindowRecord extends SyncedRow {
   widths: number[];
   /** Height in integer sixteenths of an inch */
   height: number;
+  /**
+   * How many identical blinds this row represents (Cleveland Clinic style:
+   * "43 1/8 x 83 x13"). Exports to the template's Q column; 1 = Q left empty.
+   */
+  quantity: number;
   control_override: ControlOverride;
   deduct: Deduct;
   longer_chain: boolean;

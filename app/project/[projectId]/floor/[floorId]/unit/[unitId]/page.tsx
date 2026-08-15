@@ -30,6 +30,8 @@ interface DraftWindow {
   tag_base: string | null;
   widths: number[];
   height: number;
+  /** Identical-blind multiplier (Cleveland Clinic Q column). */
+  quantity: number;
   control_override: ControlOverride;
   deduct: Deduct;
   longer_chain: boolean;
@@ -42,6 +44,7 @@ function blankDraft(): DraftWindow {
     tag_base: null,
     widths: [0],
     height: 0,
+    quantity: 1,
     control_override: null,
     deduct: null,
     longer_chain: false,
@@ -200,6 +203,7 @@ export default function WindowEntryPage() {
         tag_index: 0,
         widths: latest.widths,
         height: latest.height,
+        quantity: latest.quantity,
         control_override: latest.control_override,
         deduct: latest.deduct,
         longer_chain: latest.longer_chain,
@@ -277,6 +281,7 @@ export default function WindowEntryPage() {
       tag_base: w.tag_base,
       widths: [...w.widths],
       height: w.height,
+      quantity: w.quantity ?? 1,
       control_override: w.control_override,
       deduct: w.deduct,
       longer_chain: w.longer_chain,
@@ -311,6 +316,7 @@ export default function WindowEntryPage() {
       tag_base: draft.tag_base,
       widths: [0],
       height: draft.height,
+      quantity: 1,
       control_override: null,
       deduct: null,
       longer_chain: false,
@@ -552,6 +558,40 @@ export default function WindowEntryPage() {
           <span className="text-sm">Longer chain</span>
         </label>
 
+        <div className="flex min-h-11 items-center gap-3">
+          <span className="text-sm">Quantity</span>
+          <button
+            type="button"
+            onClick={() => patchDraft({ quantity: Math.max(1, draft.quantity - 1) })}
+            className="min-h-11 min-w-11 rounded-lg bg-neutral-100 text-lg font-medium dark:bg-neutral-800"
+            aria-label="Fewer"
+          >
+            −
+          </button>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={draft.quantity}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, "");
+              patchDraft({ quantity: v === "" ? 1 : Math.max(1, parseInt(v, 10)) });
+            }}
+            className="min-h-11 w-14 rounded-lg border border-neutral-300 text-center tabular-nums dark:border-neutral-700 dark:bg-neutral-900"
+            aria-label="Quantity of identical blinds"
+          />
+          <button
+            type="button"
+            onClick={() => patchDraft({ quantity: draft.quantity + 1 })}
+            className="min-h-11 min-w-11 rounded-lg bg-neutral-100 text-lg font-medium dark:bg-neutral-800"
+            aria-label="More"
+          >
+            +
+          </button>
+          {draft.quantity > 1 && (
+            <span className="text-xs text-neutral-500">identical blinds</span>
+          )}
+        </div>
+
         {noteOpen || draft.note ? (
           <div>
             <div className="mb-1 text-xs text-neutral-500">Note</div>
@@ -623,6 +663,11 @@ export default function WindowEntryPage() {
               <div className="text-neutral-500">
                 {w.widths.map((width) => formatFraction(floorToEighth(width))).join(" + ")} ×{" "}
                 {formatFraction(floorToEighth(w.height))}
+                {(w.quantity ?? 1) > 1 && (
+                  <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                    ×{w.quantity}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex gap-2">

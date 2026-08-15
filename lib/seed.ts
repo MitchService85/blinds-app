@@ -10,7 +10,7 @@ const SEED_VERSION_KEY = "seed:version";
  * doesn't already exist locally — never touches or duplicates a project
  * that's already there, so Mitch/Mike's in-progress edits are safe.
  */
-const CURRENT_SEED_VERSION = 2;
+const CURRENT_SEED_VERSION = 3;
 
 // The fixture JSON has the right shape but `resolveJsonModule` widens its
 // literal fields (e.g. "residential" -> string). These local interfaces just
@@ -21,6 +21,7 @@ interface SeedWindow {
   tag_index: number;
   widths: number[];
   height: number;
+  quantity?: number;
   control_override: string | null;
   deduct: string | null;
   longer_chain: boolean;
@@ -107,6 +108,7 @@ async function doSeed(): Promise<void> {
             tag_index: w.tag_index,
             widths: w.widths,
             height: w.height,
+            quantity: w.quantity ?? 1,
             control_override: w.control_override as ControlOverride,
             deduct: w.deduct as Deduct,
             longer_chain: w.longer_chain,

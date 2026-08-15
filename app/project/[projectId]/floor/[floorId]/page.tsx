@@ -272,7 +272,7 @@ export default function FloorPage() {
     let n = 0;
     for (const u of units) {
       if (u.status === "na") continue;
-      for (const w of windowsByUnit.get(u.id) ?? []) n += w.widths.length;
+      for (const w of windowsByUnit.get(u.id) ?? []) n += w.widths.length * (w.quantity ?? 1);
     }
     return n;
   }, [units, windowsByUnit]);

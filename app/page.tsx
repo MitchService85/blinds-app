@@ -34,7 +34,7 @@ export default function Home() {
           let blinds = 0;
           for (const unit of relevant) {
             const windows = await listWindows(unit.id);
-            blinds += windows.reduce((n, w) => n + w.widths.length, 0);
+            blinds += windows.reduce((n, w) => n + w.widths.length * (w.quantity ?? 1), 0);
           }
 
           let installStaged = 0;

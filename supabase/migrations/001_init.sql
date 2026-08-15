@@ -155,6 +155,8 @@ create table if not exists blinds.windows (
   -- integer sixteenths of an inch, left to right; see lib/fractions.ts
   widths jsonb not null default '[]'::jsonb,
   height integer not null default 0,
+  -- identical-blind multiplier (template Q column); 1 = single blind
+  quantity integer not null default 1,
   control_override text check (control_override is null or control_override in ('L', 'R')),
   deduct text check (deduct is null or deduct in ('Dl', 'Dr', 'D')),
   longer_chain boolean not null default false,
