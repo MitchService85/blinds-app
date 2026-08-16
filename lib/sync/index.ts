@@ -348,6 +348,16 @@ async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<
 export async function syncOnce(): Promise<void> {
   await drainOutbox();
   await pullSince();
+  // A pull can bring in the crew's canonical copy of a seeded example
+  // project — retire this device's own pure-seed copy so examples never
+  // duplicate across devices (dynamic import: seed.ts must stay out of this
+  // module's static graph for builds without it).
+  try {
+    const { adoptSeedDuplicates } = await import("../seed");
+    await adoptSeedDuplicates();
+  } catch {
+    // seed module absent or adoption failed — never block the sync loop.
+  }
   await refreshSnapshot();
 }
 

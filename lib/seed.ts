@@ -1,8 +1,9 @@
 import seedData from "@/fixtures/seed-projects.json";
-import { createFloor, createProject, createUnit, createWindow, getMeta, listProjects, setMeta } from "./db";
+import { createFloor, createProject, createUnit, createWindow, deleteFloor, deleteProject, deleteUnit, deleteWindow, getMeta, listFloors, listProjects, listUnits, listWindows, setMeta } from "./db";
 import type { BuildingType, ControlOverride, Deduct, FloorDefaults, UnitStatus } from "./types";
 
 const SEED_VERSION_KEY = "seed:version";
+const SEED_PROJECT_IDS_KEY = "seed:projectIds";
 /**
  * Bump this whenever fixtures/seed-projects.json gains a new PROJECT that
  * existing installs should pick up (e.g. Alcon 2665 Meadowpine added at
@@ -83,6 +84,8 @@ async function doSeed(): Promise<void> {
       building_type: project.building_type as BuildingType,
       tag_chips: project.tag_chips,
     });
+    const seededIds = (await getMeta<string[]>(SEED_PROJECT_IDS_KEY)) ?? [];
+    await setMeta(SEED_PROJECT_IDS_KEY, [...seededIds, p.id]);
 
     for (const floor of project.floors) {
       const f = await createFloor({
@@ -121,4 +124,58 @@ async function doSeed(): Promise<void> {
   }
 
   await setMeta(SEED_VERSION_KEY, CURRENT_SEED_VERSION);
+}
+
+/**
+ * Seed-duplicate adoption (runs after every sync pull; see lib/sync).
+ *
+ * Every device seeds the example projects with its own random ids, so the
+ * first sync from a second device would otherwise upload a second copy of
+ * each example — that is exactly what produced triplicate projects on
+ * 2026-08-15. When a pull brings in a same-name project with a different id
+ * (the crew's canonical copy), this deletes the local seeded copy — but only
+ * if it is still PURE seed data: no unit ever touched (install/blocked/note)
+ * and no floor added beyond the fixture's. An edited copy is left alone for
+ * a human to reconcile rather than risk losing field data.
+ */
+export async function adoptSeedDuplicates(): Promise<void> {
+  const seededIds = (await getMeta<string[]>(SEED_PROJECT_IDS_KEY)) ?? [];
+  if (seededIds.length === 0) return;
+
+  const fixtureFloorLabels = new Map<string, Set<string>>();
+  for (const project of (seedData as { projects: SeedProject[] }).projects) {
+    fixtureFloorLabels.set(project.name, new Set(project.floors.map((f) => f.label)));
+  }
+
+  const all = await listProjects();
+  for (const seededId of seededIds) {
+    const mine = all.find((p) => p.id === seededId);
+    if (!mine) continue;
+    const canonical = all.find((p) => p.name === mine.name && p.id !== mine.id);
+    if (!canonical) continue;
+
+    const floors = await listFloors(mine.id);
+    const allowedLabels = fixtureFloorLabels.get(mine.name) ?? new Set<string>();
+    let pure = floors.every((f) => allowedLabels.has(f.label));
+    if (pure) {
+      outer: for (const f of floors) {
+        for (const u of await listUnits(f.id)) {
+          if ((u.install ?? null) !== null || u.install_blocked || (u.note ?? "") !== "") {
+            pure = false;
+            break outer;
+          }
+        }
+      }
+    }
+    if (!pure) continue;
+
+    for (const f of floors) {
+      for (const u of await listUnits(f.id)) {
+        for (const w of await listWindows(u.id)) await deleteWindow(w.id);
+        await deleteUnit(u.id);
+      }
+      await deleteFloor(f.id);
+    }
+    await deleteProject(mine.id);
+  }
 }
