@@ -74,7 +74,16 @@ export default function Home() {
     <main className="flex flex-1 flex-col gap-4 p-4 pb-24">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Measure</h1>
-        <SyncStatus />
+        <div className="flex items-center gap-3">
+          <SyncStatus />
+          <Link
+            href="/help"
+            aria-label="How to use Measure"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-300 text-sm font-semibold text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"
+          >
+            ?
+          </Link>
+        </div>
       </header>
 
       {rows === null && <div className="text-sm text-neutral-500">Loading…</div>}
