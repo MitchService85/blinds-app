@@ -410,7 +410,7 @@ export default function WindowEntryPage() {
       {/* Sticky, mirroring the floating Save button at the bottom: after
           finishing a window mid-scroll, back is always one tap away. Full
           bleed over the page padding so content slides underneath. */}
-      <header className="sticky top-0 z-20 -mx-4 -mt-4 flex items-center gap-3 bg-white/95 px-4 py-3 backdrop-blur dark:bg-neutral-950/95">
+      <header className="safe-sticky-top sticky z-20 -mx-4 flex items-center gap-3 bg-white/95 px-4 pb-3 backdrop-blur dark:bg-neutral-950/95">
         <button
           type="button"
           onClick={() => router.push(`/project/${projectId}/floor/${floorId}`)}
@@ -725,7 +725,7 @@ export default function WindowEntryPage() {
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      <div className="sticky bottom-3 z-20 -mx-1 px-1">
+      <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 -mx-1 px-1">
         <button
           type="button"
           onClick={handleSaveNext}

@@ -471,7 +471,7 @@ export default function FloorPage() {
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 flex gap-3 border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+      <div className="safe-bottom fixed inset-x-0 bottom-0 flex gap-3 border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
         <button
           type="button"
           onClick={handleSaveExit}

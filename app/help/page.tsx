@@ -119,7 +119,7 @@ export default function HelpPage() {
 
   return (
     <main className="mx-auto flex max-w-md flex-1 flex-col gap-4 p-4 pb-12">
-      <header className="sticky top-0 z-20 -mx-4 -mt-4 flex items-center gap-3 bg-white/95 px-4 py-3 backdrop-blur dark:bg-neutral-950/95">
+      <header className="safe-sticky-top sticky z-20 -mx-4 flex items-center gap-3 bg-white/95 px-4 pb-3 backdrop-blur dark:bg-neutral-950/95">
         <button type="button" onClick={() => router.back()} className="min-h-11 min-w-11 shrink-0 text-xl">
           ←
         </button>

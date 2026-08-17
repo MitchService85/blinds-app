@@ -30,6 +30,9 @@ export const viewport: Viewport = {
   themeColor: "#18181b",
   width: "device-width",
   initialScale: 1,
+  // Lets the app paint edge-to-edge so env(safe-area-inset-*) reports the
+  // real notch/home-indicator sizes; every top bar pads by it (globals.css).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

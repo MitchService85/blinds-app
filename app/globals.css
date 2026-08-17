@@ -42,3 +42,22 @@ textarea,
 select {
   font-size: max(16px, 1em);
 }
+
+/* iOS standalone (home-screen) mode paints behind the status bar and home
+   indicator. Pad every page's top by the safe area plus a breath of space so
+   headers never sit under the clock/notch; sticky elements use the utilities
+   below instead, so their background covers the inset when stuck. */
+body {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-sticky-top {
+  top: 0;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  /* cancel body's inset padding while in normal flow */
+  margin-top: calc(-1 * env(safe-area-inset-top, 0px) - 1rem);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
