@@ -54,6 +54,7 @@ export default function ProjectPage() {
   const [newLabel, setNewLabel] = useState("");
   const [newDefaults, setNewDefaults] = useState<FloorDefaults>(defaultFloorDefaults());
   const [saving, setSaving] = useState(false);
+  const [editingInfo, setEditingInfo] = useState(false);
 
   async function refresh() {
     const { project: p, floors: rows } = await loadProjectData(projectId);
@@ -91,17 +92,57 @@ export default function ProjectPage() {
 
   if (!project) return <main className="p-4 text-sm text-neutral-500">Loading…</main>;
 
+  /** Both fields in one write — two racing read-modify-write patches can
+   * clobber each other (same lesson as the floor's order/trips fields). */
+  async function handleInfoChange(name: string, address: string) {
+    if (!project) return;
+    setProject({ ...project, name, address });
+    const updated = await updateProject(project.id, { name, address });
+    setProject(updated);
+  }
+
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-10">
       <header className="flex items-center gap-3">
         <button type="button" onClick={() => router.push("/")} className="min-h-11 min-w-11 text-xl">
           ←
         </button>
-        <div>
-          <h1 className="text-xl font-semibold">{project.name}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-semibold break-words">{project.name}</h1>
           <div className="text-sm text-neutral-500">{project.address}</div>
         </div>
+        <button
+          type="button"
+          onClick={() => setEditingInfo((v) => !v)}
+          className="shrink-0 text-sm text-blue-600"
+        >
+          {editingInfo ? "Done" : "Edit"}
+        </button>
       </header>
+
+      {editingInfo && (
+        <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+          <label>
+            <span className="mb-1 block text-sm text-neutral-500">Project name</span>
+            <input
+              value={project.name}
+              onChange={(e) => handleInfoChange(e.target.value, project.address)}
+              className="min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
+            />
+            <span className="mt-1 block text-xs text-neutral-400">
+              Used in the export: “{project.name || "Project"} - Floor.xlsx”
+            </span>
+          </label>
+          <label>
+            <span className="mb-1 block text-sm text-neutral-500">Address</span>
+            <input
+              value={project.address}
+              onChange={(e) => handleInfoChange(project.name, e.target.value)}
+              className="min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </label>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-neutral-500">Floors / batches</h2>

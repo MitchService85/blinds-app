@@ -4,6 +4,7 @@ import type { BuildingType, ControlOverride, Deduct, FloorDefaults, UnitStatus }
 
 const SEED_VERSION_KEY = "seed:version";
 const SEED_PROJECT_IDS_KEY = "seed:projectIds";
+const SEEDED_NAMES_KEY = "seed:seededNames";
 /**
  * Bump this whenever fixtures/seed-projects.json gains a new PROJECT that
  * existing installs should pick up (e.g. Alcon 2665 Meadowpine added at
@@ -70,13 +71,28 @@ export function seedIfNeeded(): Promise<void> {
 
 async function doSeed(): Promise<void> {
   const storedVersion = (await getMeta<number>(SEED_VERSION_KEY)) ?? 0;
+  // Backfill the seeded-names record for devices that seeded before it
+  // existed: every fixture name present locally was seeded (or adopted) here.
+  if ((await getMeta<string[]>(SEEDED_NAMES_KEY)) === undefined && storedVersion > 0) {
+    const fixtureNames = new Set(
+      (seedData as { projects: SeedProject[] }).projects.map((p) => p.name)
+    );
+    const present = (await listProjects())
+      .map((p) => p.name)
+      .filter((n) => fixtureNames.has(n));
+    await setMeta(SEEDED_NAMES_KEY, present);
+  }
   if (storedVersion >= CURRENT_SEED_VERSION) return;
 
   const projects = (seedData as { projects: SeedProject[] }).projects;
   const existingNames = new Set((await listProjects()).map((p) => p.name));
+  // Names this device has EVER seeded. Presence-by-name alone is not enough:
+  // project names are editable, so after "44 Charles Batch 3" is renamed to
+  // "44 Charles", a later seed-version bump would re-insert the example.
+  const seededNames = new Set((await getMeta<string[]>(SEEDED_NAMES_KEY)) ?? []);
 
   for (const project of projects) {
-    if (existingNames.has(project.name)) continue;
+    if (existingNames.has(project.name) || seededNames.has(project.name)) continue;
 
     const p = await createProject({
       name: project.name,
@@ -86,6 +102,8 @@ async function doSeed(): Promise<void> {
     });
     const seededIds = (await getMeta<string[]>(SEED_PROJECT_IDS_KEY)) ?? [];
     await setMeta(SEED_PROJECT_IDS_KEY, [...seededIds, p.id]);
+    seededNames.add(project.name);
+    await setMeta(SEEDED_NAMES_KEY, [...seededNames]);
 
     for (const floor of project.floors) {
       const f = await createFloor({
