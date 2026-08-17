@@ -79,6 +79,14 @@ Width/height stored as integer sixteenths of an inch (74 7/8 → 1198; 74 13/16 
 
 Floor view gains a Measure | Install toggle. Install lens per unit: install = null → "staged" (🟢 dropped off/handoff-ready) → "done" (✅), both steps optional (solo installs jump to done); install_blocked (⚠️ yellow) is an independent flag requiring a unit note, overrides display until cleared. Tap = action sheet (Staged/Complete/Blocked/Clear + Open unit). Counts in header; blocked notes listed; dashboard chips show install line once a floor has activity. Rides on unit rows — syncs, offline, never exported.
 
+## Unit photos (added 2026-08-18, Mitch field request)
+
+Unit notes can carry photos ("here's the issue I mean"). Camera/library via a file input; compressed client-side to a ~1280px JPEG data URL and stored in a synced `photos` row — rides the normal offline-first row sync, so the whole crew sees them. Thumbnails under the note, full-screen viewer with delete.
+
+## Voice entry (built 2026-08-16, REMOVED 2026-08-18)
+
+Dictation-to-form was built (iOS keyboard mic + rule-based parser) and failed its field test: with AirPods in a quiet area it misheard almost everything. Removed at Mitch's request. If revisited, the constraint stands: offline-capable, and never auto-save a heard measurement.
+
 ## Seed data
 
 First run loads three real example projects from `fixtures/seed-projects.json` so Mike sees the app populated: Arbour House Level 2 + Level 4, and 44 Charles Batch 3 (48 three-panel bay windows, units scattered across floors). Seeded rows are normal rows — editable, exportable, syncable.
