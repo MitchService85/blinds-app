@@ -59,6 +59,11 @@ export default function FloorPage() {
   const [editingDefaults, setEditingDefaults] = useState(false);
   const [addingUnit, setAddingUnit] = useState(false);
   const [newUnitNumber, setNewUnitNumber] = useState("");
+  // True until the tech types in the add-unit box. The auto-suggested next
+  // number ("431") is accepted by just tapping Add, but the first keystroke
+  // REPLACES it — nobody should have to backspace a suggestion away when
+  // the building isn't measured in order (field note, 44 Charles batch 4).
+  const [unitInputPristine, setUnitInputPristine] = useState(true);
   const [addError, setAddError] = useState<string | null>(null);
   const [doneWarnings, setDoneWarnings] = useState<MeasurementWarning[] | null>(null);
   const [noteUnitId, setNoteUnitId] = useState<string | null>(null);
@@ -150,6 +155,7 @@ export default function FloorPage() {
 
   function openAddUnit() {
     setNewUnitNumber(nextUnitNumber());
+    setUnitInputPristine(true);
     setAddError(null);
     setAddingUnit(true);
     // The panel renders below a long grid, behind the sticky Save & exit bar
@@ -428,9 +434,18 @@ export default function FloorPage() {
           <input
             value={newUnitNumber}
             onChange={(e) => {
-              setNewUnitNumber(e.target.value);
+              const typed = e.target.value;
+              if (unitInputPristine && newUnitNumber && typed.startsWith(newUnitNumber)) {
+                // First keystroke lands after the suggestion — keep only
+                // what was typed, dropping the suggestion.
+                setNewUnitNumber(typed.slice(newUnitNumber.length));
+              } else {
+                setNewUnitNumber(typed);
+              }
+              setUnitInputPristine(false);
               setAddError(null);
             }}
+            onFocus={(e) => e.target.select()}
             placeholder={`e.g. "431" or "Level 1 - FE"`}
             type="text"
             autoFocus

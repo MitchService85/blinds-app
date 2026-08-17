@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Floor, Project, Unit, WindowRecord } from "./types";
+import type { Floor, Project, Unit, UnitPhoto, WindowRecord } from "./types";
 
 /**
  * Local-first IndexedDB store (Dexie). The UI reads/writes here only —
@@ -9,7 +9,7 @@ import type { Floor, Project, Unit, WindowRecord } from "./types";
  * (lib/sync/).
  */
 
-export type OutboxTableName = "projects" | "floors" | "units" | "windows";
+export type OutboxTableName = "projects" | "floors" | "units" | "windows" | "photos";
 export type OutboxOp = "put" | "delete";
 
 export interface OutboxEntry {
@@ -31,6 +31,7 @@ class MeasureDB extends Dexie {
   floors!: Table<Floor, string>;
   units!: Table<Unit, string>;
   windows!: Table<WindowRecord, string>;
+  photos!: Table<UnitPhoto, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<MetaEntry, string>;
 
@@ -43,6 +44,10 @@ class MeasureDB extends Dexie {
       windows: "id, unit_id, updated_at, deleted",
       outbox: "++id, table, rowId, at",
       meta: "key",
+    });
+    // v2: job-site photos on unit notes (image inline as a data URL).
+    this.version(2).stores({
+      photos: "id, unit_id, updated_at, deleted",
     });
   }
 }
@@ -271,4 +276,29 @@ export async function listOutbox(): Promise<OutboxEntry[]> {
 
 export async function clearOutboxEntry(id: number): Promise<void> {
   await db.outbox.delete(id);
+}
+
+// ---------------------------------------------------------------------------
+// Photos
+// ---------------------------------------------------------------------------
+
+export async function createPhoto(
+  input: Omit<UnitPhoto, "id" | "updated_at" | "deleted">
+): Promise<UnitPhoto> {
+  return writeRow(db.photos, "photos", {
+    ...input,
+    id: newId(),
+    updated_at: "",
+    deleted: false,
+  });
+}
+
+export async function deletePhoto(id: string): Promise<void> {
+  const existing = await db.photos.get(id);
+  if (!existing) return;
+  await writeRow(db.photos, "photos", { ...existing, deleted: true }, "delete");
+}
+
+export async function listPhotos(unitId: string): Promise<UnitPhoto[]> {
+  return db.photos.where("unit_id").equals(unitId).filter((p) => !p.deleted).toArray();
 }

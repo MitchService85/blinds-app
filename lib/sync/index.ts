@@ -78,7 +78,7 @@ export function isSyncConfigured(): boolean {
 // Local table access (raw Dexie writes, bypassing lib/db.ts's outbox path)
 // ---------------------------------------------------------------------------
 
-const TABLES: OutboxTableName[] = ["projects", "floors", "units", "windows"];
+const TABLES: OutboxTableName[] = ["projects", "floors", "units", "windows", "photos"];
 
 function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
   switch (table) {
@@ -90,6 +90,8 @@ function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
       return db.units as unknown as Table<SyncedRow, string>;
     case "windows":
       return db.windows as unknown as Table<SyncedRow, string>;
+    case "photos":
+      return db.photos as unknown as Table<SyncedRow, string>;
   }
 }
 
@@ -181,7 +183,7 @@ export async function drainOutbox(): Promise<void> {
 
     // Parent tables first so foreign keys always resolve; one table's
     // failure must not stop the others from draining.
-    const TABLE_ORDER: OutboxTableName[] = ["projects", "floors", "units", "windows"];
+    const TABLE_ORDER: OutboxTableName[] = ["projects", "floors", "units", "windows", "photos"];
     let firstError: unknown = null;
     for (const table of TABLE_ORDER) {
       const rowMap = byTable.get(table);

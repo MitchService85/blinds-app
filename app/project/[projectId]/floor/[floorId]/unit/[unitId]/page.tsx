@@ -1,6 +1,7 @@
 "use client";
 
-import { parseSpokenWindow } from "@/lib/voice";
+import { checkUnitWindows } from "@/lib/checks";
+import { compressImage } from "@/lib/photos";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -13,10 +14,13 @@ import {
   listWindows,
   updateUnit,
   upsertWindow,
+  createPhoto,
+  deletePhoto,
+  listPhotos,
 } from "@/lib/db";
 import { computeTagLabels } from "@/lib/tags";
 import { floorToEighth, formatFraction } from "@/lib/fractions";
-import type { ControlOverride, Deduct, Floor, Project, Unit, WindowRecord } from "@/lib/types";
+import type { ControlOverride, Deduct, Floor, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
 import { syncUnitTagIndices } from "@/components/window-tags";
 
@@ -84,9 +88,10 @@ export default function WindowEntryPage() {
   // lazily created on the first digit tap, which would remount the keypad
   // mid-entry and swallow that digit.
   const [draftSeq, setDraftSeq] = useState(0);
-  const [voiceOpen, setVoiceOpen] = useState(false);
-  const [voiceText, setVoiceText] = useState("");
   const [unitNoteOpen, setUnitNoteOpen] = useState(false);
+  const [photos, setPhotos] = useState<UnitPhoto[]>([]);
+  const [photoView, setPhotoView] = useState<UnitPhoto | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const draftRef = useRef(draft);
   useEffect(() => {
@@ -122,6 +127,7 @@ export default function WindowEntryPage() {
       setUnit(u);
       setFloor(f);
       setProject(p ?? null);
+      setPhotos(await listPhotos(u.id));
       if (p?.building_type === "commercial") {
         // Office/zone-run jobs are almost always untagged windows — default
         // the "No tag" chip so rapid-fire entry never needs an extra tap.
@@ -220,38 +226,6 @@ export default function WindowEntryPage() {
     });
   }
 
-  /**
-   * Apply a dictated sentence to the draft. Fills only what the parser
-   * understood and never saves — the tech confirms on the normal form and
-   * taps Save as usual (see lib/voice.ts).
-   */
-  async function applyVoice() {
-    const chips = project?.tag_chips ?? [];
-    const { fields } = parseSpokenWindow(voiceText, chips);
-
-    if (fields.tag_base !== undefined) await selectTag(fields.tag_base);
-
-    const patch: Partial<Omit<DraftWindow, "id" | "tag_base">> = {};
-    if (fields.widths) patch.widths = fields.widths;
-    if (fields.height !== undefined) patch.height = fields.height;
-    if (fields.deduct !== undefined) patch.deduct = fields.deduct;
-    if (fields.longer_chain !== undefined) patch.longer_chain = fields.longer_chain;
-    if (fields.control_override !== undefined) patch.control_override = fields.control_override;
-    if (fields.quantity !== undefined) patch.quantity = fields.quantity;
-    if (Object.keys(patch).length > 0) patchDraft(patch);
-
-    // The keypad holds its own digit buffer and only reseeds from the draft
-    // when remounted (it deliberately does NOT remount on every draft
-    // change, or a lazily-created row would swallow the first digit typed).
-    // A dictated value arrives from outside that buffer, so force the
-    // reseed or the field would still read 0.
-    setDraftSeq((n) => n + 1);
-
-    setVoiceOpen(false);
-    setVoiceText("");
-    setActiveField(0);
-  }
-
   async function selectTag(tag: string) {
     setError(null);
     if (draft.id) {
@@ -290,10 +264,14 @@ export default function WindowEntryPage() {
   }
 
   function addPanel() {
-    const last = draft.widths[draft.widths.length - 1] ?? 0;
-    const widths = [...draft.widths, last];
+    // Field note (Mitch, 44 Charles batch 4): copying the previous width
+    // into the new panel forced a Clear tap almost every time — the fraction
+    // half of the keypad buffer survived typing over it. New panels start
+    // empty instead.
+    const widths = [...draft.widths, 0];
     patchDraft({ widths });
     setActiveField(widths.length - 1);
+    setDraftSeq((n) => n + 1);
   }
 
   function removePanel(index: number) {
@@ -367,6 +345,24 @@ export default function WindowEntryPage() {
     window.setTimeout(() => setJustSaved(false), 1200);
   }
 
+  async function handleAddPhoto(file: File | undefined) {
+    if (!file || !unit) return;
+    setPhotoBusy(true);
+    try {
+      const data = await compressImage(file);
+      await createPhoto({ unit_id: unit.id, data });
+      setPhotos(await listPhotos(unit.id));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function handleDeletePhoto(id: string) {
+    await deletePhoto(id);
+    setPhotoView(null);
+    if (unit) setPhotos(await listPhotos(unit.id));
+  }
+
   async function handleUnitNoteChange(note: string) {
     setUnit((u) => (u ? { ...u, note } : u));
     if (unit) await updateUnit(unit.id, { note });
@@ -404,6 +400,10 @@ export default function WindowEntryPage() {
     return windowLabels.get(w.id) ?? w.tag_base;
   }
   const activeIsHeight = activeField === "height";
+
+  const windowWarnings = new Map(
+    unit ? checkUnitWindows(unit, windows).map((w) => [w.window_id, w.message]) : []
+  );
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 pb-8">
@@ -447,6 +447,67 @@ export default function WindowEntryPage() {
         />
       )}
 
+      {(photos.length > 0 || unitNoteOpen) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {photos.map((ph) => (
+            <button
+              key={ph.id}
+              type="button"
+              onClick={() => setPhotoView(ph)}
+              className="h-16 w-16 overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ph.data} alt="Unit note photo" className="h-full w-full object-cover" />
+            </button>
+          ))}
+          <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-500 dark:border-neutral-700">
+            {photoBusy ? "…" : "📷"}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                void handleAddPhoto(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+      )}
+
+      {photoView && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4"
+          onClick={() => setPhotoView(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photoView.data}
+            alt="Unit note photo"
+            className="max-h-[80vh] max-w-full rounded-lg object-contain"
+          />
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleDeletePhoto(photoView.id);
+              }}
+              className="min-h-11 rounded-lg bg-red-600 px-4 text-sm font-medium text-white"
+            >
+              Delete photo
+            </button>
+            <button
+              type="button"
+              className="min-h-11 rounded-lg bg-neutral-700 px-4 text-sm font-medium text-white"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {/* Room tag is optional — office/zone-run jobs (Alcon-style) enter
             dozens of untagged windows in walking order. */}
@@ -484,20 +545,6 @@ export default function WindowEntryPage() {
           </span>
         </div>
       )}
-
-      <button
-
-        type="button"
-
-        onClick={() => setVoiceOpen(true)}
-
-        className="min-h-11 w-full rounded-lg border border-neutral-300 text-sm font-medium dark:border-neutral-700"
-
-      >
-
-        🎤 Say the measurements
-
-      </button>
 
 
       <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
@@ -681,16 +728,25 @@ export default function WindowEntryPage() {
 
       <div className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-neutral-500">This unit&apos;s windows</h2>
+        {windowWarnings.size > 0 && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+            ⚠️ {windowWarnings.size} measurement{windowWarnings.size === 1 ? "" : "s"} flagged
+            below — tap Edit to fix, or ignore if it&apos;s really like that.
+          </div>
+        )}
         {windows.length === 0 && <div className="text-sm text-neutral-400">None yet.</div>}
         {windows.map((w) => (
           <div
             key={w.id}
-            className={`flex items-center justify-between rounded-lg border p-3 text-sm ${
-              draft.id === w.id
-                ? "border-blue-600"
-                : "border-neutral-200 dark:border-neutral-800"
+            className={`flex flex-col gap-1 rounded-lg border p-3 text-sm ${
+              windowWarnings.has(w.id)
+                ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/40"
+                : draft.id === w.id
+                  ? "border-blue-600"
+                  : "border-neutral-200 dark:border-neutral-800"
             }`}
           >
+          <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1.5 font-medium">
                 {displayLabelFor(w)}
@@ -737,112 +793,15 @@ export default function WindowEntryPage() {
               </button>
             </div>
           </div>
+          {windowWarnings.has(w.id) && (
+            <div className="text-xs font-medium text-amber-800 dark:text-amber-300">
+              ⚠️ {windowWarnings.get(w.id)}
+            </div>
+          )}
+          </div>
         ))}
       </div>
-
-      {voiceOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-4 dark:bg-neutral-900">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-base font-semibold">Say the measurements</h2>
-              <button
-                type="button"
-                onClick={() => {
-                  setVoiceOpen(false);
-                  setVoiceText("");
-                }}
-                className="min-h-9 px-2 text-sm text-neutral-500"
-              >
-                Close
-              </button>
-            </div>
-            <p className="mb-2 text-xs text-neutral-500">
-              Tap the box, then the microphone key on the keyboard. For example: “living
-              room 1, 95 1/2 wide by 87 tall, deduct both, longer chain”.
-            </p>
-            <textarea
-              value={voiceText}
-              onChange={(e) => setVoiceText(e.target.value)}
-              autoFocus
-              rows={3}
-              className="mb-2 w-full rounded-lg border border-neutral-300 p-3 text-base dark:border-neutral-700 dark:bg-neutral-900"
-            />
-            <VoicePreview text={voiceText} chips={project?.tag_chips ?? []} />
-            <button
-              type="button"
-              disabled={!voiceText.trim()}
-              onClick={applyVoice}
-              className="min-h-12 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              Fill the form
-            </button>
-            <p className="mt-2 text-center text-xs text-neutral-400">
-              Nothing is saved until you tap Save.
-            </p>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
 
-/**
- * Live read-back of what the parser understood, so a misheard number is
- * caught before it reaches the form.
- */
-function VoicePreview({ text, chips }: { text: string; chips: string[] }) {
-  if (!text.trim()) return null;
-  const { fields, matched, leftover } = parseSpokenWindow(text, chips);
-  const tag = fields.tag_base
-    ? `${fields.tag_base}${fields.tag_index ? fields.tag_index : ""}`
-    : null;
-
-  return (
-    <div className="mb-3 rounded-lg border border-neutral-200 p-3 text-sm dark:border-neutral-800">
-      {matched.length === 0 ? (
-        <span className="text-amber-700 dark:text-amber-400">
-          Nothing recognised yet.
-        </span>
-      ) : (
-        <div className="flex flex-col gap-1">
-          <div>
-            <span className="text-neutral-500">Window: </span>
-            <span className="font-medium">{tag ?? "no tag"}</span>
-          </div>
-          <div>
-            <span className="text-neutral-500">Size: </span>
-            <span className="font-medium tabular-nums">
-              {fields.widths
-                ? fields.widths.map((w) => formatFraction(floorToEighth(w))).join(" + ")
-                : "—"}
-              {" × "}
-              {fields.height !== undefined
-                ? formatFraction(floorToEighth(fields.height))
-                : "—"}
-            </span>
-          </div>
-          {(fields.deduct ||
-            fields.longer_chain ||
-            fields.control_override ||
-            fields.quantity) && (
-            <div className="text-neutral-500">
-              {[
-                fields.deduct ? `deduct ${fields.deduct}` : null,
-                fields.control_override === "L" ? "left control" : null,
-                fields.longer_chain ? "longer chain" : null,
-                fields.quantity && fields.quantity > 1 ? `×${fields.quantity}` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </div>
-          )}
-          {leftover && (
-            <div className="text-xs text-amber-700 dark:text-amber-400">
-              Not understood: “{leftover}”
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}

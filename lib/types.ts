@@ -101,3 +101,16 @@ export interface WindowRecord extends SyncedRow {
   note: string;
   sort_order: number;
 }
+
+/**
+ * A job-site photo attached to a unit's note ("here's the issue I mean").
+ * The image itself is stored inline as a compressed JPEG data URL (~150-250KB
+ * at 1280px): it rides the existing row sync — offline-first, last-write-wins,
+ * visible on the whole crew's phones — with no separate blob-storage upload
+ * path to fail in a dead zone.
+ */
+export interface UnitPhoto extends SyncedRow {
+  unit_id: string;
+  /** data:image/jpeg;base64,... */
+  data: string;
+}

@@ -176,11 +176,36 @@ create policy "allowlisted users full access" on blinds.windows
   with check (blinds.is_allowed_user());
 
 -- ---------------------------------------------------------------------------
+-- photos
+-- ---------------------------------------------------------------------------
+
+-- Job-site photos attached to unit notes. Image inline as a compressed JPEG
+-- data URL (~150-250KB): rides the existing row sync, no blob storage.
+create table if not exists blinds.photos (
+  id uuid primary key default gen_random_uuid(),
+  updated_at timestamptz not null default now(),
+  deleted boolean not null default false,
+  unit_id uuid not null references blinds.units (id) on delete cascade,
+  data text not null
+);
+
+create index if not exists photos_updated_at_idx on blinds.photos (updated_at);
+create index if not exists photos_unit_id_idx on blinds.photos (unit_id);
+
+alter table blinds.photos enable row level security;
+
+create policy "allowlisted users full access" on blinds.photos
+  for all
+  to authenticated
+  using (blinds.is_allowed_user())
+  with check (blinds.is_allowed_user());
+
+-- ---------------------------------------------------------------------------
 -- Explicit grants (defensive — most hosted Supabase projects already grant
 -- these to authenticated by default privilege, but pin it here so the
 -- migration is self-sufficient on a fresh project).
 -- ---------------------------------------------------------------------------
 
 grant select, insert, update, delete
-  on blinds.projects, blinds.floors, blinds.units, blinds.windows
+  on blinds.projects, blinds.floors, blinds.units, blinds.windows, blinds.photos
   to authenticated;
