@@ -407,7 +407,10 @@ export default function WindowEntryPage() {
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 pb-8">
-      <header className="flex items-center gap-3">
+      {/* Sticky, mirroring the floating Save button at the bottom: after
+          finishing a window mid-scroll, back is always one tap away. Full
+          bleed over the page padding so content slides underneath. */}
+      <header className="sticky top-0 z-20 -mx-4 -mt-4 flex items-center gap-3 bg-white/95 px-4 py-3 backdrop-blur dark:bg-neutral-950/95">
         <button
           type="button"
           onClick={() => router.push(`/project/${projectId}/floor/${floorId}`)}
