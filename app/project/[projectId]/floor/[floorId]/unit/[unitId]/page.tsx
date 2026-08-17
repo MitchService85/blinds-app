@@ -633,6 +633,15 @@ export default function WindowEntryPage() {
               </button>
             ))}
           </div>
+          {draft.widths.length > 1 && draft.deduct && (
+            <p className="mt-1 text-xs text-neutral-500">
+              {draft.deduct === "D"
+                ? "Bay: left edge comes off the left panel, right edge off the right panel — middle panels untouched."
+                : draft.deduct === "Dl"
+                  ? "Bay: comes off the left panel only."
+                  : "Bay: comes off the right panel only."}
+            </p>
+          )}
         </div>
 
         <label className="flex min-h-11 items-center gap-3">

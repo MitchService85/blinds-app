@@ -85,6 +85,27 @@ export function buildNoteString(
 }
 
 /**
+ * Deduct for one panel of a window. Single-panel windows carry the deduct
+ * as stored. On a multi-panel bay, fabric can only be trimmed at the
+ * window's outer edges: "D" (both) becomes Dl on the leftmost panel's row
+ * and Dr on the rightmost; "Dl"/"Dr" land on their outer panel only; middle
+ * panels never carry a deduct. (Field request from a PM at 44 Charles:
+ * 1/4" off the left of the left blind and the right of the right blind.)
+ */
+export function panelDeduct(
+  deduct: Deduct,
+  panelIndex: number,
+  panelCount: number
+): Deduct {
+  if (!deduct || panelCount <= 1) return deduct;
+  const first = panelIndex === 0;
+  const last = panelIndex === panelCount - 1;
+  if (deduct === "D") return first ? "Dl" : last ? "Dr" : null;
+  if (deduct === "Dl") return first ? "Dl" : null;
+  return last ? "Dr" : null;
+}
+
+/**
  * Format a window's room-tag label from its stored tag_base/tag_index,
  * mirroring lib/tags.ts computeTagLabels' base+index semantics: tag_index 0
  * means "unnumbered" (single window of this tag_base) and renders as the
@@ -171,17 +192,18 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
       // every file the factory has accepted.
       const quantity = w.quantity ?? 1;
 
-      for (const widthSixteenths of w.widths) {
+      w.widths.forEach((widthSixteenths, panelIndex) => {
         sheet.getCell(row, 1).value = tagLabel; // A: Tag/Unit
         if (quantity > 1) sheet.getCell(row, 2).value = quantity; // B: Q
         if (input.defaults.roll) sheet.getCell(row, 4).value = "Rev"; // D: Roll
         sheet.getCell(row, 5).value = toDecimal(floorToEighth(widthSixteenths)); // E: Width
         sheet.getCell(row, 6).value = toDecimal(floorToEighth(w.height)); // F: Height
         sheet.getCell(row, 9).value = control; // I: Control
-        if (w.deduct) sheet.getCell(row, 10).value = w.deduct; // J: Deducts
+        const deduct = panelDeduct(w.deduct, panelIndex, w.widths.length);
+        if (deduct) sheet.getCell(row, 10).value = deduct; // J: Deducts
         if (noteString) sheet.getCell(row, 11).value = noteString; // K: Notes
         row++;
-      }
+      });
     });
   }
 

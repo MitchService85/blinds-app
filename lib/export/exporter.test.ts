@@ -127,3 +127,43 @@ describe("quantity (Q column)", () => {
     expect(sheet.getCell(11, 2).value).toBeNull(); // single: Q empty
   });
 });
+
+describe("panel deducts on bay windows", () => {
+  const bay = (deduct: "D" | "Dl" | "Dr" | null, widths: number[]) => ({
+    project_name: "P", floor_label: "F", export_date: "2026-08-18",
+    defaults: {
+      roll: false, drive: "R" as const, tight: false, extra_note: "",
+      d_value: "0.5", color_codes: { bed: "", liv: "", studio: "", kitchen: "" },
+    },
+    units: [{
+      number: "1216", status: "done" as const,
+      windows: [{ tag_base: "BR", tag_index: 0, widths, height: 928, quantity: 1,
+        control_override: null, deduct, longer_chain: false, note: "", sort_order: 0 }],
+    }],
+  });
+  const colJ = async (input: ReturnType<typeof bay>, rows: number) => {
+    const wb = await buildWorkbook(input);
+    const sheet = wb.getWorksheet("Window Shades")!;
+    return Array.from({ length: rows }, (_, i) => sheet.getCell(10 + i, 10).value ?? null);
+  };
+
+  it("Both on a 3-panel bay: Dl left, nothing middle, Dr right", async () => {
+    expect(await colJ(bay("D", [464, 848, 464]), 3)).toEqual(["Dl", null, "Dr"]);
+  });
+
+  it("Left on a 3-panel bay lands only on the left panel", async () => {
+    expect(await colJ(bay("Dl", [464, 848, 464]), 3)).toEqual(["Dl", null, null]);
+  });
+
+  it("Right on a 3-panel bay lands only on the right panel", async () => {
+    expect(await colJ(bay("Dr", [464, 848, 464]), 3)).toEqual([null, null, "Dr"]);
+  });
+
+  it("Both on a 2-panel window: Dl then Dr", async () => {
+    expect(await colJ(bay("D", [464, 464]), 2)).toEqual(["Dl", "Dr"]);
+  });
+
+  it("single panel keeps the stored deduct untouched", async () => {
+    expect(await colJ(bay("D", [928]), 1)).toEqual(["D"]);
+  });
+});
