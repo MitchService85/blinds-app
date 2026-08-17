@@ -1,5 +1,6 @@
 "use client";
 
+import { parseSpokenWindow } from "@/lib/voice";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -83,6 +84,8 @@ export default function WindowEntryPage() {
   // lazily created on the first digit tap, which would remount the keypad
   // mid-entry and swallow that digit.
   const [draftSeq, setDraftSeq] = useState(0);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceText, setVoiceText] = useState("");
   const [unitNoteOpen, setUnitNoteOpen] = useState(false);
 
   const draftRef = useRef(draft);
@@ -215,6 +218,38 @@ export default function WindowEntryPage() {
       await syncUnitTagIndices(unitId);
       await refreshWindows();
     });
+  }
+
+  /**
+   * Apply a dictated sentence to the draft. Fills only what the parser
+   * understood and never saves — the tech confirms on the normal form and
+   * taps Save as usual (see lib/voice.ts).
+   */
+  async function applyVoice() {
+    const chips = project?.tag_chips ?? [];
+    const { fields } = parseSpokenWindow(voiceText, chips);
+
+    if (fields.tag_base !== undefined) await selectTag(fields.tag_base);
+
+    const patch: Partial<Omit<DraftWindow, "id" | "tag_base">> = {};
+    if (fields.widths) patch.widths = fields.widths;
+    if (fields.height !== undefined) patch.height = fields.height;
+    if (fields.deduct !== undefined) patch.deduct = fields.deduct;
+    if (fields.longer_chain !== undefined) patch.longer_chain = fields.longer_chain;
+    if (fields.control_override !== undefined) patch.control_override = fields.control_override;
+    if (fields.quantity !== undefined) patch.quantity = fields.quantity;
+    if (Object.keys(patch).length > 0) patchDraft(patch);
+
+    // The keypad holds its own digit buffer and only reseeds from the draft
+    // when remounted (it deliberately does NOT remount on every draft
+    // change, or a lazily-created row would swallow the first digit typed).
+    // A dictated value arrives from outside that buffer, so force the
+    // reseed or the field would still read 0.
+    setDraftSeq((n) => n + 1);
+
+    setVoiceOpen(false);
+    setVoiceText("");
+    setActiveField(0);
   }
 
   async function selectTag(tag: string) {
@@ -449,6 +484,21 @@ export default function WindowEntryPage() {
           </span>
         </div>
       )}
+
+      <button
+
+        type="button"
+
+        onClick={() => setVoiceOpen(true)}
+
+        className="min-h-11 w-full rounded-lg border border-neutral-300 text-sm font-medium dark:border-neutral-700"
+
+      >
+
+        🎤 Say the measurements
+
+      </button>
+
 
       <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
         <button
@@ -689,6 +739,110 @@ export default function WindowEntryPage() {
           </div>
         ))}
       </div>
+
+      {voiceOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-4 dark:bg-neutral-900">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-base font-semibold">Say the measurements</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setVoiceOpen(false);
+                  setVoiceText("");
+                }}
+                className="min-h-9 px-2 text-sm text-neutral-500"
+              >
+                Close
+              </button>
+            </div>
+            <p className="mb-2 text-xs text-neutral-500">
+              Tap the box, then the microphone key on the keyboard. For example: “living
+              room 1, 95 1/2 wide by 87 tall, deduct both, longer chain”.
+            </p>
+            <textarea
+              value={voiceText}
+              onChange={(e) => setVoiceText(e.target.value)}
+              autoFocus
+              rows={3}
+              className="mb-2 w-full rounded-lg border border-neutral-300 p-3 text-base dark:border-neutral-700 dark:bg-neutral-900"
+            />
+            <VoicePreview text={voiceText} chips={project?.tag_chips ?? []} />
+            <button
+              type="button"
+              disabled={!voiceText.trim()}
+              onClick={applyVoice}
+              className="min-h-12 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Fill the form
+            </button>
+            <p className="mt-2 text-center text-xs text-neutral-400">
+              Nothing is saved until you tap Save.
+            </p>
+          </div>
+        </div>
+      )}
     </main>
+  );
+}
+
+/**
+ * Live read-back of what the parser understood, so a misheard number is
+ * caught before it reaches the form.
+ */
+function VoicePreview({ text, chips }: { text: string; chips: string[] }) {
+  if (!text.trim()) return null;
+  const { fields, matched, leftover } = parseSpokenWindow(text, chips);
+  const tag = fields.tag_base
+    ? `${fields.tag_base}${fields.tag_index ? fields.tag_index : ""}`
+    : null;
+
+  return (
+    <div className="mb-3 rounded-lg border border-neutral-200 p-3 text-sm dark:border-neutral-800">
+      {matched.length === 0 ? (
+        <span className="text-amber-700 dark:text-amber-400">
+          Nothing recognised yet.
+        </span>
+      ) : (
+        <div className="flex flex-col gap-1">
+          <div>
+            <span className="text-neutral-500">Window: </span>
+            <span className="font-medium">{tag ?? "no tag"}</span>
+          </div>
+          <div>
+            <span className="text-neutral-500">Size: </span>
+            <span className="font-medium tabular-nums">
+              {fields.widths
+                ? fields.widths.map((w) => formatFraction(floorToEighth(w))).join(" + ")
+                : "—"}
+              {" × "}
+              {fields.height !== undefined
+                ? formatFraction(floorToEighth(fields.height))
+                : "—"}
+            </span>
+          </div>
+          {(fields.deduct ||
+            fields.longer_chain ||
+            fields.control_override ||
+            fields.quantity) && (
+            <div className="text-neutral-500">
+              {[
+                fields.deduct ? `deduct ${fields.deduct}` : null,
+                fields.control_override === "L" ? "left control" : null,
+                fields.longer_chain ? "longer chain" : null,
+                fields.quantity && fields.quantity > 1 ? `×${fields.quantity}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
+          {leftover && (
+            <div className="text-xs text-amber-700 dark:text-amber-400">
+              Not understood: “{leftover}”
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
