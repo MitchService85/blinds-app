@@ -47,15 +47,20 @@ select {
    indicator. Pad every page's top by the safe area plus a breath of space so
    headers never sit under the clock/notch; sticky elements use the utilities
    below instead, so their background covers the inset when stuck. */
+/* The inset alone is not enough: iOS renders a system glass/blur over the
+   status-bar strip and its feathered edge catches anything starting exactly
+   at the inset boundary (seen smearing the dashboard title on an iPhone 15
+   Pro Max). The extra 14px keeps content fully below the glass. */
 body {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
 }
 
 .safe-sticky-top {
   top: 0;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
-  /* cancel body's inset padding while in normal flow */
-  margin-top: calc(-1 * env(safe-area-inset-top, 0px) - 1rem);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 14px + 0.75rem);
+  /* cancel body's padded inset + the page's own 1rem top padding while in
+     normal flow, so the header hugs the top edge when stuck */
+  margin-top: calc(-1 * env(safe-area-inset-top, 0px) - 14px - 1rem);
 }
 
 .safe-bottom {
