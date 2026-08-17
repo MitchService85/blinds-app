@@ -17,6 +17,15 @@ export const metadata: Metadata = {
   title: "Measure",
   description: "Contractor blind measurement app",
   manifest: "/manifest.json",
+  // iOS reads this to decide how a home-screen app meets the status bar.
+  // black-translucent is what makes env(safe-area-inset-top) report the real
+  // notch height — without it iOS overlays the bar but reports 0, and every
+  // safe-area padding in globals.css collapses to nothing.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Measure",
+  },
   icons: {
     icon: [
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
