@@ -8,7 +8,14 @@
 //
 // exporter.ts re-exports everything below, so existing importers are unaffected.
 import { floorToEighth, toDecimal } from "../fractions";
-import type { ControlOverride, Deduct, FloorDefaults, MountType, UnitStatus } from "../types";
+import type {
+  ControlOverride,
+  Deduct,
+  FloorDefaults,
+  MountType,
+  StoredMountType,
+  UnitStatus,
+} from "../types";
 
 /** A single window as consumed by the exporter (a plain, already-loaded shape —
  * not the full synced WindowRecord). Multi-panel windows (bay windows) carry
@@ -30,9 +37,15 @@ export interface ExportWindow {
   quantity?: number;
   control_override: ControlOverride;
   /** Per-window mount override; null/absent inherits the floor default. */
-  mount_override?: MountType;
+  mount_override?: StoredMountType;
+  /** Per-window tight override; null/absent inherits the floor's tight. */
+  tight_override?: boolean | null;
   deduct: Deduct;
+  /** Chain length in whole inches -> the template's Chain column. */
+  chain_length?: number | null;
   longer_chain: boolean;
+  /** Per-window motorization override; null/absent inherits the floor. */
+  motorized_override?: boolean | null;
   note: string;
 }
 
@@ -53,17 +66,71 @@ export interface ExportInput {
   units: ExportUnit[];
 }
 
-/** Resolve a floor's mount, reading the legacy `tight` flag for old rows. */
-export function effectiveMount(defaults: Pick<FloorDefaults, "tight" | "mount">): MountType {
-  return defaults.mount !== undefined ? defaults.mount : defaults.tight ? "inside_tight" : null;
+/**
+ * Normalise a stored mount value. "inside_tight" predates the mount/tight
+ * split and meant only "TIGHT MEASURES", never an inside mount, so it
+ * resolves to no mount at all — its tight half is picked up by isTightMount.
+ */
+export function normalizeMount(m: StoredMountType | undefined): MountType {
+  if (m === "inside_tight" || m === undefined) return null;
+  return m;
+}
+
+/** True when a stored mount value carried the legacy tight meaning. */
+export function isTightMount(m: StoredMountType | undefined): boolean {
+  return m === "inside_tight";
+}
+
+/** Resolve a floor's mount. */
+export function effectiveMount(defaults: Pick<FloorDefaults, "mount">): MountType {
+  return normalizeMount(defaults.mount);
+}
+
+/** Resolve whether a floor is measured tight, honouring the legacy encoding. */
+export function effectiveTight(defaults: Pick<FloorDefaults, "tight" | "mount">): boolean {
+  return defaults.tight === true || isTightMount(defaults.mount);
+}
+
+/** Resolve a window's mount: its own override wins, else the floor's. */
+export function windowMount(
+  defaults: Pick<FloorDefaults, "mount">,
+  override: StoredMountType | undefined
+): MountType {
+  const own = normalizeMount(override);
+  return own ?? effectiveMount(defaults);
+}
+
+/** Resolve a window's tight: explicit override wins, then legacy, then floor. */
+export function windowTight(
+  defaults: Pick<FloorDefaults, "tight" | "mount">,
+  override: StoredMountType | undefined,
+  tightOverride: boolean | null | undefined
+): boolean {
+  if (tightOverride === true || tightOverride === false) return tightOverride;
+  if (isTightMount(override)) return true;
+  return effectiveTight(defaults);
+}
+
+/**
+ * Resolve whether a window is motorized: its own override wins, else the
+ * floor's setting.
+ */
+export function effectiveMotorized(
+  defaults: Pick<FloorDefaults, "motorized">,
+  override?: boolean | null
+): boolean {
+  if (override === true || override === false) return override;
+  return defaults.motorized === true;
 }
 
 /** Notes-column text for a mount, matching the corpus of accepted files. */
 const MOUNT_TEXT: Record<Exclude<MountType, null>, string> = {
-  inside_tight: "TIGHT MEASURES",
   inside: "Inside Mount",
   outside: "Outside Mount",
 };
+
+/** Leads the Notes column on 528 of the corpus's 579 annotated rows. */
+const TIGHT_TEXT = "TIGHT MEASURES";
 
 /**
  * Build the notes string for a single window row: mount text (override or
@@ -71,24 +138,41 @@ const MOUNT_TEXT: Record<Exclude<MountType, null>, string> = {
  * "LONGER CHAIN" when flagged — each piece separated by ". ".
  */
 export function buildNoteString(
-  defaults: Pick<FloorDefaults, "tight" | "mount" | "extra_note">,
+  defaults: Pick<FloorDefaults, "tight" | "mount" | "extra_note" | "motorized" | "chain_type">,
   windowNote: string,
   longerChain: boolean,
-  mountOverride?: MountType
+  mountOverride?: StoredMountType,
+  opts?: {
+    /** Per-window tight override. */
+    tightOverride?: boolean | null;
+    /** Per-window motorization override. */
+    motorizedOverride?: boolean | null;
+    /**
+     * Chain length in inches. When set it goes in the Chain column instead,
+     * so "LONGER CHAIN" is dropped from the note — the number says it better.
+     */
+    chainLength?: number | null;
+  }
 ): string {
-  const mount = mountOverride !== undefined && mountOverride !== null
-    ? mountOverride
-    : effectiveMount(defaults);
-  let note = mount ? MOUNT_TEXT[mount] : "";
-
+  let note = "";
   const append = (piece: string) => {
     if (!piece) return;
     note = note ? `${note}. ${piece}` : piece;
   };
 
+  // Tight leads, as it has on every file the factory has accepted.
+  if (windowTight(defaults, mountOverride, opts?.tightOverride)) append(TIGHT_TEXT);
+
+  const mount = windowMount(defaults, mountOverride);
+  if (mount) append(MOUNT_TEXT[mount]);
+
+  if (effectiveMotorized(defaults, opts?.motorizedOverride)) append("MOTORIZED");
   append(defaults.extra_note);
   append(windowNote);
-  if (longerChain) append("LONGER CHAIN");
+  if (defaults.chain_type) append(`${defaults.chain_type} chain`);
+
+  const hasLength = typeof opts?.chainLength === "number" && opts.chainLength > 0;
+  if (longerChain && !hasLength) append("LONGER CHAIN");
 
   return note;
 }

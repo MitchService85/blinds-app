@@ -185,9 +185,29 @@ describe("mount types in the notes column", () => {
     expect(buildNoteString({ tight: false, extra_note: "" }, "", false)).toBe("");
   });
 
-  it("a per-window override beats the floor default (20 Victoria style)", () => {
-    expect(buildNoteString(d("inside"), "", false, "inside_tight")).toBe("TIGHT MEASURES");
-    expect(buildNoteString(d("inside_tight"), "", false, "inside")).toBe("Inside Mount");
+  it("a per-window mount override beats the floor default (20 Victoria style)", () => {
+    expect(buildNoteString(d("outside"), "", false, "inside")).toBe("Inside Mount");
+    expect(buildNoteString(d("inside"), "", false, "outside")).toBe("Outside Mount");
+  });
+
+  it("a legacy inside_tight override adds tight without clearing the mount", () => {
+    // Before the 2026-08-18 split this returned "TIGHT MEASURES" alone,
+    // because one control carried both meanings and an override replaced the
+    // floor value wholesale. "inside_tight" only ever meant "measured tight",
+    // so it now layers on top of the floor's mount instead of erasing it.
+    // Verified against live data first: zero windows carry any mount override.
+    expect(buildNoteString(d("inside"), "", false, "inside_tight")).toBe(
+      "TIGHT MEASURES. Inside Mount"
+    );
+  });
+
+  it("tight and mount are independent", () => {
+    const floor = { tight: true, mount: "inside" as const, extra_note: "" };
+    expect(buildNoteString(floor, "", false)).toBe("TIGHT MEASURES. Inside Mount");
+    // ...and a window can opt out of tight while keeping the floor's mount.
+    expect(buildNoteString(floor, "", false, undefined, { tightOverride: false })).toBe(
+      "Inside Mount"
+    );
   });
 
   it("composes with extra note and longer chain", () => {

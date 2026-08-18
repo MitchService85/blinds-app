@@ -22,6 +22,7 @@ import { blockedOf, installOf } from "@/components/status";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { ExportButton } from "@/components/export-button";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
+import { effectiveMount, effectiveTight } from "@/lib/export/shared";
 
 type FloorMode = "measure" | "install";
 const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
@@ -586,10 +587,15 @@ function DefaultsSummary({ defaults }: { defaults: FloorDefaults }) {
   const parts = [
     defaults.roll ? "Rev" : null,
     `Drive ${defaults.drive}`,
+    // Tight and mount are separate chips: they answer different questions
+    // (how it was measured vs where it sits) and a floor can be both.
+    effectiveTight(defaults) ? "Tight" : null,
     (() => {
-      const mount = defaults.mount !== undefined ? defaults.mount : defaults.tight ? "inside_tight" : null;
-      return mount === "inside_tight" ? "Tight" : mount === "inside" ? "Inside" : mount === "outside" ? "Outside" : null;
+      const mount = effectiveMount(defaults);
+      return mount === "inside" ? "Inside" : mount === "outside" ? "Outside" : null;
     })(),
+    defaults.motorized ? "Motorized" : null,
+    defaults.chain_type ? `${defaults.chain_type} chain` : null,
     `D=${defaults.d_value}`,
     defaults.extra_note || null,
   ].filter((p): p is string => Boolean(p));

@@ -16,6 +16,12 @@ const BAY_SIDE_DIFF_MAX = 24; // sixteenths
 // to spare. These catch mistyped entries — a dropped leading digit turns
 // 74 7/8 into 4 7/8, and a digit appended to a prefilled height turns 87 into
 // 876 — rather than anything about how the blind is built.
+// Chain lengths seen or asked for in the corpus run 48" to 160"; the
+// Instructions sheet's own examples are 72, 48, 60. Outside this band is a
+// typo, not a job requirement.
+const MIN_PLAUSIBLE_CHAIN = 12;
+const MAX_PLAUSIBLE_CHAIN = 240;
+
 const MIN_PLAUSIBLE_WIDTH = 12 * 16;
 const MAX_PLAUSIBLE_WIDTH = 160 * 16;
 const MIN_PLAUSIBLE_HEIGHT = 24 * 16;
@@ -60,6 +66,27 @@ export function checkUnitWindows(
         unit_number: unit.number,
         tag: tagLabel(w),
         message: `height ${formatFraction(w.height)}" looks off — check for an extra digit`,
+      });
+    }
+
+    // A motorized shade has no chain. Ordering both is contradictory and the
+    // factory has to guess which one the site actually needs.
+    const motorized = w.motorized_override === true;
+    const chain = typeof w.chain_length === "number" ? w.chain_length : null;
+    if (motorized && chain !== null && chain > 0) {
+      warnings.push({
+        window_id: w.id,
+        unit_number: unit.number,
+        tag: tagLabel(w),
+        message: `motorized but also has a ${chain}" chain — pick one`,
+      });
+    }
+    if (chain !== null && chain > 0 && (chain < MIN_PLAUSIBLE_CHAIN || chain > MAX_PLAUSIBLE_CHAIN)) {
+      warnings.push({
+        window_id: w.id,
+        unit_number: unit.number,
+        tag: tagLabel(w),
+        message: `chain length ${chain}" looks off — check the digits`,
       });
     }
 

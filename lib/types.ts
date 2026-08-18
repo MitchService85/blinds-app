@@ -18,11 +18,23 @@ export interface Project extends SyncedRow {
 }
 
 /**
- * How the blinds meet the frame — the first thing in every commercial
- * file's Notes column ("Inside Mount", "Outside Mount", "TIGHT MEASURES").
- * null = don't note anything (matches jobs like Alcon that never say).
+ * Where the blind sits relative to the opening. null = don't note anything
+ * (matches jobs like Alcon that never say).
+ *
+ * Deliberately independent of `tight`: mount is *where it sits*, tight is
+ * *how it was measured*, and a window can be both (inside mount, measured
+ * tight). They were one 4-way control until 2026-08-18 and no file in the
+ * corpus ever combined them, but that was the control's limitation, not a
+ * real constraint.
  */
-export type MountType = null | "inside_tight" | "inside" | "outside";
+export type MountType = null | "inside" | "outside";
+
+/**
+ * Values that may still be sitting in stored rows. "inside_tight" predates
+ * the mount/tight split and meant only "TIGHT MEASURES" — it never implied an
+ * inside mount — so readers normalise it to { mount: null, tight: true }.
+ */
+export type StoredMountType = MountType | "inside_tight";
 
 export interface FloorDefaults {
   /** Reverse roll -> exports as "Rev" */
@@ -30,13 +42,24 @@ export interface FloorDefaults {
   /** Default drive/control side */
   drive: "L" | "R";
   /**
-   * Legacy flag kept for rows written before `mount` existed:
-   * tight=true meant what mount="inside_tight" means now. Readers use
-   * `mount ?? (tight ? "inside_tight" : null)`; writers keep both in sync.
+   * Measured tight to the opening -> "TIGHT MEASURES" in the Notes column.
+   * Independent of `mount` since 2026-08-18.
    */
   tight: boolean;
-  /** Mounting type noted on every exported row. Absent on old rows. */
-  mount?: MountType;
+  /** Where the blind sits, noted on every exported row. Absent on old rows. */
+  mount?: StoredMountType;
+  /**
+   * Whole floor is motorized. The corpus records this per room/zone rather
+   * than per window (Canadian Tire marks "Motorized" on a zone header covering
+   * every size beneath it), so it lives here with a per-window override.
+   */
+  motorized?: boolean;
+  /**
+   * Chain type for the job, e.g. "Metal" (2000-181 University). Reaches the
+   * factory through the Notes column: the template's Chain column is reserved
+   * for a length per its Instructions sheet, so a type cannot go there.
+   */
+  chain_type?: string;
   /** Extra note applied to every window on this floor, e.g. "DRILL HOLES IN FASCIA" */
   extra_note: string;
   /** D value shown in export header, e.g. "1/2" */
@@ -110,12 +133,29 @@ export interface WindowRecord extends SyncedRow {
   quantity: number;
   control_override: ControlOverride;
   /**
-   * Per-window mount override (20 Victoria mixes Tight and Finished on one
-   * floor). null/absent = inherit the floor's mount.
+   * Per-window mount override (20 Victoria mixes mount styles on one floor).
+   * null/absent = inherit the floor's mount.
    */
-  mount_override?: MountType;
+  mount_override?: StoredMountType;
+  /** Per-window tight override; null/absent inherits the floor's `tight`. */
+  tight_override?: boolean | null;
   deduct: Deduct;
+  /**
+   * Chain length in whole inches, exported to the template's Chain column.
+   * The Instructions sheet defines that column as "Chain length value (e.g.,
+   * 72, 48, 60)" but no file in the corpus ever used it — lengths were typed
+   * into Notes instead ("Requires 160\" chain" at Citi). null = unspecified.
+   */
+  chain_length?: number | null;
+  /**
+   * Legacy qualitative flag, superseded by chain_length. Still honoured for
+   * rows written before that field existed (dozens of Arbour rows carry
+   * "LONGER CHAIN" in their notes), but a window with a chain_length exports
+   * the number instead of the phrase.
+   */
   longer_chain: boolean;
+  /** Per-window motorization override; null/absent inherits the floor. */
+  motorized_override?: boolean | null;
   note: string;
   sort_order: number;
 }

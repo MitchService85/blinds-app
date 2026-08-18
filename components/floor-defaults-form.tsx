@@ -55,32 +55,46 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
         </div>
       </div>
 
+      <label className="flex min-h-11 items-center gap-3">
+        <input
+          type="checkbox"
+          checked={value.tight === true || value.mount === "inside_tight"}
+          onChange={(e) =>
+            // Clear the legacy combined value: "inside_tight" used to carry
+            // the tight meaning, and leaving it set would re-apply it.
+            patch({
+              tight: e.target.checked,
+              mount: value.mount === "inside_tight" ? null : value.mount,
+            })
+          }
+          className="h-5 w-5"
+        />
+        <span className="text-sm">
+          Tight measures <span className="text-neutral-400">(how it was measured)</span>
+        </span>
+      </label>
+
       <div>
-        <div className="mb-1 text-sm text-neutral-500">Mount (noted on every exported row)</div>
+        <div className="mb-1 text-sm text-neutral-500">Mount (where the blind sits)</div>
         <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
           {(
             [
               [null, "Not noted"],
-              ["inside_tight", "Tight"],
               ["inside", "Inside"],
               ["outside", "Outside"],
             ] as Array<[MountType, string]>
           ).map(([mount, label]) => {
-            const current = value.mount !== undefined ? value.mount : value.tight ? "inside_tight" : null;
+            const current = value.mount === "inside_tight" ? null : (value.mount ?? null);
             return (
               <button
                 key={label}
                 type="button"
-                onClick={() =>
-                  // Keep the legacy `tight` flag in sync so a device still
-                  // running an older build reads the same meaning.
-                  patch({ mount, tight: mount === "inside_tight" })
-                }
+                onClick={() => patch({ mount })}
                 aria-pressed={current === mount}
                 className={`min-h-11 flex-1 text-sm font-medium ${
                   current === mount
                     ? "bg-blue-600 text-white"
-                    : "bg-white text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                    : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
                 }`}
               >
                 {label}
@@ -88,6 +102,31 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
             );
           })}
         </div>
+      </div>
+
+      <label className="flex min-h-11 items-center gap-3">
+        <input
+          type="checkbox"
+          checked={value.motorized === true}
+          onChange={(e) => patch({ motorized: e.target.checked })}
+          className="h-5 w-5"
+        />
+        <span className="text-sm">
+          Motorized <span className="text-neutral-400">(whole floor; override per window)</span>
+        </span>
+      </label>
+
+      <div>
+        <div className="mb-1 text-sm text-neutral-500">
+          Chain type <span className="text-neutral-400">(optional)</span>
+        </div>
+        <input
+          type="text"
+          value={value.chain_type ?? ""}
+          onChange={(e) => patch({ chain_type: e.target.value })}
+          placeholder="e.g. Metal"
+          className="min-h-11 w-full rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+        />
       </div>
 
       <div>

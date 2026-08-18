@@ -123,3 +123,49 @@ describe("plausibility warnings", () => {
     expect(checkUnitWindows(unit, [win([0], 0)])).toEqual([]);
   });
 });
+
+describe("motorized and chain checks", () => {
+  const win = (patch: Partial<WindowRecord>): WindowRecord =>
+    ({
+      id: "w1",
+      updated_at: "",
+      deleted: false,
+      unit_id: "u1",
+      tag_base: "LR",
+      tag_index: 0,
+      widths: [1000],
+      height: 900,
+      quantity: 1,
+      control_override: null,
+      deduct: null,
+      longer_chain: false,
+      note: "",
+      sort_order: 0,
+      ...patch,
+    }) as WindowRecord;
+
+  it("flags a motorized window that also carries a chain", () => {
+    const w = checkUnitWindows({ number: "301" }, [
+      win({ motorized_override: true, chain_length: 72 }),
+    ]);
+    expect(w).toHaveLength(1);
+    expect(w[0].message).toContain("pick one");
+  });
+
+  it("accepts motorized with no chain", () => {
+    expect(
+      checkUnitWindows({ number: "301" }, [win({ motorized_override: true })])
+    ).toHaveLength(0);
+  });
+
+  it("accepts a chain on a non-motorized window", () => {
+    expect(
+      checkUnitWindows({ number: "301" }, [win({ chain_length: 72 })])
+    ).toHaveLength(0);
+  });
+
+  it("flags an implausible chain length", () => {
+    const w = checkUnitWindows({ number: "301" }, [win({ chain_length: 7200 })]);
+    expect(w[0].message).toContain("looks off");
+  });
+});

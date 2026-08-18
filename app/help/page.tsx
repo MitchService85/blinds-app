@@ -136,7 +136,8 @@ export default function HelpPage() {
         <p>Pick the room (LR = living room, BR = bedroom, MBR = master). Tap the numbers, then the fraction. Width first, then Height — it flips automatically.</p>
         <p>Using a laser that reads 1/16ths? Tap the <b>¹⁄₁₆</b> switch and punch in exactly what the laser says. The app rounds it down to the eighth the factory wants and remembers the raw number.</p>
         <p>Everything saves by itself the moment you tap it. <b>Save · next window</b> just moves you to the next one.</p>
-        <p>The floor&apos;s <b>Mount</b> setting (Tight / Inside / Outside) goes on every exported row automatically — set it once in the floor&apos;s Edit bar. One odd window? Override it right on that window.</p>
+        <p><b>Tight measures</b> and <b>Mount</b> are two separate questions. Tight is how you measured; Mount (Inside / Outside) is where the blind sits. A floor can be both. Set them once in the floor&apos;s Edit bar and they go on every exported row. One odd window? Override either one right on that window.</p>
+        <p><b>Motorized</b> works the same way: set it for the whole floor, override the odd window. <b>Chain</b> takes a length in inches and goes straight into the factory sheet&apos;s Chain column, which is what that column is actually for. Enter a length and you can skip the old &quot;longer chain&quot; note — the number says it better. A motorized blind has no chain, so the app warns if you set both.</p>
       </Section>
 
       <Section title="Bay windows: use + panel" visual={<VisualBay />}>

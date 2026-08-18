@@ -72,6 +72,7 @@ Postgres (Supabase) and IndexedDB share the same shape. All rows carry `id (uuid
 - **floors**: project_id, label, defaults (json: roll, drive, tight, extra_note, d_value, color_codes)
 - **units**: floor_id, number, status (active | na | done), sort_order
 - **exports**: floor_id, exported_at, filename, blind_count, input (jsonb snapshot of ExportInput)
+- **windows** also carry: quantity, mount_override, tight_override, chain_length, motorized_override
 - **windows**: unit_id, tag_base (LR/BR/…), tag_index (int, 0 = unnumbered), width (stored in SIXTEENTHS as int — no float drift, preserves raw laser readings), height (sixteenths), control_override (null | L | R), deduct (null | Dl | Dr | D), longer_chain (bool), note (text), sort_order
 
 Width/height stored as integer sixteenths of an inch (74 7/8 → 1198; 74 13/16 → 1197). Rounded DOWN to the nearest eighth and converted to decimal only at display/export, so raw 1/16 laser readings survive in the data.
@@ -113,6 +114,37 @@ deduct placement, round-down-to-eighth) live in `lib/export/shared.ts`, free of
 any ExcelJS import, so the floor screen can diff on every render without
 pulling the workbook writer into the bundle. `exporter.ts` re-exports them, and
 the golden-file test proved the split byte-safe.
+
+## Motorized, chain length, and the mount/tight split (2026-08-18)
+
+Built from what the corpus actually records, not from the field names.
+
+- **Chain length** (`windows.chain_length`, whole inches) goes into the
+  template's Chain column, which its own Instructions sheet defines as "Chain
+  length value (e.g., 72, 48, 60)". No file in the corpus ever used it: lengths
+  were typed into Notes instead ("Requires 160\" chain" at Citi) and 528 rows
+  carry the vaguer "LONGER CHAIN". **A window with a chain length exports the
+  number and drops "LONGER CHAIN" from its note** (Mitch's call). The legacy
+  boolean still works alone, so old rows export unchanged.
+- **Chain type** (`floors.defaults.chain_type`, e.g. "Metal") reaches the
+  factory through Notes. It cannot use the Chain column, which is reserved for
+  a length, and the evidence is two cells at 2000-181 University.
+- **Motorized** is a floor default with a per-window override, because the
+  corpus records it per zone (Canadian Tire marks "Motorized" on a room header
+  covering every size beneath it). Exports as `MOTORIZED` in Notes.
+- **Mount and tight are now independent.** Mount (`inside`/`outside`) is where
+  the blind sits; tight is how it was measured; a floor or window can be both.
+  They were one 4-way control until now, and although the corpus never combines
+  them across 579 annotated rows, that was the control's limitation.
+  `"inside_tight"` is a legacy stored value meaning only "measured tight" —
+  readers normalise it to `{ mount: null, tight: true }` and the DB check still
+  accepts it so phones on an older bundle keep syncing. One live floor was
+  migrated; zero windows carried any mount override.
+- **New check**: motorized *and* a chain length is contradictory, plus chain
+  lengths outside 12"–240" are flagged as typos.
+
+Note ordering: `TIGHT MEASURES`, mount, `MOTORIZED`, floor note, window note,
+chain type, `LONGER CHAIN`. Tight leads because it does on every accepted file.
 
 ## Unit photos (added 2026-08-18, Mitch field request)
 

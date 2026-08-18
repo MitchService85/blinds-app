@@ -107,7 +107,20 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
       const tag = windowTagLabel(w);
       const tagLabel = tag ? `${unit.number}-${tag}` : unit.number;
       const control = w.control_override ?? input.defaults.drive;
-      const noteString = buildNoteString(input.defaults, w.note, w.longer_chain, w.mount_override);
+      const noteString = buildNoteString(
+        input.defaults,
+        w.note,
+        w.longer_chain,
+        w.mount_override,
+        {
+          tightOverride: w.tight_override,
+          motorizedOverride: w.motorized_override,
+          chainLength: w.chain_length,
+        }
+      );
+      // Chain column (G) per the template's Instructions sheet: a length value.
+      const chainLength =
+        typeof w.chain_length === "number" && w.chain_length > 0 ? w.chain_length : null;
 
       // Identical-blind multiplier (Cleveland Clinic style). One row per
       // size with the count in Q; a quantity of 1 leaves Q empty, matching
@@ -118,6 +131,7 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
         sheet.getCell(row, 1).value = tagLabel; // A: Tag/Unit
         if (quantity > 1) sheet.getCell(row, 2).value = quantity; // B: Q
         if (input.defaults.roll) sheet.getCell(row, 4).value = "Rev"; // D: Roll
+        if (chainLength !== null) sheet.getCell(row, 7).value = chainLength; // G: Chain
         sheet.getCell(row, 5).value = exportedSize(widthSixteenths); // E: Width
         sheet.getCell(row, 6).value = exportedSize(w.height); // F: Height
         sheet.getCell(row, 9).value = control; // I: Control

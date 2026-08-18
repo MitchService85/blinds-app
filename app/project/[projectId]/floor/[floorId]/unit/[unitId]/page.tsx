@@ -10,6 +10,7 @@ import {
   getFloor,
   getProject,
   getUnit,
+  getWindow,
   listUnits,
   listWindows,
   updateUnit,
@@ -40,6 +41,12 @@ interface DraftWindow {
   control_override: ControlOverride;
   /** null = inherit the floor's mount. */
   mount_override: MountType;
+  /** null = inherit the floor's tight setting. */
+  tight_override: boolean | null;
+  /** Chain length in whole inches; null = unspecified. */
+  chain_length: number | null;
+  /** null = inherit the floor's motorized setting. */
+  motorized_override: boolean | null;
   deduct: Deduct;
   longer_chain: boolean;
   note: string;
@@ -54,6 +61,9 @@ function blankDraft(): DraftWindow {
     quantity: 1,
     control_override: null,
     mount_override: null,
+    tight_override: null,
+    chain_length: null,
+    motorized_override: null,
     deduct: null,
     longer_chain: false,
     note: "",
@@ -207,8 +217,36 @@ export default function WindowEntryPage() {
     // first real edit, so rapid-fire zone-run entry is just width-tap-save —
     // queued so a fast burst of taps can't race and create duplicate rows.
     writeQueueRef.current = writeQueueRef.current.then(async () => {
-      if (draftRef.current.id !== null) return; // an earlier queued turn already created it
       const latest = draftRef.current;
+
+      // An earlier queued turn already created the row. We cannot just bail:
+      // this patch landed while `draft.id` was still stale in the closure
+      // above, so it never took the update branch, and dropping it here would
+      // silently lose the field — it shows in the UI (draftRef has it) but
+      // never reaches the database. Persist the current draft onto the row
+      // instead. Idempotent, and it captures every field at once.
+      if (latest.id !== null) {
+        const existing = await getWindow(latest.id);
+        if (existing) {
+          await upsertWindow({
+            ...existing,
+            widths: latest.widths,
+            height: latest.height,
+            quantity: latest.quantity,
+            control_override: latest.control_override,
+            mount_override: latest.mount_override,
+            tight_override: latest.tight_override,
+            chain_length: latest.chain_length ?? null,
+            motorized_override: latest.motorized_override ?? null,
+            deduct: latest.deduct,
+            longer_chain: latest.longer_chain,
+            note: latest.note,
+          });
+          await refreshWindows();
+        }
+        return;
+      }
+
       const created = await createWindow({
         unit_id: unitId,
         tag_base: latest.tag_base ?? "",
@@ -218,6 +256,9 @@ export default function WindowEntryPage() {
         quantity: latest.quantity,
         control_override: latest.control_override,
         mount_override: latest.mount_override,
+        tight_override: latest.tight_override,
+        chain_length: latest.chain_length ?? null,
+        motorized_override: latest.motorized_override ?? null,
         deduct: latest.deduct,
         longer_chain: latest.longer_chain,
         note: latest.note,
@@ -300,7 +341,12 @@ export default function WindowEntryPage() {
       height: w.height,
       quantity: w.quantity ?? 1,
       control_override: w.control_override,
-      mount_override: w.mount_override ?? null,
+      // "inside_tight" predates the split and meant only "measured tight".
+      mount_override: w.mount_override === "inside_tight" ? null : (w.mount_override ?? null),
+      tight_override:
+        w.mount_override === "inside_tight" ? true : (w.tight_override ?? null),
+      chain_length: w.chain_length ?? null,
+      motorized_override: w.motorized_override ?? null,
       deduct: w.deduct,
       longer_chain: w.longer_chain,
       note: w.note,
@@ -337,6 +383,9 @@ export default function WindowEntryPage() {
       quantity: 1,
       control_override: null,
       mount_override: null,
+      tight_override: null,
+      chain_length: null,
+      motorized_override: null,
       deduct: null,
       longer_chain: false,
       note: "",
@@ -674,12 +723,38 @@ export default function WindowEntryPage() {
         </label>
 
         <div>
+          <div className="mb-1 text-xs text-neutral-500">Tight measures (this window only)</div>
+          <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
+            {(
+              [
+                [null, "Floor default"],
+                [true, "Tight"],
+                [false, "Not tight"],
+              ] as Array<[boolean | null, string]>
+            ).map(([t, label]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => patchDraft({ tight_override: t })}
+                aria-pressed={draft.tight_override === t}
+                className={`min-h-11 flex-1 text-xs font-medium ${
+                  draft.tight_override === t
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
           <div className="mb-1 text-xs text-neutral-500">Mount (this window only)</div>
           <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
             {(
               [
                 [null, "Floor default"],
-                ["inside_tight", "Tight"],
                 ["inside", "Inside"],
                 ["outside", "Outside"],
               ] as Array<[MountType, string]>
@@ -699,6 +774,54 @@ export default function WindowEntryPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <div className="mb-1 text-xs text-neutral-500">Motorized (this window only)</div>
+          <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
+            {(
+              [
+                [null, "Floor default"],
+                [true, "Motorized"],
+                [false, "Not motorized"],
+              ] as Array<[boolean | null, string]>
+            ).map(([motor, label]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => patchDraft({ motorized_override: motor })}
+                aria-pressed={draft.motorized_override === motor}
+                className={`min-h-11 flex-1 text-xs font-medium ${
+                  draft.motorized_override === motor
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex min-h-11 items-center gap-3">
+          <span className="text-sm">Chain</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={draft.chain_length ?? ""}
+            onChange={(e) => {
+              const n = parseInt(e.target.value, 10);
+              patchDraft({ chain_length: Number.isFinite(n) && n > 0 ? n : null });
+            }}
+            placeholder="inches"
+            className="min-h-11 w-24 rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          />
+          <span className="text-xs text-neutral-400">
+            {draft.chain_length
+              ? "goes in the Chain column"
+              : "blank = not specified"}
+          </span>
         </div>
 
         <div className="flex min-h-11 items-center gap-3">

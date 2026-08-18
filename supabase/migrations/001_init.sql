@@ -92,7 +92,8 @@ create table if not exists blinds.floors (
   deleted boolean not null default false,
   project_id uuid not null references blinds.projects (id) on delete cascade,
   label text not null,
-  -- { roll, drive, tight, extra_note, d_value, color_codes } — see FloorDefaults in lib/types.ts
+  -- { roll, drive, tight, mount, motorized, chain_type, extra_note, d_value, color_codes }
+  -- see FloorDefaults in lib/types.ts
   defaults jsonb not null default '{}'::jsonb,
   -- factory order number + site trip count, shown in the floor header for invoicing
   order_number text not null default '',
@@ -158,10 +159,21 @@ create table if not exists blinds.windows (
   -- identical-blind multiplier (template Q column); 1 = single blind
   quantity integer not null default 1,
   control_override text check (control_override is null or control_override in ('L', 'R')),
-  -- per-window mount override; floor default lives in floors.defaults jsonb
+  -- per-window mount override; floor default lives in floors.defaults jsonb.
+  -- 'inside_tight' predates the 2026-08-18 mount/tight split and only ever
+  -- meant "measured tight"; readers normalise it. Kept accepted so phones on
+  -- an older bundle can still sync.
   mount_override text check (mount_override is null or mount_override in ('inside_tight', 'inside', 'outside')),
+  -- per-window tight override, independent of mount
+  tight_override boolean,
   deduct text check (deduct is null or deduct in ('Dl', 'Dr', 'D')),
+  -- chain length in whole inches -> the template's Chain column (col G),
+  -- which its Instructions sheet defines as "Chain length value"
+  chain_length integer check (chain_length is null or chain_length > 0),
+  -- legacy qualitative flag, superseded by chain_length
   longer_chain boolean not null default false,
+  -- per-window motorization override; floor default lives in floors.defaults
+  motorized_override boolean,
   note text not null default '',
   sort_order integer not null default 0
 );

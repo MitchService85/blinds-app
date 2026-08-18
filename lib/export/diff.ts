@@ -14,7 +14,10 @@
 import { floorToEighth, formatFraction } from "../fractions";
 import type { MountType } from "../types";
 import {
+  effectiveMotorized,
   effectiveMount,
+  effectiveTight,
+  normalizeMount,
   windowTagLabel,
   type ExportInput,
   type ExportUnit,
@@ -56,13 +59,22 @@ interface Entry {
 }
 
 const MOUNT_LABEL: Record<string, string> = {
-  inside_tight: "Tight",
   inside: "Inside",
   outside: "Outside",
 };
 
 function mountLabel(m: MountType): string {
   return m ? (MOUNT_LABEL[m] ?? m) : "not noted";
+}
+
+function chainLabel(inches?: number | null): string {
+  return typeof inches === "number" && inches > 0 ? `${inches}"` : "none";
+}
+
+function motorLabel(v?: boolean | null): string {
+  if (v === true) return "yes";
+  if (v === false) return "no";
+  return "floor default";
 }
 
 function sizeLabel(sixteenths: number): string {
@@ -112,10 +124,13 @@ function compareWindows(a: ExportWindow, b: ExportWindow): FieldChange[] {
   push("Control", a.control_override ?? "floor default", b.control_override ?? "floor default");
   push(
     "Mount",
-    a.mount_override ? mountLabel(a.mount_override) : "floor default",
-    b.mount_override ? mountLabel(b.mount_override) : "floor default"
+    a.mount_override ? mountLabel(normalizeMount(a.mount_override)) : "floor default",
+    b.mount_override ? mountLabel(normalizeMount(b.mount_override)) : "floor default"
   );
+  push("Tight", motorLabel(a.tight_override), motorLabel(b.tight_override));
+  push("Chain length", chainLabel(a.chain_length), chainLabel(b.chain_length));
   push("Longer chain", a.longer_chain ? "yes" : "no", b.longer_chain ? "yes" : "no");
+  push("Motorized", motorLabel(a.motorized_override), motorLabel(b.motorized_override));
   push("Note", a.note || "none", b.note || "none");
 
   return fields;
@@ -129,9 +144,20 @@ function compareFloors(a: ExportInput, b: ExportInput): FieldChange[] {
 
   push("D value", a.defaults.d_value, b.defaults.d_value);
   push("Mount", mountLabel(effectiveMount(a.defaults)), mountLabel(effectiveMount(b.defaults)));
+  push(
+    "Tight",
+    effectiveTight(a.defaults) ? "yes" : "no",
+    effectiveTight(b.defaults) ? "yes" : "no"
+  );
   push("Roll", a.defaults.roll ? "reverse" : "standard", b.defaults.roll ? "reverse" : "standard");
   push("Control side", a.defaults.drive, b.defaults.drive);
   push("Floor note", a.defaults.extra_note || "none", b.defaults.extra_note || "none");
+  push(
+    "Motorized",
+    effectiveMotorized(a.defaults) ? "yes" : "no",
+    effectiveMotorized(b.defaults) ? "yes" : "no"
+  );
+  push("Chain type", a.defaults.chain_type || "none", b.defaults.chain_type || "none");
 
   const codes = ["bed", "liv", "studio", "kitchen"] as const;
   for (const code of codes) {

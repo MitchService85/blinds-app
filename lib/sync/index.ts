@@ -238,6 +238,9 @@ function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
     r.quantity = r.quantity ?? 1;
     r.note = r.note ?? "";
     r.mount_override = r.mount_override ?? null;
+    r.tight_override = r.tight_override ?? null;
+    r.chain_length = r.chain_length ?? null;
+    r.motorized_override = r.motorized_override ?? null;
   } else if (table === "exports") {
     r.blind_count = r.blind_count ?? 0;
     r.filename = r.filename ?? "";

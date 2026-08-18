@@ -152,3 +152,96 @@ describe("export snapshots", () => {
     expect(countBlinds(input)).toBe(0);
   });
 });
+
+describe("motorized and chain", () => {
+  const withWindow = (patch: Record<string, unknown>): ExportInput =>
+    edit(base(), (i) => {
+      i.units = [
+        {
+          number: "301",
+          status: "active",
+          windows: [
+            {
+              tag_base: "LR",
+              tag_index: 0,
+              widths: [1000],
+              height: 900,
+              quantity: 1,
+              control_override: null,
+              deduct: null,
+              longer_chain: false,
+              note: "",
+              ...patch,
+            },
+          ],
+        },
+      ];
+    });
+
+  const noteAt = (input: ExportInput, row = 10) =>
+    buildWorkbook(input).getWorksheet("Window Shades")!.getCell(row, 11).value;
+  const chainAt = (input: ExportInput, row = 10) =>
+    buildWorkbook(input).getWorksheet("Window Shades")!.getCell(row, 7).value;
+
+  it("writes chain length as a number in the Chain column", () => {
+    expect(chainAt(withWindow({ chain_length: 72 }))).toBe(72);
+  });
+
+  it("leaves the Chain column empty when no length is set", () => {
+    expect(chainAt(withWindow({}))).toBeNull();
+  });
+
+  it("drops LONGER CHAIN from the note once a length is given", () => {
+    // Mitch's call: the number says it better than the phrase.
+    const withPhrase = withWindow({ longer_chain: true });
+    expect(String(noteAt(withPhrase))).toContain("LONGER CHAIN");
+
+    const withNumber = withWindow({ longer_chain: true, chain_length: 96 });
+    expect(String(noteAt(withNumber))).not.toContain("LONGER CHAIN");
+    expect(chainAt(withNumber)).toBe(96);
+  });
+
+  it("notes MOTORIZED from the floor default", () => {
+    const input = withWindow({});
+    input.defaults.motorized = true;
+    expect(String(noteAt(input))).toContain("MOTORIZED");
+  });
+
+  it("lets a window opt out of a motorized floor", () => {
+    const input = withWindow({ motorized_override: false });
+    input.defaults.motorized = true;
+    expect(String(noteAt(input))).not.toContain("MOTORIZED");
+  });
+
+  it("lets a window opt in on a non-motorized floor", () => {
+    const input = withWindow({ motorized_override: true });
+    input.defaults.motorized = false;
+    expect(String(noteAt(input))).toContain("MOTORIZED");
+  });
+
+  it("appends the floor's chain type", () => {
+    const input = withWindow({});
+    input.defaults.chain_type = "Metal";
+    expect(String(noteAt(input))).toContain("Metal chain");
+  });
+
+  it("diffs chain length and motorized override", () => {
+    const prev = withWindow({ chain_length: 72 });
+    const next = withWindow({ chain_length: 96, motorized_override: true });
+    const d = diffExports(prev, next);
+    const labels = d.windows[0].fields.map((f) => f.label);
+    expect(labels).toContain("Chain length");
+    expect(labels).toContain("Motorized");
+  });
+
+  it("diffs floor-level motorized and chain type", () => {
+    const prev = withWindow({});
+    const next = withWindow({});
+    next.defaults.motorized = true;
+    next.defaults.chain_type = "Metal";
+    const d = diffExports(prev, next);
+    const labels = d.floor.map((f) => f.label);
+    expect(labels).toContain("Motorized");
+    expect(labels).toContain("Chain type");
+  });
+});
