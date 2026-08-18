@@ -78,7 +78,18 @@ export function isSyncConfigured(): boolean {
 // Local table access (raw Dexie writes, bypassing lib/db.ts's outbox path)
 // ---------------------------------------------------------------------------
 
-const TABLES: OutboxTableName[] = ["projects", "floors", "units", "windows", "photos"];
+// FK order: a child table can only land once its parent exists server-side.
+// This is the single source of truth — both push (drainOutbox) and pull
+// (pullSince) walk it, so a new table can never be wired into one and
+// forgotten in the other.
+const TABLES: OutboxTableName[] = [
+  "projects",
+  "floors",
+  "units",
+  "windows",
+  "photos",
+  "exports",
+];
 
 function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
   switch (table) {
@@ -92,6 +103,8 @@ function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
       return db.windows as unknown as Table<SyncedRow, string>;
     case "photos":
       return db.photos as unknown as Table<SyncedRow, string>;
+    case "exports":
+      return db.exports as unknown as Table<SyncedRow, string>;
   }
 }
 
@@ -183,9 +196,8 @@ export async function drainOutbox(): Promise<void> {
 
     // Parent tables first so foreign keys always resolve; one table's
     // failure must not stop the others from draining.
-    const TABLE_ORDER: OutboxTableName[] = ["projects", "floors", "units", "windows", "photos"];
     let firstError: unknown = null;
-    for (const table of TABLE_ORDER) {
+    for (const table of TABLES) {
       const rowMap = byTable.get(table);
       if (!rowMap) continue;
       try {
@@ -226,6 +238,9 @@ function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
     r.quantity = r.quantity ?? 1;
     r.note = r.note ?? "";
     r.mount_override = r.mount_override ?? null;
+  } else if (table === "exports") {
+    r.blind_count = r.blind_count ?? 0;
+    r.filename = r.filename ?? "";
   }
   return r as unknown as SyncedRow;
 }

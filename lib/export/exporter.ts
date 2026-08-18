@@ -3,44 +3,25 @@
 // Level 4 file. See docs/superpowers/specs/2026-08-12-measure-app-design.md
 // ("Export mapping").
 import ExcelJS from "exceljs";
-import { floorToEighth, toDecimal } from "../fractions";
-import type { ControlOverride, Deduct, FloorDefaults, MountType, UnitStatus } from "../types";
 import instructionsData from "../../fixtures/instructions-sheet.json";
+import {
+  buildNoteString,
+  exportedSize,
+  panelDeduct,
+  windowTagLabel,
+  type ExportInput,
+} from "./shared";
 
-/** A single window as consumed by the exporter (a plain, already-loaded shape —
- * not the full synced WindowRecord). Multi-panel windows (bay windows) carry
- * more than one entry in `widths`; the exporter emits one row per panel. */
-export interface ExportWindow {
-  tag_base: string;
-  tag_index: number;
-  /** Panel widths in integer sixteenths of an inch, left to right. */
-  widths: number[];
-  /** Height in integer sixteenths of an inch. */
-  height: number;
-  /** Identical-blind multiplier (template Q column). Absent/1 = single. */
-  quantity?: number;
-  control_override: ControlOverride;
-  /** Per-window mount override; null/absent inherits the floor default. */
-  mount_override?: MountType;
-  deduct: Deduct;
-  longer_chain: boolean;
-  note: string;
-}
-
-export interface ExportUnit {
-  number: string;
-  status: UnitStatus;
-  windows: ExportWindow[];
-}
-
-export interface ExportInput {
-  project_name: string;
-  floor_label: string;
-  /** ISO date string, e.g. "2026-08-12". */
-  export_date: string;
-  defaults: FloorDefaults;
-  units: ExportUnit[];
-}
+// Re-exported so existing importers (and exporter.test.ts) are unaffected by
+// the split between the pure conventions and the workbook writer.
+export {
+  buildNoteString,
+  effectiveMount,
+  exportedSize,
+  panelDeduct,
+  windowTagLabel,
+} from "./shared";
+export type { ExportInput, ExportUnit, ExportWindow } from "./shared";
 
 const SHEET_NAME = "Window Shades";
 const INSTRUCTIONS_SHEET_NAME = "Instructions";
@@ -60,82 +41,6 @@ const HEADER_ROW = [
 ];
 
 const DATA_START_ROW = 10;
-
-/** Resolve a floor's mount, reading the legacy `tight` flag for old rows. */
-export function effectiveMount(defaults: Pick<FloorDefaults, "tight" | "mount">): MountType {
-  return defaults.mount !== undefined ? defaults.mount : defaults.tight ? "inside_tight" : null;
-}
-
-/** Notes-column text for a mount, matching the corpus of accepted files. */
-const MOUNT_TEXT: Record<Exclude<MountType, null>, string> = {
-  inside_tight: "TIGHT MEASURES",
-  inside: "Inside Mount",
-  outside: "Outside Mount",
-};
-
-/**
- * Build the notes string for a single window row: mount text (override or
- * floor default), then floor extra note, then the per-window note, then
- * "LONGER CHAIN" when flagged — each piece separated by ". ".
- */
-export function buildNoteString(
-  defaults: Pick<FloorDefaults, "tight" | "mount" | "extra_note">,
-  windowNote: string,
-  longerChain: boolean,
-  mountOverride?: MountType
-): string {
-  const mount = mountOverride !== undefined && mountOverride !== null
-    ? mountOverride
-    : effectiveMount(defaults);
-  let note = mount ? MOUNT_TEXT[mount] : "";
-
-  const append = (piece: string) => {
-    if (!piece) return;
-    note = note ? `${note}. ${piece}` : piece;
-  };
-
-  append(defaults.extra_note);
-  append(windowNote);
-  if (longerChain) append("LONGER CHAIN");
-
-  return note;
-}
-
-/**
- * Deduct for one panel of a window. Single-panel windows carry the deduct
- * as stored. On a multi-panel bay, fabric can only be trimmed at the
- * window's outer edges: "D" (both) becomes Dl on the leftmost panel's row
- * and Dr on the rightmost; "Dl"/"Dr" land on their outer panel only; middle
- * panels never carry a deduct. (Field request from a PM at 44 Charles:
- * 1/4" off the left of the left blind and the right of the right blind.)
- */
-export function panelDeduct(
-  deduct: Deduct,
-  panelIndex: number,
-  panelCount: number
-): Deduct {
-  if (!deduct || panelCount <= 1) return deduct;
-  const first = panelIndex === 0;
-  const last = panelIndex === panelCount - 1;
-  if (deduct === "D") return first ? "Dl" : last ? "Dr" : null;
-  if (deduct === "Dl") return first ? "Dl" : null;
-  return last ? "Dr" : null;
-}
-
-/**
- * Format a window's room-tag label from its stored tag_base/tag_index,
- * mirroring lib/tags.ts computeTagLabels' base+index semantics: tag_index 0
- * means "unnumbered" (single window of this tag_base) and renders as the
- * plain tag_base; any other tag_index renders as "{tag_base}{tag_index}".
- * The exporter trusts the stored tag_index as already-final — computed live
- * by the app (via computeTagLabels) as windows were added/removed — rather
- * than recomputing group numbering from scratch, so historical/imported data
- * with non-contiguous indices (e.g. a lone survivor renumbered to "BR22" by
- * earlier edits) round-trips exactly.
- */
-function windowTagLabel(w: Pick<ExportWindow, "tag_base" | "tag_index">): string {
-  return w.tag_index === 0 ? w.tag_base : `${w.tag_base}${w.tag_index}`;
-}
 
 /** Suggested export filename per spec: "{project_name} - {floor_label}.xlsx". */
 export function suggestedFilename(
@@ -213,8 +118,8 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
         sheet.getCell(row, 1).value = tagLabel; // A: Tag/Unit
         if (quantity > 1) sheet.getCell(row, 2).value = quantity; // B: Q
         if (input.defaults.roll) sheet.getCell(row, 4).value = "Rev"; // D: Roll
-        sheet.getCell(row, 5).value = toDecimal(floorToEighth(widthSixteenths)); // E: Width
-        sheet.getCell(row, 6).value = toDecimal(floorToEighth(w.height)); // F: Height
+        sheet.getCell(row, 5).value = exportedSize(widthSixteenths); // E: Width
+        sheet.getCell(row, 6).value = exportedSize(w.height); // F: Height
         sheet.getCell(row, 9).value = control; // I: Control
         const deduct = panelDeduct(w.deduct, panelIndex, w.widths.length);
         if (deduct) sheet.getCell(row, 10).value = deduct; // J: Deducts

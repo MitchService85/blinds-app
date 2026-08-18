@@ -71,6 +71,7 @@ Postgres (Supabase) and IndexedDB share the same shape. All rows carry `id (uuid
 - **projects**: name, address, building_type, tag_chips (json)
 - **floors**: project_id, label, defaults (json: roll, drive, tight, extra_note, d_value, color_codes)
 - **units**: floor_id, number, status (active | na | done), sort_order
+- **exports**: floor_id, exported_at, filename, blind_count, input (jsonb snapshot of ExportInput)
 - **windows**: unit_id, tag_base (LR/BR/…), tag_index (int, 0 = unnumbered), width (stored in SIXTEENTHS as int — no float drift, preserves raw laser readings), height (sixteenths), control_override (null | L | R), deduct (null | Dl | Dr | D), longer_chain (bool), note (text), sort_order
 
 Width/height stored as integer sixteenths of an inch (74 7/8 → 1198; 74 13/16 → 1197). Rounded DOWN to the nearest eighth and converted to decimal only at display/export, so raw 1/16 laser readings survive in the data.
@@ -78,6 +79,40 @@ Width/height stored as integer sixteenths of an inch (74 7/8 → 1198; 74 13/16 
 ## Install mode (added 2026-08-13, Mitch-approved)
 
 Floor view gains a Measure | Install toggle. Install lens per unit: install = null → "staged" (🟢 dropped off/handoff-ready) → "done" (✅), both steps optional (solo installs jump to done); install_blocked (⚠️ yellow) is an independent flag requiring a unit note, overrides display until cleared. Tap = action sheet (Staged/Complete/Blocked/Clear + Open unit). Counts in header; blocked notes listed; dashboard chips show install line once a floor has activity. Rides on unit rows — syncs, offline, never exported.
+
+## Mount types (added 2026-08-20, from the Drive corpus survey)
+
+Floor defaults carry a mount (Not noted / Inside tight / Inside / Outside) replacing the tight checkbox; each window can override it (20 Victoria mixes Tight and Finished on one floor). Exports write the corpus wording — "TIGHT MEASURES" / "Inside Mount" / "Outside Mount" — as the leading Notes text. The legacy `tight` boolean is kept in sync for older clients.
+
+## Export history (added 2026-08-18)
+
+Every export snapshots the `ExportInput` that produced it into a synced `exports`
+row, not the .xlsx bytes. `buildWorkbook` is pure, so the snapshot both
+regenerates the byte-identical workbook on demand and supports a structural
+diff against the next export. Bytes would only reveal *that* something changed.
+
+- **Review before exporting.** Warnings (lib/checks.ts) and changes since the
+  last export appear together in one sheet, never as consecutive prompts.
+  Neither blocks: the sheet always offers Export.
+- **Floor-level changes are called out separately.** A D value going from 1/2
+  to 1/4 rewrites the finished size of every blind while touching one header
+  cell, so `diffExports` compares defaults (D value, mount, roll, control side,
+  floor note, colour codes) as well as windows.
+- **Windows match by row id**, carried in the snapshot via optional `id` fields
+  the workbook builder ignores, so reordering is not a change. Older snapshots
+  without ids fall back to unit + tag + ordinal.
+- **Units marked N/A count as removed**, matching what the workbook emits.
+- **Recorded on generation, not on send.** The share sheet can be cancelled
+  and we cannot detect it, so the history says "Exported", never "Sent".
+- **History is re-downloadable**: each entry regenerates its own file, so
+  "what did we send on the 12th?" returns that file, not today's.
+- No backfill for exports predating this feature, and no cap on history depth.
+
+Structural note: the pure conventions (shapes, tag labels, mount wording,
+deduct placement, round-down-to-eighth) live in `lib/export/shared.ts`, free of
+any ExcelJS import, so the floor screen can diff on every render without
+pulling the workbook writer into the bundle. `exporter.ts` re-exports them, and
+the golden-file test proved the split byte-safe.
 
 ## Unit photos (added 2026-08-18, Mitch field request)
 

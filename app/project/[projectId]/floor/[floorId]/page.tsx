@@ -480,7 +480,12 @@ export default function FloorPage() {
           Save & exit
         </button>
         {project && (
-          <ExportButton projectName={project.name} floor={floor} units={units} windowsByUnit={windowsByUnit} />
+          <ExportButton
+            projectName={project.name}
+            floor={floor}
+            units={units}
+            windowsByUnit={windowsByUnit}
+          />
         )}
       </div>
 

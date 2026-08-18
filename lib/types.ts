@@ -132,3 +132,26 @@ export interface UnitPhoto extends SyncedRow {
   /** data:image/jpeg;base64,... */
   data: string;
 }
+
+/**
+ * A record of one export of a floor to the factory workbook.
+ *
+ * Stores the ExportInput that produced the file rather than the .xlsx bytes:
+ * buildWorkbook is a pure function, so the snapshot both regenerates the
+ * byte-identical workbook on demand ("what did we send on the 12th?") and
+ * supports a structural, window-by-window diff against the next export.
+ * Saved bytes would only tell us that something changed, never what.
+ *
+ * The type-only import below is erased at compile time, so this does not
+ * create a runtime cycle with lib/export/exporter.ts.
+ */
+export interface ExportRecord extends SyncedRow {
+  floor_id: string;
+  /** ISO timestamp of when the workbook was generated. */
+  exported_at: string;
+  filename: string;
+  /** Blind count at export time (panels x quantity), shown in the history list. */
+  blind_count: number;
+  /** The exact input passed to buildWorkbook, carrying row ids for diffing. */
+  input: import("./export/exporter").ExportInput;
+}

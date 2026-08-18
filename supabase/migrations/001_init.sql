@@ -203,11 +203,43 @@ create policy "allowlisted users full access" on blinds.photos
   with check (blinds.is_allowed_user());
 
 -- ---------------------------------------------------------------------------
+-- exports
+-- ---------------------------------------------------------------------------
+
+-- Export history: one row per generated factory workbook. `input` holds the
+-- exact ExportInput that produced the file, not the .xlsx bytes — buildWorkbook
+-- is pure, so the snapshot regenerates the identical workbook on demand and
+-- also supports a structural diff against the next export. See ExportRecord in
+-- lib/types.ts and lib/export/diff.ts.
+create table if not exists blinds.exports (
+  id uuid primary key default gen_random_uuid(),
+  updated_at timestamptz not null default now(),
+  deleted boolean not null default false,
+  floor_id uuid not null references blinds.floors (id) on delete cascade,
+  exported_at timestamptz not null,
+  filename text not null default '',
+  blind_count integer not null default 0,
+  input jsonb not null default '{}'::jsonb
+);
+
+create index if not exists exports_updated_at_idx on blinds.exports (updated_at);
+create index if not exists exports_floor_id_idx on blinds.exports (floor_id);
+
+alter table blinds.exports enable row level security;
+
+create policy "allowlisted users full access" on blinds.exports
+  for all
+  to authenticated
+  using (blinds.is_allowed_user())
+  with check (blinds.is_allowed_user());
+
+-- ---------------------------------------------------------------------------
 -- Explicit grants (defensive — most hosted Supabase projects already grant
 -- these to authenticated by default privilege, but pin it here so the
 -- migration is self-sufficient on a fresh project).
 -- ---------------------------------------------------------------------------
 
 grant select, insert, update, delete
-  on blinds.projects, blinds.floors, blinds.units, blinds.windows, blinds.photos
+  on blinds.projects, blinds.floors, blinds.units, blinds.windows, blinds.photos,
+     blinds.exports
   to authenticated;

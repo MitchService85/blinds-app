@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Floor, Project, Unit, UnitPhoto, WindowRecord } from "./types";
+import type { ExportRecord, Floor, Project, Unit, UnitPhoto, WindowRecord } from "./types";
 
 /**
  * Local-first IndexedDB store (Dexie). The UI reads/writes here only —
@@ -9,7 +9,13 @@ import type { Floor, Project, Unit, UnitPhoto, WindowRecord } from "./types";
  * (lib/sync/).
  */
 
-export type OutboxTableName = "projects" | "floors" | "units" | "windows" | "photos";
+export type OutboxTableName =
+  | "projects"
+  | "floors"
+  | "units"
+  | "windows"
+  | "photos"
+  | "exports";
 export type OutboxOp = "put" | "delete";
 
 export interface OutboxEntry {
@@ -32,6 +38,7 @@ class MeasureDB extends Dexie {
   units!: Table<Unit, string>;
   windows!: Table<WindowRecord, string>;
   photos!: Table<UnitPhoto, string>;
+  exports!: Table<ExportRecord, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<MetaEntry, string>;
 
@@ -48,6 +55,11 @@ class MeasureDB extends Dexie {
     // v2: job-site photos on unit notes (image inline as a data URL).
     this.version(2).stores({
       photos: "id, unit_id, updated_at, deleted",
+    });
+    // v3: export history — one snapshot per generated workbook, so a floor's
+    // past exports can be re-downloaded and diffed against the current data.
+    this.version(3).stores({
+      exports: "id, floor_id, exported_at, updated_at, deleted",
     });
   }
 }
@@ -301,4 +313,40 @@ export async function deletePhoto(id: string): Promise<void> {
 
 export async function listPhotos(unitId: string): Promise<UnitPhoto[]> {
   return db.photos.where("unit_id").equals(unitId).filter((p) => !p.deleted).toArray();
+}
+
+// ---------------------------------------------------------------------------
+// Export history
+// ---------------------------------------------------------------------------
+
+export async function createExportRecord(
+  input: Omit<ExportRecord, "id" | "updated_at" | "deleted">
+): Promise<ExportRecord> {
+  return writeRow(db.exports, "exports", {
+    ...input,
+    id: newId(),
+    updated_at: "",
+    deleted: false,
+  });
+}
+
+/** A floor's exports, newest first. */
+export async function listExports(floorId: string): Promise<ExportRecord[]> {
+  const rows = await db.exports
+    .where("floor_id")
+    .equals(floorId)
+    .filter((e) => !e.deleted)
+    .toArray();
+  return rows.sort((a, b) => b.exported_at.localeCompare(a.exported_at));
+}
+
+/** The most recent export of a floor, or undefined if it has never been exported. */
+export async function latestExport(floorId: string): Promise<ExportRecord | undefined> {
+  return (await listExports(floorId))[0];
+}
+
+export async function deleteExportRecord(id: string): Promise<void> {
+  const existing = await db.exports.get(id);
+  if (!existing) return;
+  await writeRow(db.exports, "exports", { ...existing, deleted: true }, "delete");
 }
