@@ -158,6 +158,8 @@ create table if not exists blinds.windows (
   -- identical-blind multiplier (template Q column); 1 = single blind
   quantity integer not null default 1,
   control_override text check (control_override is null or control_override in ('L', 'R')),
+  -- per-window mount override; floor default lives in floors.defaults jsonb
+  mount_override text check (mount_override is null or mount_override in ('inside_tight', 'inside', 'outside')),
   deduct text check (deduct is null or deduct in ('Dl', 'Dr', 'D')),
   longer_chain boolean not null default false,
   note text not null default '',

@@ -80,6 +80,7 @@ export function ExportButton({ projectName, floor, units, windowsByUnit }: Expor
                 widths: w.widths,
                 height: w.height,
                 control_override: w.control_override,
+                mount_override: w.mount_override ?? null,
                 deduct: w.deduct,
                 longer_chain: w.longer_chain,
                 note: w.note,

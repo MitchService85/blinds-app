@@ -225,6 +225,7 @@ function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
   } else if (table === "windows") {
     r.quantity = r.quantity ?? 1;
     r.note = r.note ?? "";
+    r.mount_override = r.mount_override ?? null;
   }
   return r as unknown as SyncedRow;
 }

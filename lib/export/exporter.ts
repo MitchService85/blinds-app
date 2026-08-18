@@ -4,7 +4,7 @@
 // ("Export mapping").
 import ExcelJS from "exceljs";
 import { floorToEighth, toDecimal } from "../fractions";
-import type { ControlOverride, Deduct, FloorDefaults, UnitStatus } from "../types";
+import type { ControlOverride, Deduct, FloorDefaults, MountType, UnitStatus } from "../types";
 import instructionsData from "../../fixtures/instructions-sheet.json";
 
 /** A single window as consumed by the exporter (a plain, already-loaded shape —
@@ -20,6 +20,8 @@ export interface ExportWindow {
   /** Identical-blind multiplier (template Q column). Absent/1 = single. */
   quantity?: number;
   control_override: ControlOverride;
+  /** Per-window mount override; null/absent inherits the floor default. */
+  mount_override?: MountType;
   deduct: Deduct;
   longer_chain: boolean;
   note: string;
@@ -59,18 +61,33 @@ const HEADER_ROW = [
 
 const DATA_START_ROW = 10;
 
+/** Resolve a floor's mount, reading the legacy `tight` flag for old rows. */
+export function effectiveMount(defaults: Pick<FloorDefaults, "tight" | "mount">): MountType {
+  return defaults.mount !== undefined ? defaults.mount : defaults.tight ? "inside_tight" : null;
+}
+
+/** Notes-column text for a mount, matching the corpus of accepted files. */
+const MOUNT_TEXT: Record<Exclude<MountType, null>, string> = {
+  inside_tight: "TIGHT MEASURES",
+  inside: "Inside Mount",
+  outside: "Outside Mount",
+};
+
 /**
- * Build the "TIGHT MEASURES. DRILL HOLES IN FASCIA"-style notes string for a
- * single window row: floor-default tight-measures flag, then floor extra
- * note, then the per-window note, then "LONGER CHAIN" when flagged — each
- * additional piece separated from what came before by ". ".
+ * Build the notes string for a single window row: mount text (override or
+ * floor default), then floor extra note, then the per-window note, then
+ * "LONGER CHAIN" when flagged — each piece separated by ". ".
  */
 export function buildNoteString(
-  defaults: Pick<FloorDefaults, "tight" | "extra_note">,
+  defaults: Pick<FloorDefaults, "tight" | "mount" | "extra_note">,
   windowNote: string,
-  longerChain: boolean
+  longerChain: boolean,
+  mountOverride?: MountType
 ): string {
-  let note = defaults.tight ? "TIGHT MEASURES" : "";
+  const mount = mountOverride !== undefined && mountOverride !== null
+    ? mountOverride
+    : effectiveMount(defaults);
+  let note = mount ? MOUNT_TEXT[mount] : "";
 
   const append = (piece: string) => {
     if (!piece) return;
@@ -185,7 +202,7 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
       const tag = windowTagLabel(w);
       const tagLabel = tag ? `${unit.number}-${tag}` : unit.number;
       const control = w.control_override ?? input.defaults.drive;
-      const noteString = buildNoteString(input.defaults, w.note, w.longer_chain);
+      const noteString = buildNoteString(input.defaults, w.note, w.longer_chain, w.mount_override);
 
       // Identical-blind multiplier (Cleveland Clinic style). One row per
       // size with the count in Q; a quantity of 1 leaves Q empty, matching

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type ExcelJS from "exceljs";
-import { buildWorkbook, suggestedFilename, type ExportInput } from "./exporter";
+import { buildNoteString, buildWorkbook, suggestedFilename, type ExportInput } from "./exporter";
 import inputFixture from "../../fixtures/level4-input.json";
 import goldenFixture from "../../fixtures/level4-golden.json";
 
@@ -165,5 +165,34 @@ describe("panel deducts on bay windows", () => {
 
   it("single panel keeps the stored deduct untouched", async () => {
     expect(await colJ(bay("D", [928]), 1)).toEqual(["D"]);
+  });
+});
+
+describe("mount types in the notes column", () => {
+  const d = (mount: "inside_tight" | "inside" | "outside" | null) => ({
+    tight: false, mount, extra_note: "",
+  });
+
+  it("maps each mount to the corpus wording", () => {
+    expect(buildNoteString(d("inside_tight"), "", false)).toBe("TIGHT MEASURES");
+    expect(buildNoteString(d("inside"), "", false)).toBe("Inside Mount");
+    expect(buildNoteString(d("outside"), "", false)).toBe("Outside Mount");
+    expect(buildNoteString(d(null), "", false)).toBe("");
+  });
+
+  it("legacy tight flag still means TIGHT MEASURES when mount is absent", () => {
+    expect(buildNoteString({ tight: true, extra_note: "" }, "", false)).toBe("TIGHT MEASURES");
+    expect(buildNoteString({ tight: false, extra_note: "" }, "", false)).toBe("");
+  });
+
+  it("a per-window override beats the floor default (20 Victoria style)", () => {
+    expect(buildNoteString(d("inside"), "", false, "inside_tight")).toBe("TIGHT MEASURES");
+    expect(buildNoteString(d("inside_tight"), "", false, "inside")).toBe("Inside Mount");
+  });
+
+  it("composes with extra note and longer chain", () => {
+    expect(
+      buildNoteString({ tight: false, mount: "outside", extra_note: "DRILL HOLES IN FASCIA" }, "stairwell", true)
+    ).toBe("Outside Mount. DRILL HOLES IN FASCIA. stairwell. LONGER CHAIN");
   });
 });

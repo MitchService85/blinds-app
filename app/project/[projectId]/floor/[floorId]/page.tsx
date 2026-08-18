@@ -581,7 +581,10 @@ function DefaultsSummary({ defaults }: { defaults: FloorDefaults }) {
   const parts = [
     defaults.roll ? "Rev" : null,
     `Drive ${defaults.drive}`,
-    defaults.tight ? "Tight" : null,
+    (() => {
+      const mount = defaults.mount !== undefined ? defaults.mount : defaults.tight ? "inside_tight" : null;
+      return mount === "inside_tight" ? "Tight" : mount === "inside" ? "Inside" : mount === "outside" ? "Outside" : null;
+    })(),
     `D=${defaults.d_value}`,
     defaults.extra_note || null,
   ].filter((p): p is string => Boolean(p));

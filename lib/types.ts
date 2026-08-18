@@ -17,13 +17,26 @@ export interface Project extends SyncedRow {
   tag_chips: string[];
 }
 
+/**
+ * How the blinds meet the frame — the first thing in every commercial
+ * file's Notes column ("Inside Mount", "Outside Mount", "TIGHT MEASURES").
+ * null = don't note anything (matches jobs like Alcon that never say).
+ */
+export type MountType = null | "inside_tight" | "inside" | "outside";
+
 export interface FloorDefaults {
   /** Reverse roll -> exports as "Rev" */
   roll: boolean;
   /** Default drive/control side */
   drive: "L" | "R";
-  /** Tight measures note flag */
+  /**
+   * Legacy flag kept for rows written before `mount` existed:
+   * tight=true meant what mount="inside_tight" means now. Readers use
+   * `mount ?? (tight ? "inside_tight" : null)`; writers keep both in sync.
+   */
   tight: boolean;
+  /** Mounting type noted on every exported row. Absent on old rows. */
+  mount?: MountType;
   /** Extra note applied to every window on this floor, e.g. "DRILL HOLES IN FASCIA" */
   extra_note: string;
   /** D value shown in export header, e.g. "1/2" */
@@ -96,6 +109,11 @@ export interface WindowRecord extends SyncedRow {
    */
   quantity: number;
   control_override: ControlOverride;
+  /**
+   * Per-window mount override (20 Victoria mixes Tight and Finished on one
+   * floor). null/absent = inherit the floor's mount.
+   */
+  mount_override?: MountType;
   deduct: Deduct;
   longer_chain: boolean;
   note: string;

@@ -20,7 +20,7 @@ import {
 } from "@/lib/db";
 import { computeTagLabels } from "@/lib/tags";
 import { floorToEighth, formatFraction } from "@/lib/fractions";
-import type { ControlOverride, Deduct, Floor, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
+import type { ControlOverride, Deduct, Floor, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
 import { syncUnitTagIndices } from "@/components/window-tags";
 
@@ -38,6 +38,8 @@ interface DraftWindow {
   /** Identical-blind multiplier (Cleveland Clinic Q column). */
   quantity: number;
   control_override: ControlOverride;
+  /** null = inherit the floor's mount. */
+  mount_override: MountType;
   deduct: Deduct;
   longer_chain: boolean;
   note: string;
@@ -51,6 +53,7 @@ function blankDraft(): DraftWindow {
     height: 0,
     quantity: 1,
     control_override: null,
+    mount_override: null,
     deduct: null,
     longer_chain: false,
     note: "",
@@ -214,6 +217,7 @@ export default function WindowEntryPage() {
         height: latest.height,
         quantity: latest.quantity,
         control_override: latest.control_override,
+        mount_override: latest.mount_override,
         deduct: latest.deduct,
         longer_chain: latest.longer_chain,
         note: latest.note,
@@ -296,6 +300,7 @@ export default function WindowEntryPage() {
       height: w.height,
       quantity: w.quantity ?? 1,
       control_override: w.control_override,
+      mount_override: w.mount_override ?? null,
       deduct: w.deduct,
       longer_chain: w.longer_chain,
       note: w.note,
@@ -331,6 +336,7 @@ export default function WindowEntryPage() {
       height: draft.height,
       quantity: 1,
       control_override: null,
+      mount_override: null,
       deduct: null,
       longer_chain: false,
       note: "",
@@ -666,6 +672,34 @@ export default function WindowEntryPage() {
           />
           <span className="text-sm">Longer chain</span>
         </label>
+
+        <div>
+          <div className="mb-1 text-xs text-neutral-500">Mount (this window only)</div>
+          <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
+            {(
+              [
+                [null, "Floor default"],
+                ["inside_tight", "Tight"],
+                ["inside", "Inside"],
+                ["outside", "Outside"],
+              ] as Array<[MountType, string]>
+            ).map(([mount, label]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => patchDraft({ mount_override: mount })}
+                aria-pressed={draft.mount_override === mount}
+                className={`min-h-11 flex-1 text-xs font-medium ${
+                  draft.mount_override === mount
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="flex min-h-11 items-center gap-3">
           <span className="text-sm">Quantity</span>
