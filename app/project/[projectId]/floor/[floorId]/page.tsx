@@ -1,6 +1,6 @@
 "use client";
 
-import { sortUnitsForDisplay } from "@/lib/unit-sort";
+import { sortUnitsForDisplay, suggestUnitNumber } from "@/lib/unit-sort";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -137,19 +137,8 @@ export default function FloorPage() {
     })();
   }, [projectId, floorId]);
 
-  /**
-   * Suggest the next unit number by incrementing the *last-added* unit's
-   * number — but only when that number is purely numeric ("430" -> "431").
-   * Commercial jobs use free-text zone labels ("Level 1 - FE", "L1- Snake
-   * Corridor") as the unit "number"; those must never get auto-incremented
-   * from, so the field is just left blank for the tech to type their own.
-   */
   function nextUnitNumber(): string {
-    if (units.length === 0) return "";
-    const sorted = [...units].sort((a, b) => a.sort_order - b.sort_order);
-    const last = sorted[sorted.length - 1].number.trim();
-    if (!/^\d+$/.test(last)) return "";
-    return String(parseInt(last, 10) + 1);
+    return suggestUnitNumber(units, floor?.label ?? "", project?.building_type ?? "residential");
   }
 
   const addUnitPanelRef = useRef<HTMLDivElement | null>(null);

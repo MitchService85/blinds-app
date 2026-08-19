@@ -25,3 +25,35 @@ export function sortUnitsForDisplay(units: Unit[]): Unit[] {
   }
   return sorted;
 }
+
+/**
+ * What to prefill the add-unit box with.
+ *
+ * Normally the next number up from the last-added unit, but only when that
+ * number is purely numeric ("430" -> "431"). Commercial jobs use free-text
+ * zone labels ("Level 1 - FE", "L1- Snake Corridor") which must never be
+ * incremented from.
+ *
+ * The empty-floor case is the interesting one. On commercial jobs the floor
+ * is frequently the zone itself: 1 Adelaide is a floor per level, each its own
+ * order, so the only unit on the floor ends up named after the floor and the
+ * tech types that name twice. Offer it instead. Floors that genuinely split
+ * into zones (Alcon's "All Areas" holding "Level 1 - FE") cost one keystroke,
+ * since the first keypress replaces a pristine suggestion.
+ *
+ * Residential stays blank: a suite number like 401 has nothing to do with a
+ * floor labelled "Level 4", so any suggestion there would just be wrong.
+ */
+export function suggestUnitNumber(
+  units: Pick<Unit, "number" | "sort_order">[],
+  floorLabel: string,
+  buildingType: "residential" | "commercial"
+): string {
+  if (units.length === 0) {
+    return buildingType === "commercial" ? floorLabel.trim() : "";
+  }
+  const sorted = [...units].sort((a, b) => a.sort_order - b.sort_order);
+  const last = sorted[sorted.length - 1].number.trim();
+  if (!/^\d+$/.test(last)) return "";
+  return String(parseInt(last, 10) + 1);
+}

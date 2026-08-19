@@ -121,9 +121,11 @@ Built from what the corpus actually records, not from the field names.
 
 - **Chain length** (`windows.chain_length`, whole inches) goes into the
   template's Chain column, which its own Instructions sheet defines as "Chain
-  length value (e.g., 72, 48, 60)". No file in the corpus ever used it: lengths
-  were typed into Notes instead ("Requires 160\" chain" at Citi) and 528 rows
-  carry the vaguer "LONGER CHAIN". **A window with a chain length exports the
+  length value (e.g., 72, 48, 60)". Across 19 order files and 1,166 blind rows
+  (Apr-Aug 2026) that column holds a value exactly **twice**, and both are the
+  word "Metal" rather than a length. Lengths went into Notes instead
+  ("Requires 160\" chain" at Citi), and 53 rows carry the vaguer "LONGER
+  CHAIN". (528 is the count of rows saying TIGHT MEASURES, a different figure.) **A window with a chain length exports the
   number and drops "LONGER CHAIN" from its note** (Mitch's call). The legacy
   boolean still works alone, so old rows export unchanged.
 - **Chain type** (`floors.defaults.chain_type`, e.g. "Metal") reaches the
