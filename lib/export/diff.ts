@@ -67,6 +67,11 @@ function mountLabel(m: MountType): string {
   return m ? (MOUNT_LABEL[m] ?? m) : "not noted";
 }
 
+function panelControlsLabel(c?: (string | null)[] | null): string {
+  if (!c || c.length === 0 || c.every((x) => !x)) return "floor default";
+  return c.map((x, i) => `p${i + 1} ${x ?? "default"}`).join(", ");
+}
+
 function chainLabel(inches?: number | null): string {
   return typeof inches === "number" && inches > 0 ? `${inches}"` : "none";
 }
@@ -122,6 +127,7 @@ function compareWindows(a: ExportWindow, b: ExportWindow): FieldChange[] {
   push("Quantity", String(a.quantity ?? 1), String(b.quantity ?? 1));
   push("Deduct", a.deduct ?? "none", b.deduct ?? "none");
   push("Control", a.control_override ?? "floor default", b.control_override ?? "floor default");
+  push("Control per panel", panelControlsLabel(a.panel_controls), panelControlsLabel(b.panel_controls));
   push(
     "Mount",
     a.mount_override ? mountLabel(normalizeMount(a.mount_override)) : "floor default",

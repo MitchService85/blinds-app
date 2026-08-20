@@ -41,6 +41,10 @@ interface DraftWindow {
   control_override: ControlOverride;
   /** null = inherit the floor's mount. */
   mount_override: MountType;
+  /** Per-panel control side, parallel to widths. Residential bays only. */
+  panel_controls: ControlOverride[];
+  /** "I checked this one, it's fine" — silences this window's warnings. */
+  checks_ack: boolean;
   /** null = inherit the floor's tight setting. */
   tight_override: boolean | null;
   /** Chain length in whole inches; null = unspecified. */
@@ -61,6 +65,8 @@ function blankDraft(): DraftWindow {
     quantity: 1,
     control_override: null,
     mount_override: null,
+    panel_controls: [],
+    checks_ack: false,
     tight_override: null,
     chain_length: null,
     motorized_override: null,
@@ -235,6 +241,8 @@ export default function WindowEntryPage() {
             quantity: latest.quantity,
             control_override: latest.control_override,
             mount_override: latest.mount_override,
+            panel_controls: latest.panel_controls,
+            checks_ack: latest.checks_ack,
             tight_override: latest.tight_override,
             chain_length: latest.chain_length ?? null,
             motorized_override: latest.motorized_override ?? null,
@@ -256,6 +264,8 @@ export default function WindowEntryPage() {
         quantity: latest.quantity,
         control_override: latest.control_override,
         mount_override: latest.mount_override,
+        panel_controls: latest.panel_controls,
+        checks_ack: latest.checks_ack,
         tight_override: latest.tight_override,
         chain_length: latest.chain_length ?? null,
         motorized_override: latest.motorized_override ?? null,
@@ -303,6 +313,37 @@ export default function WindowEntryPage() {
     await refreshWindows();
   }
 
+  /** Control side for one panel as it will export: panel, then window, then floor. */
+  function effectivePanelControl(i: number): "L" | "R" {
+    return draft.panel_controls[i] ?? draft.control_override ?? floor?.defaults.drive ?? "R";
+  }
+
+  /** Cycle one panel: floor default -> L -> R -> default. */
+  function cyclePanelControl(i: number) {
+    const current = draft.panel_controls[i] ?? null;
+    const next: ControlOverride = current === null ? "L" : current === "L" ? "R" : null;
+    const panel_controls = draft.widths.map((_, idx) =>
+      idx === i ? next : (draft.panel_controls[idx] ?? null)
+    );
+    // All-default collapses back to an empty array so the row stays clean.
+    patchDraft({ panel_controls: panel_controls.every((c) => c === null) ? [] : panel_controls });
+  }
+
+  /**
+   * Mark a window's measurements as looked at. Side panels genuinely differ on
+   * plenty of real bays, so the tech closes the loop rather than seeing the
+   * same flag on every export. Reversible, and per window on purpose: this
+   * check has caught two real miscuts.
+   */
+  async function acknowledgeChecks(windowId: string, ack = true) {
+    const current = windows.find((x) => x.id === windowId);
+    if (!current) return;
+    const merged: WindowRecord = { ...current, checks_ack: ack };
+    await upsertWindow(merged);
+    setWindows((ws) => ws.map((x) => (x.id === windowId ? merged : x)));
+    if (draftRef.current.id === windowId) patchDraft({ checks_ack: ack });
+  }
+
   function setPanelWidth(index: number, sixteenths: number) {
     const widths = draft.widths.map((w, i) => (i === index ? sixteenths : w));
     patchDraft({ widths });
@@ -345,6 +386,8 @@ export default function WindowEntryPage() {
       mount_override: w.mount_override === "inside_tight" ? null : (w.mount_override ?? null),
       tight_override:
         w.mount_override === "inside_tight" ? true : (w.tight_override ?? null),
+      panel_controls: w.panel_controls ?? [],
+      checks_ack: w.checks_ack ?? false,
       chain_length: w.chain_length ?? null,
       motorized_override: w.motorized_override ?? null,
       deduct: w.deduct,
@@ -383,6 +426,8 @@ export default function WindowEntryPage() {
       quantity: 1,
       control_override: null,
       mount_override: null,
+      panel_controls: [],
+      checks_ack: false,
       tight_override: null,
       chain_length: null,
       motorized_override: null,
@@ -702,6 +747,36 @@ export default function WindowEntryPage() {
           )}
         </div>
 
+        {project?.building_type === "residential" && draft.widths.length > 1 && (
+          <div>
+            <div className="mb-1 text-xs text-neutral-500">
+              Control per panel <span className="text-neutral-400">(tap to change)</span>
+            </div>
+            <div className="flex gap-2">
+              {draft.widths.map((_, i) => {
+                const own = draft.panel_controls[i] ?? null;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => cyclePanelControl(i)}
+                    className={`min-h-11 flex-1 rounded-lg border text-xs font-medium ${
+                      own
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-neutral-300 bg-white text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                    }`}
+                  >
+                    Panel {i + 1}
+                    <br />
+                    {effectivePanelControl(i)}
+                    {own ? "" : " (default)"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <label className="flex min-h-11 items-center gap-3">
           <input
             type="checkbox"
@@ -963,9 +1038,27 @@ export default function WindowEntryPage() {
             </div>
           </div>
           {windowWarnings.has(w.id) && (
-            <div className="text-xs font-medium text-amber-800 dark:text-amber-300">
-              ⚠️ {windowWarnings.get(w.id)}
+            <div className="flex items-start gap-2">
+              <div className="flex-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+                ⚠️ {windowWarnings.get(w.id)}
+              </div>
+              <button
+                type="button"
+                onClick={() => void acknowledgeChecks(w.id)}
+                className="min-h-8 shrink-0 rounded-lg bg-amber-100 px-2.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+              >
+                Looks right
+              </button>
             </div>
+          )}
+          {w.checks_ack && (
+            <button
+              type="button"
+              onClick={() => void acknowledgeChecks(w.id, false)}
+              className="self-start text-[11px] text-neutral-400 underline decoration-dotted underline-offset-2"
+            >
+              Checked, warnings off. Turn back on
+            </button>
           )}
           </div>
         ))}

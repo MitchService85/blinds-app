@@ -133,6 +133,24 @@ export interface WindowRecord extends SyncedRow {
   quantity: number;
   control_override: ControlOverride;
   /**
+   * Per-panel control side, parallel to `widths`. Layered on top of
+   * control_override, which stays the whole-window value: a panel resolves to
+   * panel_controls[i] ?? control_override ?? the floor's drive side.
+   *
+   * Residential only in the UI. At 15 Neighborhood the left panel of a bay
+   * takes left control while the other two stay default; 44 Charles is roller
+   * shades pulled by hand with no chain at all, so every panel is default
+   * there, and offices generally do not bother with left hand.
+   */
+  panel_controls?: ControlOverride[] | null;
+  /**
+   * "I checked this one, it's fine." Silences this window's measurement
+   * warnings on the unit screen and at export. Per window on purpose, not a
+   * global off switch: the bay side-panel check has caught two real miscuts,
+   * so it should be dismissed one deliberate tap at a time.
+   */
+  checks_ack?: boolean;
+  /**
    * Per-window mount override (20 Victoria mixes mount styles on one floor).
    * null/absent = inherit the floor's mount.
    */

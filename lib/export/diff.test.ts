@@ -245,3 +245,47 @@ describe("motorized and chain", () => {
     expect(labels).toContain("Chain type");
   });
 });
+
+describe("per-panel control", () => {
+  const bay = (patch: Record<string, unknown>): ExportInput =>
+    edit(base(), (i) => {
+      i.defaults.drive = "R";
+      i.units = [
+        {
+          number: "601",
+          status: "active",
+          windows: [
+            { tag_base: "LR", tag_index: 0, widths: [500, 800, 500], height: 900, quantity: 1,
+              control_override: null, deduct: null, longer_chain: false, note: "", ...patch },
+          ],
+        },
+      ];
+    });
+
+  const controls = (input: ExportInput) => {
+    const sheet = buildWorkbook(input).getWorksheet("Window Shades")!;
+    return [10, 11, 12].map((r) => sheet.getCell(r, 9).value);
+  };
+
+  it("falls back to the floor's drive side on every panel", () => {
+    expect(controls(bay({}))).toEqual(["R", "R", "R"]);
+  });
+
+  it("puts left control on the left panel only (15 Neighborhood)", () => {
+    expect(controls(bay({ panel_controls: ["L", null, null] }))).toEqual(["R", "R", "R"].map((d, i) => (i === 0 ? "L" : d)));
+  });
+
+  it("lets the whole-window override stand in for unset panels", () => {
+    expect(controls(bay({ control_override: "L" }))).toEqual(["L", "L", "L"]);
+  });
+
+  it("a panel setting beats the whole-window override", () => {
+    expect(controls(bay({ control_override: "L", panel_controls: [null, "R", null] })))
+      .toEqual(["L", "R", "L"]);
+  });
+
+  it("diffs a change to per-panel control", () => {
+    const d = diffExports(bay({}), bay({ panel_controls: ["L", null, null] }));
+    expect(d.identical).toBe(false);
+  });
+});

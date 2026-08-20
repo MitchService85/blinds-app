@@ -36,6 +36,8 @@ export interface ExportWindow {
   /** Identical-blind multiplier (template Q column). Absent/1 = single. */
   quantity?: number;
   control_override: ControlOverride;
+  /** Per-panel control side, parallel to `widths`. See WindowRecord. */
+  panel_controls?: ControlOverride[] | null;
   /** Per-window mount override; null/absent inherits the floor default. */
   mount_override?: StoredMountType;
   /** Per-window tight override; null/absent inherits the floor's tight. */
@@ -109,6 +111,19 @@ export function windowTight(
   if (tightOverride === true || tightOverride === false) return tightOverride;
   if (isTightMount(override)) return true;
   return effectiveTight(defaults);
+}
+
+/**
+ * Control side for one panel of a window: the panel's own setting wins, then
+ * the whole-window override, then the floor's drive side. Single-panel
+ * windows simply never carry panel_controls.
+ */
+export function panelControl(
+  w: Pick<ExportWindow, "control_override" | "panel_controls">,
+  panelIndex: number,
+  floorDrive: "L" | "R"
+): "L" | "R" {
+  return w.panel_controls?.[panelIndex] ?? w.control_override ?? floorDrive;
 }
 
 /**

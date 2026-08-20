@@ -225,6 +225,8 @@ export async function createWindow(
   return writeRow(db.windows, "windows", {
     ...input,
     quantity: input.quantity ?? 1,
+    panel_controls: input.panel_controls ?? null,
+    checks_ack: input.checks_ack ?? false,
     tight_override: input.tight_override ?? null,
     chain_length: input.chain_length ?? null,
     motorized_override: input.motorized_override ?? null,

@@ -46,6 +46,9 @@ export function checkUnitWindows(
   const warnings: MeasurementWarning[] = [];
   for (const w of windows) {
     if (w.deleted) continue;
+    // Dismissed by hand after a look on site. Side panels genuinely differ on
+    // plenty of real bays, so the tech gets to close the loop.
+    if (w.checks_ack) continue;
 
     for (const width of w.widths) {
       if (width > 0 && (width < MIN_PLAUSIBLE_WIDTH || width > MAX_PLAUSIBLE_WIDTH)) {

@@ -6,6 +6,7 @@ import ExcelJS from "exceljs";
 import instructionsData from "../../fixtures/instructions-sheet.json";
 import {
   buildNoteString,
+  panelControl,
   exportedSize,
   panelDeduct,
   windowTagLabel,
@@ -106,7 +107,6 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
       // unit/zone label — no "-" suffix.
       const tag = windowTagLabel(w);
       const tagLabel = tag ? `${unit.number}-${tag}` : unit.number;
-      const control = w.control_override ?? input.defaults.drive;
       const noteString = buildNoteString(
         input.defaults,
         w.note,
@@ -134,7 +134,9 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
         if (chainLength !== null) sheet.getCell(row, 7).value = chainLength; // G: Chain
         sheet.getCell(row, 5).value = exportedSize(widthSixteenths); // E: Width
         sheet.getCell(row, 6).value = exportedSize(w.height); // F: Height
-        sheet.getCell(row, 9).value = control; // I: Control
+        // I: Control — resolved per panel, so a bay can put left control
+        // on its left panel while the rest stay on the floor's side.
+        sheet.getCell(row, 9).value = panelControl(w, panelIndex, input.defaults.drive);
         const deduct = panelDeduct(w.deduct, panelIndex, w.widths.length);
         if (deduct) sheet.getCell(row, 10).value = deduct; // J: Deducts
         if (noteString) sheet.getCell(row, 11).value = noteString; // K: Notes

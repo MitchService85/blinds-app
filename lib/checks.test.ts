@@ -169,3 +169,36 @@ describe("motorized and chain checks", () => {
     expect(w[0].message).toContain("looks off");
   });
 });
+
+describe("checks_ack", () => {
+  const bay = (patch: Partial<WindowRecord>): WindowRecord =>
+    ({
+      id: "w1", updated_at: "", deleted: false, unit_id: "u1",
+      tag_base: "LR", tag_index: 0,
+      widths: [400, 800, 900], // sides differ by 31 1/4", well past the 1.5" flag
+      height: 900, quantity: 1, control_override: null, deduct: null,
+      longer_chain: false, note: "", sort_order: 0, ...patch,
+    }) as WindowRecord;
+
+  it("flags mismatched bay sides by default", () => {
+    expect(checkUnitWindows({ number: "601" }, [bay({})])).toHaveLength(1);
+  });
+
+  it("goes quiet once the tech marks it checked", () => {
+    expect(checkUnitWindows({ number: "601" }, [bay({ checks_ack: true })])).toHaveLength(0);
+  });
+
+  it("silences every check on that window, not just the bay one", () => {
+    const wild = bay({ checks_ack: true, height: 99 * 16 }); // also implausible
+    expect(checkUnitWindows({ number: "601" }, [wild])).toHaveLength(0);
+  });
+
+  it("does not silence other windows", () => {
+    const flagged = checkUnitWindows({ number: "601" }, [
+      bay({ id: "a", checks_ack: true }),
+      bay({ id: "b" }),
+    ]);
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0].window_id).toBe("b");
+  });
+});

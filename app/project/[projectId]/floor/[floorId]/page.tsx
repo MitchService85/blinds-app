@@ -396,6 +396,10 @@ export default function FloorPage() {
                 key={unit.id}
                 unit={unit}
                 windowCount={windowsByUnit.get(unit.id)?.length ?? 0}
+                blindCount={(windowsByUnit.get(unit.id) ?? []).reduce(
+                  (n, w) => n + w.widths.length * (w.quantity ?? 1),
+                  0
+                )}
                 href={`/project/${projectId}/floor/${floorId}/unit/${unit.id}`}
                 hasWarning={warningsByUnit.has(unit.id)}
                 onSetStatus={(status) => handleSetStatus(unit.id, status)}

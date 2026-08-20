@@ -7,7 +7,10 @@ import { deriveUnitState, UNIT_STATE_TILE_CLASSES } from "./status";
 
 interface UnitTileProps {
   unit: Unit;
+  /** Openings on this unit (rows), used for the not-started / in-progress state. */
   windowCount: number;
+  /** Blinds ordered: panels x quantity. Cleveland's L12 is 1 opening, 13 blinds. */
+  blindCount: number;
   href: string;
   /** True when lib/checks.ts flagged a bay-symmetry warning on this unit. */
   hasWarning: boolean;
@@ -28,6 +31,7 @@ const LONG_PRESS_MS = 500;
 export function UnitTile({
   unit,
   windowCount,
+  blindCount,
   href,
   hasWarning,
   onSetStatus,
@@ -74,7 +78,11 @@ export function UnitTile({
           {unit.number}
         </span>
         <span className="text-[11px] opacity-80">
-          {state === "na" ? "N/A" : windowCount > 0 ? `${windowCount} win` : "—"}
+          {state === "na"
+            ? "N/A"
+            : blindCount > 0
+              ? `${blindCount} blind${blindCount === 1 ? "" : "s"}`
+              : "—"}
         </span>
       </Link>
 

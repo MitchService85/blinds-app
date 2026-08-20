@@ -166,6 +166,10 @@ create table if not exists blinds.windows (
   mount_override text check (mount_override is null or mount_override in ('inside_tight', 'inside', 'outside')),
   -- per-window tight override, independent of mount
   tight_override boolean,
+  -- per-panel control side, parallel to widths; layered over control_override
+  panel_controls jsonb,
+  -- "I checked this one, it's fine" — silences this window's warnings
+  checks_ack boolean not null default false,
   deduct text check (deduct is null or deduct in ('Dl', 'Dr', 'D')),
   -- chain length in whole inches -> the template's Chain column (col G),
   -- which its Instructions sheet defines as "Chain length value"
