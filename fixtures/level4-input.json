@@ -9,10 +9,10 @@
   "extra_note": "DRILL HOLES IN FASCIA",
   "d_value": "0.5",
   "color_codes": {
-   "bed": "YUNOWH",
+   "mbed": "",
    "liv": "PWS1WHIT",
-   "studio": "PWS3PLAT",
-   "kitchen": ""
+   "bed": "YUNOWH",
+   "kit": ""
   }
  },
  "units": [

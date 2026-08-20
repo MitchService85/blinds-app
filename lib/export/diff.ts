@@ -165,7 +165,7 @@ function compareFloors(a: ExportInput, b: ExportInput): FieldChange[] {
   );
   push("Chain type", a.defaults.chain_type || "none", b.defaults.chain_type || "none");
 
-  const codes = ["bed", "liv", "studio", "kitchen"] as const;
+  const codes = ["mbed", "liv", "bed", "kit"] as const;
   for (const code of codes) {
     push(
       `${code[0].toUpperCase()}${code.slice(1)} colour`,

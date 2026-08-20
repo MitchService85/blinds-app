@@ -69,10 +69,10 @@ One window at a time:
 Postgres (Supabase) and IndexedDB share the same shape. All rows carry `id (uuid)`, `updated_at`, `deleted (bool)` for sync.
 
 - **projects**: name, address, building_type, tag_chips (json)
-- **floors**: project_id, label, defaults (json: roll, drive, tight, extra_note, d_value, color_codes)
+- **floors**: project_id, label, defaults (json: roll, drive, tight, mount, motorized, chain_type, extra_note, d_value, color_codes {mbed, liv, bed, kit})
 - **units**: floor_id, number, status (active | na | done), sort_order
 - **exports**: floor_id, exported_at, filename, blind_count, input (jsonb snapshot of ExportInput)
-- **windows** also carry: quantity, mount_override, tight_override, chain_length, motorized_override
+- **windows** also carry: quantity, mount_override, tight_override, chain_length, motorized_override, panel_controls (per-panel control side, residential bays), checks_ack (warnings dismissed for this window)
 - **windows**: unit_id, tag_base (LR/BR/…), tag_index (int, 0 = unnumbered), width (stored in SIXTEENTHS as int — no float drift, preserves raw laser readings), height (sixteenths), control_override (null | L | R), deduct (null | Dl | Dr | D), longer_chain (bool), note (text), sort_order
 
 Width/height stored as integer sixteenths of an inch (74 7/8 → 1198; 74 13/16 → 1197). Rounded DOWN to the nearest eighth and converted to decimal only at display/export, so raw 1/16 laser readings survive in the data.
@@ -178,7 +178,7 @@ Template constants baked into the exporter (from the Arbour House template, Inst
 | A1:A4 | Standard reference notes |
 | G1 | `{Project Name} - {Floor}` |
 | G2 | Export date |
-| G3–G6 | Fabric color codes from floor defaults (Bed/Liv/Studio/Kitchen) |
+| F3–G6 | Fabric color codes from floor defaults, labelled **MBED / LIV / BED / KIT** (Mike's own room designations, which the factory returns labelled the same way). Renamed 2026-08-20: BR and MBR previously shared one "Bed" code so a master bedroom could not take a different fabric. "Studio" was dropped at the same time, nothing in any job is tagged Studio. |
 | I7 | `D = {d_value}` |
 | Row 9 | Exact headers incl. trailing spaces in `Chain ` and `Deducts ` |
 | A (rows 10+) | `{unit}-{tag}` e.g. `401-LR1` |

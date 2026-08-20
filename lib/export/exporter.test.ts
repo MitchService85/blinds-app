@@ -22,6 +22,12 @@ function isEmpty(value: ExcelJS.CellValue): boolean {
   return value === null || value === undefined || value === "";
 }
 
+// NOTE: as of 2026-08-20 the header block's four fabric-code cells (F3:F6)
+// intentionally differ from the delivered Level 4 workbook. That file read
+// Bed / Liv / Studio / Kitchen; the sheet now reads MBED / LIV / BED / KIT so
+// a master bedroom can take a different fabric from a bedroom. Every other
+// cell still matches the delivered file exactly, which is the point of this
+// test — if a change moves anything outside F3:G6, it is a regression.
 describe("buildWorkbook golden file (Arbour House Level 4)", () => {
   const workbook = buildWorkbook(inputFixture as ExportInput);
   const sheet = workbook.getWorksheet("Window Shades");
@@ -75,7 +81,7 @@ describe("untagged zone windows (office format)", () => {
       defaults: {
         roll: false, drive: "R" as const, tight: false, extra_note: "",
         d_value: "0.5",
-        color_codes: { bed: "", liv: "", studio: "", kitchen: "" },
+        color_codes: { mbed: "", liv: "", bed: "", kit: "" },
       },
       units: [{
         number: "Level 1 - FE", status: "done" as const,
@@ -102,7 +108,7 @@ describe("quantity (Q column)", () => {
     defaults: {
       roll: false, drive: "R" as const, tight: true, extra_note: "",
       d_value: "0.5",
-      color_codes: { bed: "", liv: "", studio: "", kitchen: "" },
+      color_codes: { mbed: "", liv: "", bed: "", kit: "" },
     },
   };
 
@@ -133,7 +139,7 @@ describe("panel deducts on bay windows", () => {
     project_name: "P", floor_label: "F", export_date: "2026-08-18",
     defaults: {
       roll: false, drive: "R" as const, tight: false, extra_note: "",
-      d_value: "0.5", color_codes: { bed: "", liv: "", studio: "", kitchen: "" },
+      d_value: "0.5", color_codes: { mbed: "", liv: "", bed: "", kit: "" },
     },
     units: [{
       number: "1216", status: "done" as const,
@@ -214,5 +220,43 @@ describe("mount types in the notes column", () => {
     expect(
       buildNoteString({ tight: false, mount: "outside", extra_note: "DRILL HOLES IN FASCIA" }, "stairwell", true)
     ).toBe("Outside Mount. DRILL HOLES IN FASCIA. stairwell. LONGER CHAIN");
+  });
+});
+
+describe("fabric code header block", () => {
+  const defaults = {
+    roll: false, drive: "R" as const, tight: false, extra_note: "", d_value: "1/2",
+    color_codes: { mbed: "MB1", liv: "LV1", bed: "BD1", kit: "KT1" },
+  };
+
+  it("labels the four slots with Mike's designations", () => {
+    const sheet = buildWorkbook({
+      project_name: "P", floor_label: "F", export_date: "2026-08-20",
+      defaults, units: [],
+    }).getWorksheet("Window Shades")!;
+    expect(sheet.getCell("F3").value).toBe("MBED =");
+    expect(sheet.getCell("F4").value).toBe("LIV =");
+    expect(sheet.getCell("F5").value).toBe("BED =");
+    expect(sheet.getCell("F6").value).toBe("KIT =");
+  });
+
+  it("writes each code beside its own label", () => {
+    const sheet = buildWorkbook({
+      project_name: "P", floor_label: "F", export_date: "2026-08-20",
+      defaults, units: [],
+    }).getWorksheet("Window Shades")!;
+    expect(sheet.getCell("G3").value).toBe("MB1");
+    expect(sheet.getCell("G4").value).toBe("LV1");
+    expect(sheet.getCell("G5").value).toBe("BD1");
+    expect(sheet.getCell("G6").value).toBe("KT1");
+  });
+
+  it("leaves a slot empty rather than writing a blank string", () => {
+    const sheet = buildWorkbook({
+      project_name: "P", floor_label: "F", export_date: "2026-08-20",
+      defaults: { ...defaults, color_codes: { mbed: "", liv: "", bed: "", kit: "" } },
+      units: [],
+    }).getWorksheet("Window Shades")!;
+    expect(sheet.getCell("G3").value).toBeNull();
   });
 });

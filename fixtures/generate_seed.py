@@ -96,8 +96,8 @@ def charles_floor(path):
         "label": "Batch 3",
         "defaults": {"roll": False, "drive": "R", "tight": True, "extra_note": "",
                      "d_value": "0.5",
-                     "color_codes": {"bed": "YUNOWH", "liv": "PWS1WHIT",
-                                     "studio": "PWS3PLAT", "kitchen": ""}},
+                     "color_codes": {"mbed": "", "liv": "PWS1WHIT",
+                                     "bed": "YUNOWH", "kit": ""}},
         "units": [{"number": u, "status": "done", "windows": units[u]} for u in order],
     }
 
@@ -128,8 +128,8 @@ def alcon_floor(path):
         "label": "All Areas",
         "defaults": {"roll": False, "drive": "R", "tight": False, "extra_note": "",
                      "d_value": "0.5",
-                     "color_codes": {"bed": "YUNOWH", "liv": "PWS1WHIT",
-                                     "studio": "PWS3PLAT", "kitchen": ""}},
+                     "color_codes": {"mbed": "", "liv": "PWS1WHIT",
+                                     "bed": "YUNOWH", "kit": ""}},
         "units": [{"number": z, "status": "done", "windows": units[z]} for z in order],
     }
 
@@ -163,8 +163,8 @@ def cleveland_floor(path):
         "label": "All Levels",
         "defaults": {"roll": False, "drive": "R", "tight": True, "extra_note": "",
                      "d_value": "0.5",
-                     "color_codes": {"bed": "YUNOWH", "liv": "PWS1WHIT",
-                                     "studio": "PWS3PLAT", "kitchen": ""}},
+                     "color_codes": {"mbed": "", "liv": "PWS1WHIT",
+                                     "bed": "YUNOWH", "kit": ""}},
         "units": [{"number": u, "status": "done", "windows": units[u]} for u in order],
     }
 

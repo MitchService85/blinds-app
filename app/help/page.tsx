@@ -137,6 +137,8 @@ export default function HelpPage() {
         <p>Using a laser that reads 1/16ths? Tap the <b>¹⁄₁₆</b> switch and punch in exactly what the laser says. The app rounds it down to the eighth the factory wants and remembers the raw number.</p>
         <p>Everything saves by itself the moment you tap it. <b>Save · next window</b> just moves you to the next one.</p>
         <p><b>Tight measures</b> and <b>Mount</b> are two separate questions. Tight is how you measured; Mount (Inside / Outside) is where the blind sits. A floor can be both. Set them once in the floor&apos;s Edit bar and they go on every exported row. One odd window? Override either one right on that window.</p>
+        <p><b>Control per panel</b> shows up on residential bay windows: tap a panel to move it between the floor's default side, L and R. At 15 Neighborhood the left panel takes left control while the other two stay default. It stays hidden on office jobs, where left hand is rarely used.</p>
+        <p>If a warning is wrong, tap <b>Looks right</b> on it. Side panels genuinely differ on plenty of real bays, so that closes the loop for that window on both phones. You can turn it back on from the same spot.</p>
         <p><b>Motorized</b> works the same way: set it for the whole floor, override the odd window. <b>Chain</b> takes a length in inches and goes straight into the factory sheet&apos;s Chain column, which is what that column is actually for. Enter a length and you can skip the old &quot;longer chain&quot; note — the number says it better. A motorized blind has no chain, so the app warns if you set both.</p>
       </Section>
 

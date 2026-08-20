@@ -7,7 +7,15 @@ interface FloorDefaultsFormProps {
   onChange: (value: FloorDefaults) => void;
 }
 
-const COLOR_KEYS = ["bed", "liv", "studio", "kitchen"] as const;
+const COLOR_KEYS = ["mbed", "liv", "bed", "kit"] as const;
+
+/** Keyed to Mike's own room designations, which the factory returns labelled the same way. */
+const COLOR_LABELS: Record<(typeof COLOR_KEYS)[number], string> = {
+  mbed: "MBED (master bedroom)",
+  liv: "LIV (living room)",
+  bed: "BED (bedroom)",
+  kit: "KIT (kitchen)",
+};
 
 /** Shared per-floor defaults editor — used by the new job wizard, the project
  * hub's "+ Add floor", and the floor view's defaults bar (see spec). */
@@ -157,7 +165,7 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
         <div className="mt-3 grid grid-cols-2 gap-3">
           {COLOR_KEYS.map((key) => (
             <div key={key}>
-              <div className="mb-1 text-xs capitalize text-neutral-500">{key}</div>
+              <div className="mb-1 text-xs text-neutral-500">{COLOR_LABELS[key]}</div>
               <input
                 type="text"
                 value={value.color_codes[key]}

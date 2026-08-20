@@ -65,11 +65,22 @@ export interface FloorDefaults {
   /** D value shown in export header, e.g. "1/2" */
   d_value: string;
   /** Fabric color codes for the header block */
+  /**
+   * Fabric code per room type, written into the export header block so the
+   * factory knows which fabric each tagged row takes. Keyed to Mike's own
+   * designations (MBR/LR/BR/K), which the factory has always processed and
+   * returns labelled the same way.
+   *
+   * Master bedroom is its own slot as of 2026-08-20: BR and MBR both fell
+   * under a single "Bed" code before, so a master bedroom could not be given
+   * a different fabric. The old "Studio" slot went at the same time — nothing
+   * in any job is tagged Studio.
+   */
   color_codes: {
-    bed: string;
+    mbed: string;
     liv: string;
-    studio: string;
-    kitchen: string;
+    bed: string;
+    kit: string;
   };
 }
 

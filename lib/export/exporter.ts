@@ -82,14 +82,14 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
   dateCell.value = new Date(`${input.export_date}T00:00:00`);
   dateCell.numFmt = "yyyy-mm-dd";
 
-  sheet.getCell("F3").value = "Bed =";
-  setIfPresent(sheet.getCell("G3"), input.defaults.color_codes.bed);
-  sheet.getCell("F4").value = "Liv =";
+  sheet.getCell("F3").value = "MBED =";
+  setIfPresent(sheet.getCell("G3"), input.defaults.color_codes.mbed);
+  sheet.getCell("F4").value = "LIV =";
   setIfPresent(sheet.getCell("G4"), input.defaults.color_codes.liv);
-  sheet.getCell("F5").value = "Studio =";
-  setIfPresent(sheet.getCell("G5"), input.defaults.color_codes.studio);
-  sheet.getCell("F6").value = "Kitchen =";
-  setIfPresent(sheet.getCell("G6"), input.defaults.color_codes.kitchen);
+  sheet.getCell("F5").value = "BED =";
+  setIfPresent(sheet.getCell("G5"), input.defaults.color_codes.bed);
+  sheet.getCell("F6").value = "KIT =";
+  setIfPresent(sheet.getCell("G6"), input.defaults.color_codes.kit);
 
   sheet.getCell("I7").value = `D = ${input.defaults.d_value}`;
   sheet.getCell("K8").value = "Mounting Type (inside/ outside) ";
