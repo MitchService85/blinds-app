@@ -90,6 +90,8 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
   setIfPresent(sheet.getCell("G5"), input.defaults.color_codes.bed);
   sheet.getCell("F6").value = "KIT =";
   setIfPresent(sheet.getCell("G6"), input.defaults.color_codes.kit);
+  sheet.getCell("F7").value = "STU =";
+  setIfPresent(sheet.getCell("G7"), input.defaults.color_codes.stu);
 
   sheet.getCell("I7").value = `D = ${input.defaults.d_value}`;
   sheet.getCell("K8").value = "Mounting Type (inside/ outside) ";

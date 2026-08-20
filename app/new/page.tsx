@@ -7,7 +7,9 @@ import type { BuildingType, FloorDefaults } from "@/lib/types";
 import { TagChipEditor } from "@/components/tag-chip-editor";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 
-const RESIDENTIAL_CHIPS = ["LR", "BR", "MBR", "Kit", "Studio", "Den", "Bath"];
+// Mike's own designations, which the factory processes and returns labelled
+// the same way. STU covers a studio/bachelor unit.
+const RESIDENTIAL_CHIPS = ["LR", "BR", "MBR", "K", "STU", "Den", "Bath"];
 const COMMERCIAL_CHIPS = ["Office", "Boardroom", "Reception", "Kitchen", "Corridor"];
 
 function defaultFloorDefaults(): FloorDefaults {
@@ -17,7 +19,7 @@ function defaultFloorDefaults(): FloorDefaults {
     tight: false,
     extra_note: "",
     d_value: "1/2",
-    color_codes: { mbed: "", liv: "", bed: "", kit: "" },
+    color_codes: { mbed: "", liv: "", bed: "", kit: "", stu: "" },
   };
 }
 

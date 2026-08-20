@@ -97,7 +97,8 @@ def charles_floor(path):
         "defaults": {"roll": False, "drive": "R", "tight": True, "extra_note": "",
                      "d_value": "0.5",
                      "color_codes": {"mbed": "", "liv": "PWS1WHIT",
-                                     "bed": "YUNOWH", "kit": ""}},
+                                     "bed": "YUNOWH", "kit": "",
+                                     "stu": "PWS3PLAT"}},
         "units": [{"number": u, "status": "done", "windows": units[u]} for u in order],
     }
 
@@ -129,7 +130,8 @@ def alcon_floor(path):
         "defaults": {"roll": False, "drive": "R", "tight": False, "extra_note": "",
                      "d_value": "0.5",
                      "color_codes": {"mbed": "", "liv": "PWS1WHIT",
-                                     "bed": "YUNOWH", "kit": ""}},
+                                     "bed": "YUNOWH", "kit": "",
+                                     "stu": "PWS3PLAT"}},
         "units": [{"number": z, "status": "done", "windows": units[z]} for z in order],
     }
 
@@ -164,7 +166,8 @@ def cleveland_floor(path):
         "defaults": {"roll": False, "drive": "R", "tight": True, "extra_note": "",
                      "d_value": "0.5",
                      "color_codes": {"mbed": "", "liv": "PWS1WHIT",
-                                     "bed": "YUNOWH", "kit": ""}},
+                                     "bed": "YUNOWH", "kit": "",
+                                     "stu": "PWS3PLAT"}},
         "units": [{"number": u, "status": "done", "windows": units[u]} for u in order],
     }
 

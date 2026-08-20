@@ -15,7 +15,7 @@ function defaultFloorDefaults(): FloorDefaults {
     tight: false,
     extra_note: "",
     d_value: "1/2",
-    color_codes: { mbed: "", liv: "", bed: "", kit: "" },
+    color_codes: { mbed: "", liv: "", bed: "", kit: "", stu: "" },
   };
 }
 

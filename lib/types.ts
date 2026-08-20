@@ -81,6 +81,12 @@ export interface FloorDefaults {
     liv: string;
     bed: string;
     kit: string;
+    /**
+     * Studio/bachelor. Its own fabric because the whole place doubles as the
+     * bedroom, so it usually wants blackout even though no room is tagged as
+     * a bedroom.
+     */
+    stu: string;
   };
 }
 

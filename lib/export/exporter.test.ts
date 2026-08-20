@@ -81,7 +81,7 @@ describe("untagged zone windows (office format)", () => {
       defaults: {
         roll: false, drive: "R" as const, tight: false, extra_note: "",
         d_value: "0.5",
-        color_codes: { mbed: "", liv: "", bed: "", kit: "" },
+        color_codes: { mbed: "", liv: "", bed: "", kit: "", stu: "" },
       },
       units: [{
         number: "Level 1 - FE", status: "done" as const,
@@ -108,7 +108,7 @@ describe("quantity (Q column)", () => {
     defaults: {
       roll: false, drive: "R" as const, tight: true, extra_note: "",
       d_value: "0.5",
-      color_codes: { mbed: "", liv: "", bed: "", kit: "" },
+      color_codes: { mbed: "", liv: "", bed: "", kit: "", stu: "" },
     },
   };
 
@@ -139,7 +139,7 @@ describe("panel deducts on bay windows", () => {
     project_name: "P", floor_label: "F", export_date: "2026-08-18",
     defaults: {
       roll: false, drive: "R" as const, tight: false, extra_note: "",
-      d_value: "0.5", color_codes: { mbed: "", liv: "", bed: "", kit: "" },
+      d_value: "0.5", color_codes: { mbed: "", liv: "", bed: "", kit: "", stu: "" },
     },
     units: [{
       number: "1216", status: "done" as const,
@@ -226,7 +226,7 @@ describe("mount types in the notes column", () => {
 describe("fabric code header block", () => {
   const defaults = {
     roll: false, drive: "R" as const, tight: false, extra_note: "", d_value: "1/2",
-    color_codes: { mbed: "MB1", liv: "LV1", bed: "BD1", kit: "KT1" },
+    color_codes: { mbed: "MB1", liv: "LV1", bed: "BD1", kit: "KT1", stu: "ST1" },
   };
 
   it("labels the four slots with Mike's designations", () => {
@@ -238,6 +238,7 @@ describe("fabric code header block", () => {
     expect(sheet.getCell("F4").value).toBe("LIV =");
     expect(sheet.getCell("F5").value).toBe("BED =");
     expect(sheet.getCell("F6").value).toBe("KIT =");
+    expect(sheet.getCell("F7").value).toBe("STU =");
   });
 
   it("writes each code beside its own label", () => {
@@ -249,12 +250,13 @@ describe("fabric code header block", () => {
     expect(sheet.getCell("G4").value).toBe("LV1");
     expect(sheet.getCell("G5").value).toBe("BD1");
     expect(sheet.getCell("G6").value).toBe("KT1");
+    expect(sheet.getCell("G7").value).toBe("ST1");
   });
 
   it("leaves a slot empty rather than writing a blank string", () => {
     const sheet = buildWorkbook({
       project_name: "P", floor_label: "F", export_date: "2026-08-20",
-      defaults: { ...defaults, color_codes: { mbed: "", liv: "", bed: "", kit: "" } },
+      defaults: { ...defaults, color_codes: { mbed: "", liv: "", bed: "", kit: "", stu: "" } },
       units: [],
     }).getWorksheet("Window Shades")!;
     expect(sheet.getCell("G3").value).toBeNull();

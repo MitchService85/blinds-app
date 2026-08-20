@@ -7,7 +7,7 @@ interface FloorDefaultsFormProps {
   onChange: (value: FloorDefaults) => void;
 }
 
-const COLOR_KEYS = ["mbed", "liv", "bed", "kit"] as const;
+const COLOR_KEYS = ["mbed", "liv", "bed", "kit", "stu"] as const;
 
 /** Keyed to Mike's own room designations, which the factory returns labelled the same way. */
 const COLOR_LABELS: Record<(typeof COLOR_KEYS)[number], string> = {
@@ -15,6 +15,7 @@ const COLOR_LABELS: Record<(typeof COLOR_KEYS)[number], string> = {
   liv: "LIV (living room)",
   bed: "BED (bedroom)",
   kit: "KIT (kitchen)",
+  stu: "STU (studio / bachelor)",
 };
 
 /** Shared per-floor defaults editor — used by the new job wizard, the project
