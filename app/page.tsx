@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { seedIfNeeded } from "@/lib/seed";
-import { listFloors, listProjects, listUnits, listWindows } from "@/lib/db";
+import { db, listProjects } from "@/lib/db";
 import type { Project } from "@/lib/types";
 import { JobCard, type FloorProgress } from "@/components/job-card";
 import { SyncStatus } from "@/components/sync-status";
@@ -22,44 +22,66 @@ export default function Home() {
 
     async function load() {
       await seedIfNeeded();
-      const projects = await listProjects();
-      const nextRows: ProjectRow[] = [];
+      // Four bulk reads and in-memory grouping. The obvious per-project /
+      // per-floor / per-unit queries are ~100 sequential IndexedDB round
+      // trips on today's data and grow with every job — noticeable on a
+      // phone, and the dashboard is the screen that opens most.
+      const [projects, allFloors, allUnits, allWindows] = await Promise.all([
+        listProjects(),
+        db.floors.filter((f) => !f.deleted).toArray(),
+        db.units.filter((u) => !u.deleted).toArray(),
+        db.windows.filter((w) => !w.deleted).toArray(),
+      ]);
 
-      for (const project of projects) {
-        const floors = await listFloors(project.id);
-        const floorProgress: FloorProgress[] = [];
-        for (const floor of floors) {
-          const units = await listUnits(floor.id);
-          const relevant = units.filter((u) => u.status !== "na");
-          let blinds = 0;
-          for (const unit of relevant) {
-            const windows = await listWindows(unit.id);
-            blinds += windows.reduce((n, w) => n + w.widths.length * (w.quantity ?? 1), 0);
-          }
-
-          let installStaged = 0;
-          let installDone = 0;
-          let installBlocked = 0;
-          for (const unit of relevant) {
-            if (blockedOf(unit)) installBlocked++;
-            else if (installOf(unit) === "staged") installStaged++;
-            else if (installOf(unit) === "done") installDone++;
-          }
-          const hasInstallActivity = installStaged + installDone + installBlocked > 0;
-
-          floorProgress.push({
-            id: floor.id,
-            label: floor.label,
-            done: relevant.filter((u) => u.status === "done").length,
-            total: relevant.length,
-            blinds,
-            install: hasInstallActivity
-              ? { staged: installStaged, done: installDone, blocked: installBlocked }
-              : null,
-          });
-        }
-        nextRows.push({ project, floors: floorProgress });
+      const floorsByProject = new Map<string, typeof allFloors>();
+      for (const f of allFloors) {
+        const list = floorsByProject.get(f.project_id) ?? [];
+        list.push(f);
+        floorsByProject.set(f.project_id, list);
       }
+      const unitsByFloor = new Map<string, typeof allUnits>();
+      for (const u of allUnits) {
+        const list = unitsByFloor.get(u.floor_id) ?? [];
+        list.push(u);
+        unitsByFloor.set(u.floor_id, list);
+      }
+      const blindsByUnit = new Map<string, number>();
+      for (const w of allWindows) {
+        blindsByUnit.set(
+          w.unit_id,
+          (blindsByUnit.get(w.unit_id) ?? 0) + w.widths.length * (w.quantity ?? 1)
+        );
+      }
+
+      const nextRows: ProjectRow[] = projects.map((project) => {
+        const floorProgress: FloorProgress[] = (floorsByProject.get(project.id) ?? []).map(
+          (floor) => {
+            const relevant = (unitsByFloor.get(floor.id) ?? []).filter((u) => u.status !== "na");
+            let blinds = 0;
+            let installStaged = 0;
+            let installDone = 0;
+            let installBlocked = 0;
+            for (const unit of relevant) {
+              blinds += blindsByUnit.get(unit.id) ?? 0;
+              if (blockedOf(unit)) installBlocked++;
+              else if (installOf(unit) === "staged") installStaged++;
+              else if (installOf(unit) === "done") installDone++;
+            }
+            const hasInstallActivity = installStaged + installDone + installBlocked > 0;
+            return {
+              id: floor.id,
+              label: floor.label,
+              done: relevant.filter((u) => u.status === "done").length,
+              total: relevant.length,
+              blinds,
+              install: hasInstallActivity
+                ? { staged: installStaged, done: installDone, blocked: installBlocked }
+                : null,
+            };
+          }
+        );
+        return { project, floors: floorProgress };
+      });
 
       if (!cancelled) setRows(nextRows);
     }

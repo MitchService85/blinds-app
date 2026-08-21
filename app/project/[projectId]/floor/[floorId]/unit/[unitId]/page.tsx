@@ -363,7 +363,14 @@ export default function WindowEntryPage() {
   function removePanel(index: number) {
     if (draft.widths.length <= 1) return;
     const widths = draft.widths.filter((_, i) => i !== index);
-    patchDraft({ widths });
+    // panel_controls is parallel to widths, so the removed panel's entry goes
+    // with it — otherwise its control silently shifts onto the next panel
+    // (found in the stress pass: removing a bay's left panel moved its "L").
+    const remaining = draft.panel_controls.filter((_, i) => i !== index);
+    patchDraft({
+      widths,
+      panel_controls: remaining.every((c) => c == null) ? [] : remaining,
+    });
     setActiveField((f) => (f === "height" ? f : Math.min(f, widths.length - 1)));
   }
 
@@ -386,7 +393,9 @@ export default function WindowEntryPage() {
       mount_override: w.mount_override === "inside_tight" ? null : (w.mount_override ?? null),
       tight_override:
         w.mount_override === "inside_tight" ? true : (w.tight_override ?? null),
-      panel_controls: w.panel_controls ?? [],
+      // Defensive slice: rows written before the removePanel fix can carry a
+      // longer array than widths; extra entries belonged to removed panels.
+      panel_controls: (w.panel_controls ?? []).slice(0, w.widths.length),
       checks_ack: w.checks_ack ?? false,
       chain_length: w.chain_length ?? null,
       motorized_override: w.motorized_override ?? null,
@@ -752,7 +761,9 @@ export default function WindowEntryPage() {
             <div className="mb-1 text-xs text-neutral-500">
               Control per panel <span className="text-neutral-400">(tap to change)</span>
             </div>
-            <div className="flex gap-2">
+            {/* Scrolls sideways rather than shrinking: six panels at 375px
+                squeezed each button to 46px and the labels became unreadable. */}
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
               {draft.widths.map((_, i) => {
                 const own = draft.panel_controls[i] ?? null;
                 return (
@@ -760,16 +771,14 @@ export default function WindowEntryPage() {
                     key={i}
                     type="button"
                     onClick={() => cyclePanelControl(i)}
-                    className={`min-h-11 flex-1 rounded-lg border text-xs font-medium ${
+                    className={`min-h-11 min-w-16 shrink-0 rounded-lg border px-2 text-xs font-medium ${
                       own
                         ? "border-blue-600 bg-blue-600 text-white"
                         : "border-neutral-300 bg-white text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
                     }`}
                   >
-                    Panel {i + 1}
-                    <br />
-                    {effectivePanelControl(i)}
-                    {own ? "" : " (default)"}
+                    P{i + 1} · {effectivePanelControl(i)}
+                    {own ? "" : <span className="opacity-60"> dflt</span>}
                   </button>
                 );
               })}

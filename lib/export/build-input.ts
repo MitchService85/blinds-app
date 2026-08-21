@@ -43,7 +43,9 @@ export function buildExportInput({
           height: w.height,
           quantity: w.quantity ?? 1,
           control_override: w.control_override,
-          panel_controls: w.panel_controls ?? null,
+          // Slice defends against rows written before the removePanel fix,
+          // whose stored array can be longer than widths.
+          panel_controls: w.panel_controls?.slice(0, w.widths.length) ?? null,
           mount_override: w.mount_override ?? null,
           tight_override: w.tight_override ?? null,
           deduct: w.deduct,
