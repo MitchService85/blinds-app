@@ -11,7 +11,7 @@ const COLOR_KEYS = ["mbed", "liv", "bed", "kit", "stu"] as const;
 
 /** Keyed to Mike's own room designations, which the factory returns labelled the same way. */
 const COLOR_LABELS: Record<(typeof COLOR_KEYS)[number], string> = {
-  mbed: "MBED (master bedroom)",
+  mbed: "MBED (master bedroom, blank = same as BED)",
   liv: "LIV (living room)",
   bed: "BED (bedroom)",
   kit: "KIT (kitchen)",

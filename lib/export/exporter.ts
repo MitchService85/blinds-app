@@ -83,7 +83,15 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
   dateCell.numFmt = "yyyy-mm-dd";
 
   sheet.getCell("F3").value = "MBED =";
-  setIfPresent(sheet.getCell("G3"), input.defaults.color_codes.mbed);
+  // A master bedroom usually takes the same fabric as a bedroom, so an unset
+  // MBED falls back to BED rather than going out blank. The slot exists so the
+  // factory can tell the rooms apart and so a master can be given its own
+  // fabric when a job calls for it; leaving it empty would read as
+  // "unspecified" now that the label is on the sheet.
+  setIfPresent(
+    sheet.getCell("G3"),
+    input.defaults.color_codes.mbed || input.defaults.color_codes.bed
+  );
   sheet.getCell("F4").value = "LIV =";
   setIfPresent(sheet.getCell("G4"), input.defaults.color_codes.liv);
   sheet.getCell("F5").value = "BED =";

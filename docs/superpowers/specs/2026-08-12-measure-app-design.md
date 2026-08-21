@@ -178,7 +178,7 @@ Template constants baked into the exporter (from the Arbour House template, Inst
 | A1:A4 | Standard reference notes |
 | G1 | `{Project Name} - {Floor}` |
 | G2 | Export date |
-| F3–G6 | Fabric color codes from floor defaults, labelled **MBED / LIV / BED / KIT / STU** (STU in F7:G7) (Mike's own room designations, which the factory returns labelled the same way). Renamed 2026-08-20: BR and MBR previously shared one "Bed" code so a master bedroom could not take a different fabric. STU is a studio/bachelor: the whole place doubles as the bedroom, so it usually wants blackout even though no room is tagged as one. Mitch had been writing "bachelor" in notes for these. |
+| F3–G6 | Fabric color codes from floor defaults, labelled **MBED / LIV / BED / KIT / STU** (STU in F7:G7). MBED (master bedroom) falls back to BED when unset, since a master usually takes the same treatment. (Mike's own room designations, which the factory returns labelled the same way). Renamed 2026-08-20: BR and MBR previously shared one "Bed" code so a master bedroom could not take a different fabric. STU is a studio/bachelor: the whole place doubles as the bedroom, so it usually wants blackout even though no room is tagged as one. Mitch had been writing "bachelor" in notes for these. |
 | I7 | `D = {d_value}` |
 | Row 9 | Exact headers incl. trailing spaces in `Chain ` and `Deducts ` |
 | A (rows 10+) | `{unit}-{tag}` e.g. `401-LR1` |

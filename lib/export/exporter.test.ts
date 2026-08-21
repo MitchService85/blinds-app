@@ -262,3 +262,34 @@ describe("fabric code header block", () => {
     expect(sheet.getCell("G3").value).toBeNull();
   });
 });
+
+describe("MBED falls back to BED", () => {
+  const build = (codes: Record<string, string>) =>
+    buildWorkbook({
+      project_name: "P", floor_label: "F", export_date: "2026-08-20",
+      defaults: {
+        roll: false, drive: "R", tight: false, extra_note: "", d_value: "1/2",
+        color_codes: { mbed: "", liv: "", bed: "", kit: "", stu: "", ...codes },
+      },
+      units: [],
+    }).getWorksheet("Window Shades")!;
+
+  it("writes the bedroom fabric into MBED when no master code is set", () => {
+    // Mitch: a master bedroom usually takes the same treatment as a bedroom.
+    expect(build({ bed: "YUNOWH" }).getCell("G3").value).toBe("YUNOWH");
+  });
+
+  it("keeps a master-specific code when one is given", () => {
+    expect(build({ bed: "YUNOWH", mbed: "BLACKOUT1" }).getCell("G3").value).toBe("BLACKOUT1");
+  });
+
+  it("leaves MBED empty when neither is set", () => {
+    expect(build({}).getCell("G3").value).toBeNull();
+  });
+
+  it("does not push the bedroom fabric anywhere else", () => {
+    const sheet = build({ bed: "YUNOWH" });
+    expect(sheet.getCell("G4").value).toBeNull(); // LIV
+    expect(sheet.getCell("G7").value).toBeNull(); // STU
+  });
+});
