@@ -138,6 +138,34 @@ export function effectiveMotorized(
   return defaults.motorized === true;
 }
 
+/**
+ * Fabric-code block with the legacy keys folded in. The block was re-keyed
+ * 2026-08-20 (bed/liv/studio/kitchen -> mbed/liv/bed/kit/stu) and live rows
+ * were migrated, but a row written by a phone still on the old bundle can
+ * win last-write-wins with the old keys, and export snapshots recorded
+ * before the rename carry them too. Old "bed" was the bedroom fabric (-> bed),
+ * "kitchen" -> kit, "studio" -> stu; a new-key value always wins.
+ */
+export function normalizeColorCodes(
+  raw: Partial<Record<string, string>> | undefined
+): FloorDefaults["color_codes"] {
+  const r = raw ?? {};
+  return {
+    mbed: r.mbed ?? "",
+    liv: r.liv ?? "",
+    bed: r.bed ?? "",
+    kit: r.kit || r.kitchen || "",
+    stu: r.stu || r.studio || "",
+  };
+}
+
+/** Blinds one window represents: one per panel, times the quantity. */
+export function windowBlindCount(
+  w: Pick<ExportWindow, "widths" | "quantity">
+): number {
+  return w.widths.length * (w.quantity ?? 1);
+}
+
 /** Notes-column text for a mount, matching the corpus of accepted files. */
 const MOUNT_TEXT: Record<Exclude<MountType, null>, string> = {
   inside: "Inside Mount",

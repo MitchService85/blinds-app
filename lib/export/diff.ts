@@ -17,6 +17,7 @@ import {
   effectiveMotorized,
   effectiveMount,
   effectiveTight,
+  normalizeColorCodes,
   normalizeMount,
   windowTagLabel,
   type ExportInput,
@@ -116,6 +117,22 @@ function entries(input: ExportInput): Entry[] {
   return out;
 }
 
+/**
+ * Rows match by id, so a retag or unit renumber keeps identity — but the
+ * label in the workbook's Tag/Unit column changes, and a diff that misses it
+ * asserts "no changes" over a file whose rows are labelled differently.
+ */
+function compareLabels(a: Entry, b: Entry): FieldChange[] {
+  const fields: FieldChange[] = [];
+  const tagA = windowTagLabel(a.window);
+  const tagB = windowTagLabel(b.window);
+  if (tagA !== tagB) fields.push({ label: "Tag", from: tagA || "none", to: tagB || "none" });
+  if (a.unit.number !== b.unit.number) {
+    fields.push({ label: "Unit", from: a.unit.number, to: b.unit.number });
+  }
+  return fields;
+}
+
 function compareWindows(a: ExportWindow, b: ExportWindow): FieldChange[] {
   const fields: FieldChange[] = [];
   const push = (label: string, from: string, to: string) => {
@@ -165,12 +182,16 @@ function compareFloors(a: ExportInput, b: ExportInput): FieldChange[] {
   );
   push("Chain type", a.defaults.chain_type || "none", b.defaults.chain_type || "none");
 
+  // Normalized so a snapshot recorded before the 2026-08-20 re-key neither
+  // hides a code that never changed nor reports one as newly added.
+  const codesA = normalizeColorCodes(a.defaults.color_codes);
+  const codesB = normalizeColorCodes(b.defaults.color_codes);
   const codes = ["mbed", "liv", "bed", "kit", "stu"] as const;
   for (const code of codes) {
     push(
       `${code[0].toUpperCase()}${code.slice(1)} colour`,
-      a.defaults.color_codes[code] || "none",
-      b.defaults.color_codes[code] || "none"
+      codesA[code] || "none",
+      codesB[code] || "none"
     );
   }
 
@@ -203,7 +224,7 @@ export function diffExports(prev: ExportInput, next: ExportInput): ExportDiff {
       continue;
     }
     before.delete(entry.key);
-    const fields = compareWindows(old.window, entry.window);
+    const fields = [...compareLabels(old, entry), ...compareWindows(old.window, entry.window)];
     if (fields.length > 0) {
       changed++;
       windows.push({

@@ -5,8 +5,9 @@
 // comparisons false-positive heavily (room sizes genuinely vary) — do not add
 // one without re-running fixtures/generate_seed.py data through it.
 
+import { effectiveMotorized } from "./export/shared";
 import { formatFraction } from "./fractions";
-import type { Unit, WindowRecord } from "./types";
+import type { FloorDefaults, Unit, WindowRecord } from "./types";
 
 /** Bay side panels normally match within ~3/4"; flag beyond 1.5". */
 const BAY_SIDE_DIFF_MAX = 24; // sixteenths
@@ -42,6 +43,13 @@ function tagLabel(w: WindowRecord): string {
 export function checkUnitWindows(
   unit: Pick<Unit, "number">,
   windows: WindowRecord[],
+  /**
+   * Floor defaults, when the caller has them. Motorized is a floor setting
+   * with a per-window override, so the motorized-vs-chain contradiction must
+   * resolve through the floor — checking only the override misses the
+   * documented common case of a whole floor marked motorized.
+   */
+  defaults?: Pick<FloorDefaults, "motorized">,
 ): MeasurementWarning[] {
   const warnings: MeasurementWarning[] = [];
   for (const w of windows) {
@@ -74,7 +82,9 @@ export function checkUnitWindows(
 
     // A motorized shade has no chain. Ordering both is contradictory and the
     // factory has to guess which one the site actually needs.
-    const motorized = w.motorized_override === true;
+    const motorized = defaults
+      ? effectiveMotorized(defaults, w.motorized_override)
+      : w.motorized_override === true;
     const chain = typeof w.chain_length === "number" ? w.chain_length : null;
     if (motorized && chain !== null && chain > 0) {
       warnings.push({
@@ -113,6 +123,7 @@ export function checkUnitWindows(
 /** Convenience for export: run every unit on a floor. */
 export function checkFloor(
   units: { unit: Pick<Unit, "number">; windows: WindowRecord[] }[],
+  defaults?: Pick<FloorDefaults, "motorized">,
 ): MeasurementWarning[] {
-  return units.flatMap(({ unit, windows }) => checkUnitWindows(unit, windows));
+  return units.flatMap(({ unit, windows }) => checkUnitWindows(unit, windows, defaults));
 }

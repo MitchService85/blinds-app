@@ -6,6 +6,7 @@ import ExcelJS from "exceljs";
 import instructionsData from "../../fixtures/instructions-sheet.json";
 import {
   buildNoteString,
+  normalizeColorCodes,
   panelControl,
   exportedSize,
   panelDeduct,
@@ -82,6 +83,7 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
   dateCell.value = new Date(`${input.export_date}T00:00:00`);
   dateCell.numFmt = "yyyy-mm-dd";
 
+  const codes = normalizeColorCodes(input.defaults.color_codes);
   sheet.getCell("F3").value = "MBED =";
   // A master bedroom usually takes the same fabric as a bedroom, so an unset
   // MBED falls back to BED rather than going out blank. The slot exists so the
@@ -90,16 +92,16 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
   // "unspecified" now that the label is on the sheet.
   setIfPresent(
     sheet.getCell("G3"),
-    input.defaults.color_codes.mbed || input.defaults.color_codes.bed
+    codes.mbed || codes.bed
   );
   sheet.getCell("F4").value = "LIV =";
-  setIfPresent(sheet.getCell("G4"), input.defaults.color_codes.liv);
+  setIfPresent(sheet.getCell("G4"), codes.liv);
   sheet.getCell("F5").value = "BED =";
-  setIfPresent(sheet.getCell("G5"), input.defaults.color_codes.bed);
+  setIfPresent(sheet.getCell("G5"), codes.bed);
   sheet.getCell("F6").value = "KIT =";
-  setIfPresent(sheet.getCell("G6"), input.defaults.color_codes.kit);
+  setIfPresent(sheet.getCell("G6"), codes.kit);
   sheet.getCell("F7").value = "STU =";
-  setIfPresent(sheet.getCell("G7"), input.defaults.color_codes.stu);
+  setIfPresent(sheet.getCell("G7"), codes.stu);
 
   sheet.getCell("I7").value = `D = ${input.defaults.d_value}`;
   sheet.getCell("K8").value = "Mounting Type (inside/ outside) ";

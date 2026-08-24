@@ -22,7 +22,7 @@ import { blockedOf, installOf } from "@/components/status";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { ExportButton } from "@/components/export-button";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
-import { effectiveMount, effectiveTight } from "@/lib/export/shared";
+import { effectiveMount, effectiveTight, windowBlindCount } from "@/lib/export/shared";
 
 type FloorMode = "measure" | "install";
 const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
@@ -88,11 +88,11 @@ export default function FloorPage() {
   const warningsByUnit = useMemo(() => {
     const map = new Map<string, MeasurementWarning[]>();
     for (const unit of units) {
-      const warnings = checkUnitWindows(unit, windowsByUnit.get(unit.id) ?? []);
+      const warnings = checkUnitWindows(unit, windowsByUnit.get(unit.id) ?? [], floor?.defaults);
       if (warnings.length > 0) map.set(unit.id, warnings);
     }
     return map;
-  }, [units, windowsByUnit]);
+  }, [units, windowsByUnit, floor?.defaults]);
 
   const installSummary = useMemo(() => {
     let staged = 0;
@@ -180,7 +180,7 @@ export default function FloorPage() {
     await updateUnit(unitId, { status });
     if (status === "done") {
       const unit = units.find((u) => u.id === unitId);
-      const warnings = unit ? checkUnitWindows(unit, windowsByUnit.get(unitId) ?? []) : [];
+      const warnings = unit ? checkUnitWindows(unit, windowsByUnit.get(unitId) ?? [], floor?.defaults) : [];
       setDoneWarnings(warnings.length > 0 ? warnings : null);
     }
     await refresh();
@@ -268,7 +268,7 @@ export default function FloorPage() {
     let n = 0;
     for (const u of units) {
       if (u.status === "na") continue;
-      for (const w of windowsByUnit.get(u.id) ?? []) n += w.widths.length * (w.quantity ?? 1);
+      for (const w of windowsByUnit.get(u.id) ?? []) n += windowBlindCount(w);
     }
     return n;
   }, [units, windowsByUnit]);
@@ -396,10 +396,7 @@ export default function FloorPage() {
                 key={unit.id}
                 unit={unit}
                 windowCount={windowsByUnit.get(unit.id)?.length ?? 0}
-                blindCount={(windowsByUnit.get(unit.id) ?? []).reduce(
-                  (n, w) => n + w.widths.length * (w.quantity ?? 1),
-                  0
-                )}
+                blindCount={(windowsByUnit.get(unit.id) ?? []).reduce((n, w) => n + windowBlindCount(w), 0)}
                 href={`/project/${projectId}/floor/${floorId}/unit/${unit.id}`}
                 hasWarning={warningsByUnit.has(unit.id)}
                 onSetStatus={(status) => handleSetStatus(unit.id, status)}

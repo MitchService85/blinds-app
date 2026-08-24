@@ -5,15 +5,24 @@
 // would report phantom changes against a file that was built differently.
 import { sortUnitsForDisplay } from "../unit-sort";
 import type { Floor, Unit, WindowRecord } from "../types";
-import type { ExportInput } from "./shared";
+import { windowBlindCount, type ExportInput } from "./shared";
 
 export interface BuildInputArgs {
   projectName: string;
   floor: Floor;
   units: Unit[];
   windowsByUnit: Map<string, WindowRecord[]>;
-  /** ISO date (yyyy-mm-dd). Defaults to today. */
+  /** ISO date (yyyy-mm-dd). Defaults to today in the device's timezone. */
   exportDate?: string;
+}
+
+/**
+ * Today as yyyy-mm-dd in the device's own timezone. toISOString() is UTC and
+ * flips to tomorrow at 8pm Toronto — the wrong date on an evening export.
+ * The Swedish locale happens to format dates as ISO.
+ */
+export function localDateISO(now = new Date()): string {
+  return now.toLocaleDateString("sv-SE");
 }
 
 export function buildExportInput({
@@ -26,7 +35,7 @@ export function buildExportInput({
   return {
     project_name: projectName,
     floor_label: floor.label,
-    export_date: exportDate ?? new Date().toISOString().slice(0, 10),
+    export_date: exportDate ?? localDateISO(),
     defaults: floor.defaults,
     units: sortUnitsForDisplay(units).map((u) => ({
       id: u.id,
@@ -63,7 +72,7 @@ export function countBlinds(input: ExportInput): number {
   let total = 0;
   for (const unit of input.units) {
     if (unit.status === "na") continue;
-    for (const w of unit.windows) total += w.widths.length * (w.quantity ?? 1);
+    for (const w of unit.windows) total += windowBlindCount(w);
   }
   return total;
 }

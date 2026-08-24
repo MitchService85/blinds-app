@@ -29,7 +29,7 @@ Supabase magic-link email sign-in, once per device; both emails allowlisted (ms@
 ### 2. New job wizard
 - Name, address.
 - Building type: **Multi-unit residential** or **Office/commercial**. Both use the same hierarchy (building → floor → unit → window); the type sets terminology and the default room-tag chip set:
-  - Residential: LR, BR, MBR, Kit, Studio, Den, Bath
+  - Residential: LR, BR, MBR, K, STU, Den, Bath (Mike's own designations, 2026-08-20; STU = studio/bachelor)
   - Commercial: Office, Boardroom, Reception, Kitchen, Corridor
   - Chip set is editable per project (add/remove tags).
 - Floors: add groups by number/name — a physical floor ("L4") or an arbitrary batch of units scattered around the building ("Batch 3", as in 44 Charles). Per-floor defaults, set once, shown as a bar inside the floor and applied to every window:
@@ -193,7 +193,7 @@ Template constants baked into the exporter (from the Arbour House template, Inst
 
 Units marked N/A are skipped. Rows ordered by unit number, then window sort order. Instructions sheet copied into the workbook unchanged.
 
-**Golden-file test:** exporter output for the Level 4 data must cell-for-cell match the delivered `Arbour House 15 Neighborhood Lane - Level 4.xlsx` (values, not styling bytes). This is the regression gate for any exporter change.
+**Golden-file test:** exporter output for the Level 4 data must cell-for-cell match the delivered `Arbour House 15 Neighborhood Lane - Level 4.xlsx` (values, not styling bytes), **except the fabric-code header block F3:G7**, which intentionally diverged on 2026-08-20 when the slots were re-keyed to MBED/LIV/BED/KIT/STU (the delivered file predates the rename; exporter.test.ts documents the divergence). Everything outside that block is still the regression gate for any exporter change.
 
 ## Sanity checks (non-blocking)
 

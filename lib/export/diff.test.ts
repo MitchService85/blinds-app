@@ -289,3 +289,62 @@ describe("per-panel control", () => {
     expect(d.identical).toBe(false);
   });
 });
+
+describe("tag and unit renames", () => {
+  const withIds = (): ExportInput =>
+    edit(base(), (i) => {
+      i.units.forEach((u, ui) => {
+        u.id = `u-${ui}`;
+        u.windows.forEach((w, wi) => {
+          w.id = `w-${ui}-${wi}`;
+        });
+      });
+    });
+
+  it("reports a retag as a change, not as identical", () => {
+    const prev = withIds();
+    const next = edit(prev, (i) => {
+      i.units[0].windows[0].tag_base = "MBR";
+    });
+    const d = diffExports(prev, next);
+    expect(d.identical).toBe(false);
+    expect(d.windows[0].fields.map((f) => f.label)).toContain("Tag");
+  });
+
+  it("reports a unit renumber", () => {
+    const prev = withIds();
+    const next = edit(prev, (i) => {
+      i.units[0].number = "499";
+    });
+    const d = diffExports(prev, next);
+    expect(d.identical).toBe(false);
+    expect(d.windows.some((w) => w.fields.some((f) => f.label === "Unit"))).toBe(true);
+  });
+});
+
+describe("legacy color_codes keys", () => {
+  it("exports a pre-rename floor's kitchen and studio codes into KIT and STU", () => {
+    const input = edit(base(), (i) => {
+      // A floor row written by a phone on the old bundle.
+      (i.defaults as unknown as Record<string, unknown>).color_codes = {
+        bed: "YUNOWH", liv: "PWS1WHIT", studio: "PWS3PLAT", kitchen: "KCODE",
+      };
+    });
+    const sheet = buildWorkbook(input).getWorksheet("Window Shades")!;
+    expect(sheet.getCell("G6").value).toBe("KCODE");   // KIT <- kitchen
+    expect(sheet.getCell("G7").value).toBe("PWS3PLAT"); // STU <- studio
+    expect(sheet.getCell("G5").value).toBe("YUNOWH");   // BED <- bed
+  });
+
+  it("does not report phantom colour changes across the rename", () => {
+    const prev = edit(base(), (i) => {
+      (i.defaults as unknown as Record<string, unknown>).color_codes = {
+        bed: "YUNOWH", liv: "PWS1WHIT", studio: "PWS3PLAT", kitchen: "",
+      };
+    });
+    const next = edit(base(), (i) => {
+      i.defaults.color_codes = { mbed: "", liv: "PWS1WHIT", bed: "YUNOWH", kit: "", stu: "PWS3PLAT" };
+    });
+    expect(diffExports(prev, next).floor).toHaveLength(0);
+  });
+});

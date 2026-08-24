@@ -3,9 +3,11 @@
 import { useMemo, useState } from "react";
 import type { Floor, Unit, WindowRecord } from "@/lib/types";
 import { checkFloor, type MeasurementWarning } from "@/lib/checks";
-import { buildExportInput, countBlinds } from "@/lib/export/build-input";
-import { createExportRecord } from "@/lib/db";
+import { buildExportInput, countBlinds, localDateISO } from "@/lib/export/build-input";
+import { deliverFile } from "@/lib/export/deliver";
+import { createExportRecord, latestExport } from "@/lib/db";
 import { formatExportDate, useExportHistory } from "@/lib/export/history";
+import { diffExports } from "@/lib/export/diff";
 import type { ExportDiff, WindowChange } from "@/lib/export/diff";
 import type { ExportInput } from "@/lib/export/shared";
 import { ExportHistorySheet } from "./export-history-sheet";
@@ -49,13 +51,18 @@ export function ExportButton({
     diff: ExportDiff | null;
   } | null>(null);
 
+  // Keyed on the pieces the export actually reads, not on floor object
+  // identity: typing in the order-number field replaces the floor object
+  // twice per keystroke, and rebuilding + diffing a 100-window input on each
+  // was measurable lag. defaults/label only change in the Edit sheet.
   const input = useMemo(
     () => buildExportInput({ projectName, floor, units, windowsByUnit }),
-    [projectName, floor, units, windowsByUnit]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projectName, floor.id, floor.label, floor.defaults, units, windowsByUnit]
   );
   const history = useExportHistory(floor.id, input);
 
-  function handleExportClick() {
+  async function handleExportClick() {
     const exportableUnits = units.filter((u) => u.status !== "na");
     const totalWindows = exportableUnits.reduce(
       (sum, u) => sum + (windowsByUnit.get(u.id)?.length ?? 0),
@@ -70,9 +77,18 @@ export function ExportButton({
     }
 
     const warnings = checkFloor(
-      exportableUnits.map((u) => ({ unit: u, windows: windowsByUnit.get(u.id) ?? [] }))
+      exportableUnits.map((u) => ({ unit: u, windows: windowsByUnit.get(u.id) ?? [] })),
+      floor.defaults
     );
-    const diff = history.diff && !history.diff.identical ? history.diff : null;
+    // The hook's diff is null while the history read is in flight; treating
+    // that as "no changes" would skip the review sheet on a fast tap. Ask the
+    // store directly when the hook hasn't resolved yet.
+    let resolved = history.diff;
+    if (resolved === null && history.loading) {
+      const last = await latestExport(floor.id);
+      if (last?.input) resolved = diffExports(last.input, input);
+    }
+    const diff = resolved && !resolved.identical ? resolved : null;
 
     if (warnings.length > 0 || diff) {
       setReview({ warnings, diff });
@@ -91,7 +107,9 @@ export function ExportButton({
         return;
       }
 
-      const snapshot: ExportInput = input;
+      // Re-stamp the date at the moment of export: the memoized input can be
+      // hours old in a PWA left open overnight.
+      const snapshot: ExportInput = { ...input, export_date: localDateISO() };
       const blob = await mod.exportFloorToBlob(snapshot);
       const filename =
         typeof mod.suggestedFilename === "function"
@@ -271,30 +289,3 @@ function ChangeList({ diff, since }: { diff: ExportDiff; since?: string }) {
   );
 }
 
-async function deliverFile(blob: Blob, filename: string): Promise<void> {
-  const file = new File([blob], filename, { type: blob.type });
-  const nav = navigator as Navigator & {
-    canShare?: (data: { files: File[] }) => boolean;
-    share?: (data: { files: File[] }) => Promise<void>;
-  };
-
-  if (nav.share && nav.canShare?.({ files: [file] })) {
-    try {
-      // Files only — passing `title`/`text` makes iOS attach a second, useless
-      // .txt item alongside the workbook in the share sheet.
-      await nav.share({ files: [file] });
-      return;
-    } catch {
-      // User cancelled the share sheet, or it failed — fall back to download.
-    }
-  }
-
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}

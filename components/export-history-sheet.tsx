@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { listExports } from "@/lib/db";
+import { deliverFile } from "@/lib/export/deliver";
 import { formatExportDate } from "@/lib/export/history";
 import type { ExportRecord } from "@/lib/types";
 
@@ -39,27 +40,7 @@ export function ExportHistorySheet({
       const mod = await import("@/lib/export/exporter").catch(() => null);
       if (!mod?.exportFloorToBlob) return;
       const blob = await mod.exportFloorToBlob(record.input);
-      const file = new File([blob], record.filename, { type: blob.type });
-      const nav = navigator as Navigator & {
-        canShare?: (d: { files: File[] }) => boolean;
-        share?: (d: { files: File[] }) => Promise<void>;
-      };
-      if (nav.share && nav.canShare?.({ files: [file] })) {
-        try {
-          await nav.share({ files: [file] });
-          return;
-        } catch {
-          // cancelled — fall through to a plain download
-        }
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = record.filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      await deliverFile(blob, record.filename);
     } finally {
       setBusyId(null);
     }

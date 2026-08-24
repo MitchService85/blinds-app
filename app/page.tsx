@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { seedIfNeeded } from "@/lib/seed";
 import { db, listProjects } from "@/lib/db";
+import { windowBlindCount } from "@/lib/export/shared";
 import type { Project } from "@/lib/types";
 import { JobCard, type FloorProgress } from "@/components/job-card";
 import { SyncStatus } from "@/components/sync-status";
@@ -47,10 +48,7 @@ export default function Home() {
       }
       const blindsByUnit = new Map<string, number>();
       for (const w of allWindows) {
-        blindsByUnit.set(
-          w.unit_id,
-          (blindsByUnit.get(w.unit_id) ?? 0) + w.widths.length * (w.quantity ?? 1)
-        );
+        blindsByUnit.set(w.unit_id, (blindsByUnit.get(w.unit_id) ?? 0) + windowBlindCount(w));
       }
 
       const nextRows: ProjectRow[] = projects.map((project) => {

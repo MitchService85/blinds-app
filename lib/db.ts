@@ -61,6 +61,11 @@ class MeasureDB extends Dexie {
     this.version(3).stores({
       exports: "id, floor_id, exported_at, updated_at, deleted",
     });
+    // v4: compound index so latestExport can read exactly one record instead
+    // of materializing every snapshot the floor has ever exported.
+    this.version(4).stores({
+      exports: "id, floor_id, exported_at, updated_at, deleted, [floor_id+exported_at]",
+    });
   }
 }
 
@@ -262,12 +267,28 @@ export async function deleteWindow(id: string): Promise<void> {
   await writeRow(db.windows, "windows", { ...existing, deleted: true }, "delete");
 }
 
+/**
+ * Repair invariants on a window as it leaves the store, so no consumer ever
+ * sees a malformed row: panel_controls is parallel to widths, but rows
+ * written before the removePanel fix (2026-08-20) can carry extra entries
+ * from removed panels — and those entries silently shift a control onto the
+ * wrong panel anywhere the row is read.
+ */
+function normalizeWindow(w: WindowRecord): WindowRecord {
+  if (w.panel_controls && w.panel_controls.length > w.widths.length) {
+    return { ...w, panel_controls: w.panel_controls.slice(0, w.widths.length) };
+  }
+  return w;
+}
+
 export async function listWindows(unitId: string): Promise<WindowRecord[]> {
-  return db.windows.where("unit_id").equals(unitId).filter((w) => !w.deleted).toArray();
+  const rows = await db.windows.where("unit_id").equals(unitId).filter((w) => !w.deleted).toArray();
+  return rows.map(normalizeWindow);
 }
 
 export async function getWindow(id: string): Promise<WindowRecord | undefined> {
-  return db.windows.get(id);
+  const row = await db.windows.get(id);
+  return row ? normalizeWindow(row) : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -345,9 +366,23 @@ export async function listExports(floorId: string): Promise<ExportRecord[]> {
   return rows.sort((a, b) => b.exported_at.localeCompare(a.exported_at));
 }
 
-/** The most recent export of a floor, or undefined if it has never been exported. */
+/**
+ * The most recent export of a floor, or undefined if it has never been
+ * exported. Walks the [floor_id+exported_at] index backwards, so it touches
+ * one live record instead of deserializing every stored snapshot — a floor
+ * exported after each of 25 site visits holds ~1MB of history.
+ */
 export async function latestExport(floorId: string): Promise<ExportRecord | undefined> {
-  return (await listExports(floorId))[0];
+  let found: ExportRecord | undefined;
+  await db.exports
+    .where("[floor_id+exported_at]")
+    .between([floorId, Dexie.minKey], [floorId, Dexie.maxKey])
+    .reverse()
+    .until(() => found !== undefined)
+    .each((row) => {
+      if (!row.deleted) found = row;
+    });
+  return found;
 }
 
 export async function deleteExportRecord(id: string): Promise<void> {

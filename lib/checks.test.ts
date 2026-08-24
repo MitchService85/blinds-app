@@ -202,3 +202,35 @@ describe("checks_ack", () => {
     expect(flagged[0].window_id).toBe("b");
   });
 });
+
+describe("floor-level motorized vs chain", () => {
+  const win = (patch: Partial<WindowRecord>): WindowRecord =>
+    ({
+      id: "w9", updated_at: "", deleted: false, unit_id: "u1",
+      tag_base: "LR", tag_index: 0, widths: [1000], height: 900, quantity: 1,
+      control_override: null, deduct: null, longer_chain: false, note: "",
+      sort_order: 0, ...patch,
+    }) as WindowRecord;
+
+  it("flags a chain on a window inheriting a motorized floor", () => {
+    // The documented common case: the whole floor is motorized, the window
+    // carries no override. Missed when the check only read the override.
+    const w = checkUnitWindows({ number: "301" }, [win({ chain_length: 72 })], {
+      motorized: true,
+    });
+    expect(w).toHaveLength(1);
+    expect(w[0].message).toContain("pick one");
+  });
+
+  it("stays quiet when the window opts out of the motorized floor", () => {
+    expect(
+      checkUnitWindows({ number: "301" }, [win({ chain_length: 72, motorized_override: false })], {
+        motorized: true,
+      })
+    ).toHaveLength(0);
+  });
+
+  it("keeps the old behaviour when no defaults are passed", () => {
+    expect(checkUnitWindows({ number: "301" }, [win({ chain_length: 72 })])).toHaveLength(0);
+  });
+});

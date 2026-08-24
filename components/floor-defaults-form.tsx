@@ -1,5 +1,6 @@
 "use client";
 
+import { effectiveMount, effectiveTight, normalizeColorCodes } from "@/lib/export/shared";
 import type { FloorDefaults, MountType } from "@/lib/types";
 
 interface FloorDefaultsFormProps {
@@ -25,8 +26,14 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
     onChange({ ...value, ...partial });
   }
 
+  // Read and write through the normalizer: a row written by a phone on the
+  // pre-rename bundle carries { kitchen, studio } — without this its codes
+  // render as blank (and React flips the input uncontrolled), and each save
+  // would let the two key sets accumulate side by side instead of converging.
+  const codes = normalizeColorCodes(value.color_codes);
+
   function patchColor(key: (typeof COLOR_KEYS)[number], v: string) {
-    onChange({ ...value, color_codes: { ...value.color_codes, [key]: v } });
+    onChange({ ...value, color_codes: { ...codes, [key]: v } });
   }
 
   return (
@@ -67,7 +74,7 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
       <label className="flex min-h-11 items-center gap-3">
         <input
           type="checkbox"
-          checked={value.tight === true || value.mount === "inside_tight"}
+          checked={effectiveTight(value)}
           onChange={(e) =>
             // Clear the legacy combined value: "inside_tight" used to carry
             // the tight meaning, and leaving it set would re-apply it.
@@ -93,7 +100,7 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
               ["outside", "Outside"],
             ] as Array<[MountType, string]>
           ).map(([mount, label]) => {
-            const current = value.mount === "inside_tight" ? null : (value.mount ?? null);
+            const current = effectiveMount(value);
             return (
               <button
                 key={label}
@@ -169,7 +176,7 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
               <div className="mb-1 text-xs text-neutral-500">{COLOR_LABELS[key]}</div>
               <input
                 type="text"
-                value={value.color_codes[key]}
+                value={codes[key]}
                 onChange={(e) => patchColor(key, e.target.value)}
                 className="min-h-11 w-full rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
               />

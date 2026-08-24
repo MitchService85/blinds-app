@@ -23,6 +23,7 @@ import { computeTagLabels } from "@/lib/tags";
 import { floorToEighth, formatFraction } from "@/lib/fractions";
 import type { ControlOverride, Deduct, Floor, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
+import { isTightMount, normalizeMount, panelControl } from "@/lib/export/shared";
 import { syncUnitTagIndices } from "@/components/window-tags";
 
 interface DraftWindow {
@@ -155,28 +156,36 @@ export default function WindowEntryPage() {
       setUnit(u);
       setFloor(f);
       setProject(p ?? null);
-      setPhotos(await listPhotos(u.id));
       if (p?.building_type === "commercial") {
         // Office/zone-run jobs are almost always untagged windows — default
         // the "No tag" chip so rapid-fire entry never needs an extra tap.
         setDraft((d) => (d.tag_base === null && d.id === null ? { ...d, tag_base: "" } : d));
       }
 
-      const allUnits = await listUnits(floorId);
-      const all: WindowRecord[] = [];
-      await Promise.all(
-        allUnits.map(async (unitRow) => {
-          const ws = await listWindows(unitRow.id);
-          all.push(...ws);
-        })
-      );
+      // This unit's own windows decide the list/entry mode and are what the
+      // tech is waiting to see — paint them first. The floor-wide sweep
+      // (height prefill only) and the photos (150-250KB data URLs each) load
+      // after, off the critical path; on a 183-window commercial floor the
+      // sweep alone was 300-600ms of blank screen on an older phone.
+      const own = await listWindows(unitId);
       if (cancelled) return;
-      setFloorWindows(all);
-      const own = all
-        .filter((w) => w.unit_id === unitId)
-        .sort((a, b) => a.sort_order - b.sort_order);
+      own.sort((a, b) => a.sort_order - b.sort_order);
       setWindows(own);
       setEntryOpen((prev) => (prev === null ? own.length === 0 : prev));
+
+      void listPhotos(u.id).then((ph) => {
+        if (!cancelled) setPhotos(ph);
+      });
+      void (async () => {
+        const allUnits = await listUnits(floorId);
+        const all: WindowRecord[] = [];
+        await Promise.all(
+          allUnits.map(async (unitRow) => {
+            all.push(...(await listWindows(unitRow.id)));
+          })
+        );
+        if (!cancelled) setFloorWindows(all);
+      })();
     }
 
     load();
@@ -190,14 +199,25 @@ export default function WindowEntryPage() {
   useEffect(() => {
     return () => {
       const d = draftRef.current;
+      // Every field a tech can set must appear here: anything missing makes a
+      // row holding only that field read as "empty" and get deleted on
+      // back-out — permanent data loss, and the tombstone syncs to the other
+      // phone. (chain/motorized/tight/panel controls were missed when added.)
       const isEmpty =
         d.id &&
         d.widths.every((w) => w === 0) &&
         d.height === 0 &&
+        d.quantity === 1 &&
         !d.note &&
         !d.deduct &&
         !d.longer_chain &&
-        !d.control_override;
+        !d.control_override &&
+        !d.mount_override &&
+        d.tight_override === null &&
+        d.chain_length === null &&
+        d.motorized_override === null &&
+        d.panel_controls.every((c) => c == null) &&
+        !d.checks_ack;
       if (isEmpty) void deleteWindow(d.id!);
     };
   }, []);
@@ -307,13 +327,25 @@ export default function WindowEntryPage() {
     }
 
     const height = draft.height || findPrefillHeight(tag);
+    // Every draft field must be persisted here, mirroring the lazy-create in
+    // patchDraft: options set BEFORE the tag is picked (quantity, chain,
+    // motorized, mount/tight, per-panel controls) live only in the draft at
+    // this point, and a partial create silently drops them while the UI keeps
+    // showing them — later patches merge single fields onto the wrong base.
     const created = await createWindow({
       unit_id: unitId,
       tag_base: tag,
       tag_index: 0,
       widths: draft.widths,
       height,
+      quantity: draft.quantity,
       control_override: draft.control_override,
+      mount_override: draft.mount_override,
+      tight_override: draft.tight_override,
+      panel_controls: draft.panel_controls.length > 0 ? draft.panel_controls : null,
+      checks_ack: draft.checks_ack,
+      chain_length: draft.chain_length,
+      motorized_override: draft.motorized_override,
       deduct: draft.deduct,
       longer_chain: draft.longer_chain,
       note: draft.note,
@@ -324,9 +356,17 @@ export default function WindowEntryPage() {
     await refreshWindows();
   }
 
-  /** Control side for one panel as it will export: panel, then window, then floor. */
+  /**
+   * Control side for one panel exactly as the workbook will print it — the
+   * same panelControl() the exporter calls, so the button preview can never
+   * disagree with column I of the factory file.
+   */
   function effectivePanelControl(i: number): "L" | "R" {
-    return draft.panel_controls[i] ?? draft.control_override ?? floor?.defaults.drive ?? "R";
+    return panelControl(
+      { control_override: draft.control_override, panel_controls: draft.panel_controls },
+      i,
+      floor?.defaults.drive ?? "R"
+    );
   }
 
   /** Cycle one panel: floor default -> L -> R -> default. */
@@ -401,10 +441,10 @@ export default function WindowEntryPage() {
       height: w.height,
       quantity: w.quantity ?? 1,
       control_override: w.control_override,
-      // "inside_tight" predates the split and meant only "measured tight".
-      mount_override: w.mount_override === "inside_tight" ? null : (w.mount_override ?? null),
-      tight_override:
-        w.mount_override === "inside_tight" ? true : (w.tight_override ?? null),
+      // Legacy "inside_tight" decoding lives in lib/export/shared.ts so the
+      // edit form can never disagree with what the exporter writes.
+      mount_override: normalizeMount(w.mount_override),
+      tight_override: isTightMount(w.mount_override) ? true : (w.tight_override ?? null),
       // Defensive slice: rows written before the removePanel fix can carry a
       // longer array than widths; extra entries belonged to removed panels.
       panel_controls: (w.panel_controls ?? []).slice(0, w.widths.length),
@@ -523,7 +563,7 @@ export default function WindowEntryPage() {
   const activeIsHeight = activeField === "height";
 
   const windowWarnings = new Map(
-    unit ? checkUnitWindows(unit, windows).map((w) => [w.window_id, w.message]) : []
+    unit ? checkUnitWindows(unit, windows, floor?.defaults).map((w) => [w.window_id, w.message]) : []
   );
 
   return (
@@ -814,10 +854,16 @@ export default function WindowEntryPage() {
           <input
             type="checkbox"
             checked={draft.longer_chain}
+            disabled={draft.chain_length !== null}
             onChange={() => patchDraft({ longer_chain: !draft.longer_chain })}
-            className="h-5 w-5"
+            className="h-5 w-5 disabled:opacity-40"
           />
-          <span className="text-sm">Longer chain</span>
+          <span className={`text-sm ${draft.chain_length !== null ? "text-neutral-400" : ""}`}>
+            Longer chain
+            {draft.chain_length !== null && (
+              <span className="text-xs"> — replaced by the {draft.chain_length}&quot; length below</span>
+            )}
+          </span>
         </label>
 
         <div>
@@ -1029,11 +1075,15 @@ export default function WindowEntryPage() {
                     LC
                   </span>
                 )}
-                {w.longer_chain && (
+                {typeof w.chain_length === "number" && w.chain_length > 0 ? (
+                  <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                    {w.chain_length}&quot;ch
+                  </span>
+                ) : w.longer_chain ? (
                   <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
                     CH
                   </span>
-                )}
+                ) : null}
               </div>
               <div className="text-neutral-500">
                 {w.widths.map((width) => formatFraction(floorToEighth(width))).join(" + ")} ×{" "}
