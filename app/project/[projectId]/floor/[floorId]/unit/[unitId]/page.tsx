@@ -96,6 +96,15 @@ export default function WindowEntryPage() {
   const [windows, setWindows] = useState<WindowRecord[]>([]);
   const [floorWindows, setFloorWindows] = useState<WindowRecord[]>([]);
   const [draft, setDraft] = useState<DraftWindow>(blankDraft());
+  /**
+   * Whether the entry form is showing. Opening a unit that already has
+   * windows starts on the list (Mitch: "show the existing windows, then an
+   * Add window button — so you don't scroll to the bottom to see what
+   * exists"); an empty unit goes straight to entry. null until the first
+   * window load decides. Save · next never leaves entry mode, so rapid-fire
+   * zone runs stay tap-free.
+   */
+  const [entryOpen, setEntryOpen] = useState<boolean | null>(null);
   const [activeField, setActiveField] = useState<number | "height">(0);
   const [precision, setPrecision] = usePrecision();
   const [error, setError] = useState<string | null>(null);
@@ -163,9 +172,11 @@ export default function WindowEntryPage() {
       );
       if (cancelled) return;
       setFloorWindows(all);
-      setWindows(
-        all.filter((w) => w.unit_id === unitId).sort((a, b) => a.sort_order - b.sort_order)
-      );
+      const own = all
+        .filter((w) => w.unit_id === unitId)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      setWindows(own);
+      setEntryOpen((prev) => (prev === null ? own.length === 0 : prev));
     }
 
     load();
@@ -382,6 +393,7 @@ export default function WindowEntryPage() {
   }
 
   function loadForEdit(w: WindowRecord) {
+    setEntryOpen(true);
     setDraft({
       id: w.id,
       tag_base: w.tag_base,
@@ -620,6 +632,8 @@ export default function WindowEntryPage() {
         </div>
       )}
 
+      {entryOpen && (
+        <>
       <div className="flex flex-wrap gap-2">
         {/* Room tag is optional — office/zone-run jobs (Alcon-style) enter
             dozens of untagged windows in walking order. */}
@@ -978,6 +992,8 @@ export default function WindowEntryPage() {
           {justSaved ? "✓ Saved" : "Save · next window"}
         </button>
       </div>
+        </>
+      )}
 
       <div className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-neutral-500">This unit&apos;s windows</h2>
@@ -1072,6 +1088,16 @@ export default function WindowEntryPage() {
           </div>
         ))}
       </div>
+
+      {entryOpen === false && (
+        <button
+          type="button"
+          onClick={() => setEntryOpen(true)}
+          className="min-h-14 w-full rounded-xl bg-blue-600 text-base font-semibold text-white shadow-lg active:bg-blue-700"
+        >
+          + Add window
+        </button>
+      )}
     </main>
   );
 }
