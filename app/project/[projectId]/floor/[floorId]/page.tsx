@@ -23,6 +23,7 @@ import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { ExportButton } from "@/components/export-button";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { effectiveMount, effectiveTight, windowBlindCount } from "@/lib/export/shared";
+import { findDuplicateUnitNumbers, mergeUnits } from "@/lib/merge-units";
 
 type FloorMode = "measure" | "install";
 const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
@@ -93,6 +94,24 @@ export default function FloorPage() {
     }
     return map;
   }, [units, windowsByUnit, floor?.defaults]);
+
+  // Two phones apart can each create the same unit number (the add-unit
+  // check only sees its own device); after sync the floor holds duplicate
+  // tiles. Surface them with a one-tap loss-free merge instead of letting an
+  // export quietly emit both.
+  const duplicateNumbers = useMemo(() => findDuplicateUnitNumbers(units), [units]);
+
+  async function handleMergeDuplicates(number: string, ids: string[]) {
+    const proceed = window.confirm(
+      `Merge the ${ids.length} "${number}" tiles into one unit? Every window and photo from both is kept.`
+    );
+    if (!proceed) return;
+    const [keepId, ...rest] = ids;
+    for (const dropId of rest) {
+      await mergeUnits(keepId, dropId);
+    }
+    await refresh();
+  }
 
   const installSummary = useMemo(() => {
     let staged = 0;
@@ -387,6 +406,26 @@ export default function FloorPage() {
             </div>
           )}
         </>
+      )}
+
+      {duplicateNumbers.size > 0 && mode === "measure" && (
+        <div className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+          {[...duplicateNumbers].map(([number, ids]) => (
+            <div key={number} className="flex items-center gap-2">
+              <span className="flex-1">
+                ⚠ Unit <b>{number}</b> exists {ids.length} times — probably measured on two
+                phones at once.
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleMergeDuplicates(number, ids)}
+                className="min-h-9 shrink-0 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white active:bg-amber-700"
+              >
+                Merge
+              </button>
+            </div>
+          ))}
+        </div>
       )}
 
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
