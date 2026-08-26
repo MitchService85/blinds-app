@@ -12,6 +12,7 @@ import type {
   ControlOverride,
   Deduct,
   FloorDefaults,
+  MeasureType,
   MountType,
   StoredMountType,
   UnitStatus,
@@ -88,9 +89,16 @@ export function effectiveMount(defaults: Pick<FloorDefaults, "mount">): MountTyp
   return normalizeMount(defaults.mount);
 }
 
-/** Resolve whether a floor is measured tight, honouring the legacy encoding. */
-export function effectiveTight(defaults: Pick<FloorDefaults, "tight" | "mount">): boolean {
-  return defaults.tight === true || isTightMount(defaults.mount);
+/**
+ * Resolve a floor's measure convention, honouring both legacy encodings:
+ * `measure` wins when present; older rows carry only the `tight` boolean, and
+ * the oldest carry "inside_tight" in `mount`.
+ */
+export function effectiveMeasure(
+  defaults: Pick<FloorDefaults, "tight" | "mount" | "measure">
+): MeasureType {
+  if (defaults.measure === "tight" || defaults.measure === "finished") return defaults.measure;
+  return defaults.tight === true || isTightMount(defaults.mount) ? "tight" : null;
 }
 
 /** Resolve a window's mount: its own override wins, else the floor's. */
@@ -102,15 +110,21 @@ export function windowMount(
   return own ?? effectiveMount(defaults);
 }
 
-/** Resolve a window's tight: explicit override wins, then legacy, then floor. */
-export function windowTight(
-  defaults: Pick<FloorDefaults, "tight" | "mount">,
+/**
+ * Resolve a window's measure: explicit override wins, then legacy, then floor.
+ * The override stays the stored boolean (a fixed column in the windows table):
+ * true = tight, false = don't note this window (even on a finished floor),
+ * null = inherit the floor's convention.
+ */
+export function windowMeasure(
+  defaults: Pick<FloorDefaults, "tight" | "mount" | "measure">,
   override: StoredMountType | undefined,
   tightOverride: boolean | null | undefined
-): boolean {
-  if (tightOverride === true || tightOverride === false) return tightOverride;
-  if (isTightMount(override)) return true;
-  return effectiveTight(defaults);
+): MeasureType {
+  if (tightOverride === true) return "tight";
+  if (tightOverride === false) return null;
+  if (isTightMount(override)) return "tight";
+  return effectiveMeasure(defaults);
 }
 
 /**
@@ -172,8 +186,16 @@ const MOUNT_TEXT: Record<Exclude<MountType, null>, string> = {
   outside: "Outside Mount",
 };
 
-/** Leads the Notes column on 528 of the corpus's 579 annotated rows. */
-const TIGHT_TEXT = "TIGHT MEASURES";
+/**
+ * Notes-column text per measure convention. "TIGHT MEASURES" leads the Notes
+ * column on 528 of the corpus's 579 annotated rows; "FINISHED MEASURES" is
+ * its parallel for the other convention (no corpus precedent — the corpus
+ * predates finished-measure jobs).
+ */
+const MEASURE_TEXT: Record<Exclude<MeasureType, null>, string> = {
+  tight: "TIGHT MEASURES",
+  finished: "FINISHED MEASURES",
+};
 
 /**
  * Build the notes string for a single window row: mount text (override or
@@ -181,7 +203,7 @@ const TIGHT_TEXT = "TIGHT MEASURES";
  * "LONGER CHAIN" when flagged — each piece separated by ". ".
  */
 export function buildNoteString(
-  defaults: Pick<FloorDefaults, "tight" | "mount" | "extra_note" | "motorized" | "chain_type">,
+  defaults: Pick<FloorDefaults, "tight" | "measure" | "mount" | "extra_note" | "motorized" | "chain_type">,
   windowNote: string,
   longerChain: boolean,
   mountOverride?: StoredMountType,
@@ -203,8 +225,10 @@ export function buildNoteString(
     note = note ? `${note}. ${piece}` : piece;
   };
 
-  // Tight leads, as it has on every file the factory has accepted.
-  if (windowTight(defaults, mountOverride, opts?.tightOverride)) append(TIGHT_TEXT);
+  // The measure convention leads, as tight has on every file the factory
+  // has accepted.
+  const measure = windowMeasure(defaults, mountOverride, opts?.tightOverride);
+  if (measure) append(MEASURE_TEXT[measure]);
 
   const mount = windowMount(defaults, mountOverride);
   if (mount) append(MOUNT_TEXT[mount]);

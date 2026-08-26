@@ -36,16 +36,30 @@ export type MountType = null | "inside" | "outside";
  */
 export type StoredMountType = MountType | "inside_tight";
 
+/**
+ * How the opening was measured — the factory's two conventions (Annie at
+ * Elite, 2026-08-26): "tight" = measured tight to the opening, the factory
+ * takes its deduction; "finished" = the number already IS the finished blind
+ * size. null = don't note anything. Exports as "TIGHT MEASURES" /
+ * "FINISHED MEASURES" leading the Notes column.
+ */
+export type MeasureType = null | "tight" | "finished";
+
 export interface FloorDefaults {
   /** Reverse roll -> exports as "Rev" */
   roll: boolean;
   /** Default drive/control side */
   drive: "L" | "R";
   /**
-   * Measured tight to the opening -> "TIGHT MEASURES" in the Notes column.
-   * Independent of `mount` since 2026-08-18.
+   * Legacy boolean from before "finished" existed (2026-08-26), kept because
+   * a phone on an older bundle only reads this. Writers keep it in sync
+   * (`tight === (measure === "tight")`); readers prefer `measure` and fall
+   * back here for rows written before it. Independent of `mount` since
+   * 2026-08-18.
    */
   tight: boolean;
+  /** How the floor was measured. Absent on rows older than 2026-08-26. */
+  measure?: MeasureType;
   /** Where the blind sits, noted on every exported row. Absent on old rows. */
   mount?: StoredMountType;
   /**

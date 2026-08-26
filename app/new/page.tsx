@@ -17,6 +17,7 @@ function defaultFloorDefaults(): FloorDefaults {
     roll: false,
     drive: "R",
     tight: false,
+    measure: null,
     extra_note: "",
     d_value: "1/2",
     color_codes: { mbed: "", liv: "", bed: "", kit: "", stu: "" },

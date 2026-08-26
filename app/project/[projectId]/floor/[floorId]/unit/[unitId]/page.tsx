@@ -867,13 +867,16 @@ export default function WindowEntryPage() {
         </label>
 
         <div>
-          <div className="mb-1 text-xs text-neutral-500">Tight measures (this window only)</div>
+          <div className="mb-1 text-xs text-neutral-500">Measure (this window only)</div>
           <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
             {(
+              // The stored override is a fixed boolean column, so a window on
+              // a finished floor can go tight or unnoted but not the reverse
+              // — no job has yet mixed finished windows into a tight floor.
               [
                 [null, "Floor default"],
                 [true, "Tight"],
-                [false, "Not tight"],
+                [false, "Not noted"],
               ] as Array<[boolean | null, string]>
             ).map(([t, label]) => (
               <button

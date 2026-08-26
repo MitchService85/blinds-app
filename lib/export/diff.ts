@@ -14,9 +14,9 @@
 import { floorToEighth, formatFraction } from "../fractions";
 import type { MountType } from "../types";
 import {
+  effectiveMeasure,
   effectiveMotorized,
   effectiveMount,
-  effectiveTight,
   normalizeColorCodes,
   normalizeMount,
   windowTagLabel,
@@ -168,9 +168,9 @@ function compareFloors(a: ExportInput, b: ExportInput): FieldChange[] {
   push("D value", a.defaults.d_value, b.defaults.d_value);
   push("Mount", mountLabel(effectiveMount(a.defaults)), mountLabel(effectiveMount(b.defaults)));
   push(
-    "Tight",
-    effectiveTight(a.defaults) ? "yes" : "no",
-    effectiveTight(b.defaults) ? "yes" : "no"
+    "Measure",
+    effectiveMeasure(a.defaults) ?? "not noted",
+    effectiveMeasure(b.defaults) ?? "not noted"
   );
   push("Roll", a.defaults.roll ? "reverse" : "standard", b.defaults.roll ? "reverse" : "standard");
   push("Control side", a.defaults.drive, b.defaults.drive);

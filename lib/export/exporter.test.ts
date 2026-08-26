@@ -223,6 +223,40 @@ describe("mount types in the notes column", () => {
   });
 });
 
+describe("finished measures (Elite's other convention, per Annie 2026-08-26)", () => {
+  const finished = { tight: false, measure: "finished" as const, extra_note: "" };
+
+  it("a finished floor leads every note with FINISHED MEASURES", () => {
+    expect(buildNoteString(finished, "", false)).toBe("FINISHED MEASURES");
+    expect(buildNoteString({ ...finished, mount: "inside" as const }, "", false)).toBe(
+      "FINISHED MEASURES. Inside Mount"
+    );
+  });
+
+  it("measure wins over a stale legacy tight boolean", () => {
+    // Writers keep the pair in sync, but last-write-wins sync can interleave
+    // a row from a phone that only writes the boolean.
+    expect(buildNoteString({ tight: true, measure: "finished", extra_note: "" }, "", false)).toBe(
+      "FINISHED MEASURES"
+    );
+    expect(buildNoteString({ tight: false, measure: "tight", extra_note: "" }, "", false)).toBe(
+      "TIGHT MEASURES"
+    );
+  });
+
+  it("per-window override still works on a finished floor", () => {
+    expect(buildNoteString(finished, "", false, undefined, { tightOverride: true })).toBe(
+      "TIGHT MEASURES"
+    );
+    expect(buildNoteString(finished, "", false, undefined, { tightOverride: false })).toBe("");
+  });
+
+  it("an absent measure falls back to the legacy boolean", () => {
+    expect(buildNoteString({ tight: true, extra_note: "" }, "", false)).toBe("TIGHT MEASURES");
+    expect(buildNoteString({ tight: false, measure: null, extra_note: "" }, "", false)).toBe("");
+  });
+});
+
 describe("fabric code header block", () => {
   const defaults = {
     roll: false, drive: "R" as const, tight: false, extra_note: "", d_value: "1/2",

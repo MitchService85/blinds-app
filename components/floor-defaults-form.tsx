@@ -1,7 +1,7 @@
 "use client";
 
-import { effectiveMount, effectiveTight, normalizeColorCodes } from "@/lib/export/shared";
-import type { FloorDefaults, MountType } from "@/lib/types";
+import { effectiveMeasure, effectiveMount, normalizeColorCodes } from "@/lib/export/shared";
+import type { FloorDefaults, MeasureType, MountType } from "@/lib/types";
 
 interface FloorDefaultsFormProps {
   value: FloorDefaults;
@@ -71,24 +71,45 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
         </div>
       </div>
 
-      <label className="flex min-h-11 items-center gap-3">
-        <input
-          type="checkbox"
-          checked={effectiveTight(value)}
-          onChange={(e) =>
-            // Clear the legacy combined value: "inside_tight" used to carry
-            // the tight meaning, and leaving it set would re-apply it.
-            patch({
-              tight: e.target.checked,
-              mount: value.mount === "inside_tight" ? null : value.mount,
-            })
-          }
-          className="h-5 w-5"
-        />
-        <span className="text-sm">
-          Tight measures <span className="text-neutral-400">(how it was measured)</span>
-        </span>
-      </label>
+      <div>
+        <div className="mb-1 text-sm text-neutral-500">Measure (tight or finished size)</div>
+        <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
+          {(
+            [
+              [null, "Not noted"],
+              ["tight", "Tight"],
+              ["finished", "Finished"],
+            ] as Array<[MeasureType, string]>
+          ).map(([measure, label]) => {
+            const current = effectiveMeasure(value);
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() =>
+                  // The legacy boolean stays in sync so a phone on an older
+                  // bundle still reads tight floors correctly, and the legacy
+                  // combined value is cleared: "inside_tight" used to carry
+                  // the tight meaning, and leaving it set would re-apply it.
+                  patch({
+                    measure,
+                    tight: measure === "tight",
+                    mount: value.mount === "inside_tight" ? null : value.mount,
+                  })
+                }
+                aria-pressed={current === measure}
+                className={`min-h-11 flex-1 text-sm font-medium ${
+                  current === measure
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div>
         <div className="mb-1 text-sm text-neutral-500">Mount (where the blind sits)</div>
