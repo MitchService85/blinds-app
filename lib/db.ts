@@ -187,6 +187,7 @@ export async function createUnit(
     note: input.note ?? "",
     install: input.install ?? null,
     install_blocked: input.install_blocked ?? false,
+    removed: input.removed ?? 0,
     id: newId(),
     updated_at: "",
     deleted: false,

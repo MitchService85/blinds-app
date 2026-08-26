@@ -9,12 +9,39 @@ export interface SyncedRow {
 
 export type BuildingType = "residential" | "commercial";
 
+/**
+ * Job money for a project (see docs/superpowers/plans/2026-08-21-job-money-plan.md).
+ *
+ * Danny prices the contract off plan takeoffs and locks it BEFORE the crew
+ * measures, so there is no quote generation here: contract_cents is a recorded
+ * fact, quoted_blind_count is his takeoff to compare actuals against, and the
+ * per-unit rates are the crew's own billables on top. All money is integer
+ * cents (same no-floats rule as integer sixteenths). A null rate means that
+ * line simply isn't billed on this job — e.g. install already inside Danny's
+ * contract.
+ */
+export interface ProjectPricing {
+  /** Danny's locked contract price. */
+  contract_cents: number | null;
+  /** Danny's blind count from the plan takeoff, for variance vs actuals. */
+  quoted_blind_count: number | null;
+  removal_per_blind_cents: number | null;
+  install_per_blind_cents: number | null;
+  /** Upcharge per motorized blind (floor default + per-window override). */
+  motorized_premium_cents: number | null;
+  /** Charge per recorded site trip (floors.trips). */
+  trip_charge_cents: number | null;
+  note: string;
+}
+
 export interface Project extends SyncedRow {
   name: string;
   address: string;
   building_type: BuildingType;
   /** Room-tag chip set for this project, e.g. ["LR", "BR", "MBR", "Kit", ...] */
   tag_chips: string[];
+  /** Job money. Absent/null = feature not set up for this project. */
+  pricing?: ProjectPricing | null;
 }
 
 /**
@@ -122,6 +149,13 @@ export interface Unit extends SyncedRow {
    * install color until cleared; can be set at any install state.
    */
   install_blocked: boolean;
+  /**
+   * Old blinds taken down in this unit/zone — a billable count (see
+   * ProjectPricing.removal_per_blind_cents). Recorded per unit because that's
+   * how it comes off the site walk (Four Seasons: 36/13/36/13 per side);
+   * floors and the project roll up by summing. Absent on old rows = 0.
+   */
+  removed?: number;
   sort_order: number;
 }
 
