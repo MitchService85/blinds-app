@@ -477,6 +477,14 @@ export default function WindowEntryPage() {
     if (unit) await updateUnit(unit.id, { note });
   }
 
+  /** Billable removal count (see MoneyCard). Clamped at 0. */
+  async function handleRemovedChange(removed: number) {
+    if (!unit || Number.isNaN(removed)) return;
+    const clamped = Math.max(0, removed);
+    setUnit((u) => (u ? { ...u, removed: clamped } : u));
+    await updateUnit(unit.id, { removed: clamped });
+  }
+
   /** Preview of the tag suffix for a real (non-empty) draft.tag_base only —
    * untagged ("No tag") windows never go through computeTagLabels; see
    * caller and components/window-tags.ts. */
@@ -558,6 +566,41 @@ export default function WindowEntryPage() {
           className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
         />
       )}
+
+      {/* Old blinds taken down here — feeds the project Money card's removal
+          line. Direct input beside the steppers: a 36-blind side of Four
+          Seasons shouldn't take 36 taps. */}
+      <div className="flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
+        <span>🗑</span>
+        <span className="flex-1">Old blinds removed</span>
+        <button
+          type="button"
+          onClick={() => void handleRemovedChange((unit.removed ?? 0) - 1)}
+          disabled={(unit.removed ?? 0) === 0}
+          aria-label="One less removed"
+          className="min-h-9 min-w-9 rounded-lg bg-neutral-100 text-base disabled:opacity-40 dark:bg-neutral-800"
+        >
+          −
+        </button>
+        <input
+          value={unit.removed ?? 0}
+          onChange={(e) => {
+            const n = parseInt(e.target.value, 10);
+            void handleRemovedChange(Number.isNaN(n) ? 0 : n);
+          }}
+          inputMode="numeric"
+          aria-label="Old blinds removed"
+          className="min-h-9 w-12 rounded-lg border border-neutral-300 text-center tabular-nums dark:border-neutral-700 dark:bg-neutral-900"
+        />
+        <button
+          type="button"
+          onClick={() => void handleRemovedChange((unit.removed ?? 0) + 1)}
+          aria-label="One more removed"
+          className="min-h-9 min-w-9 rounded-lg bg-neutral-100 text-base dark:bg-neutral-800"
+        >
+          +
+        </button>
+      </div>
 
       {(photos.length > 0 || unitNoteOpen) && (
         <div className="flex flex-wrap items-center gap-2">

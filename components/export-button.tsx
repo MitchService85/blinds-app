@@ -271,7 +271,9 @@ function ChangeList({ diff, since }: { diff: ExportDiff; since?: string }) {
   );
 }
 
-async function deliverFile(blob: Blob, filename: string): Promise<void> {
+/** Hand a generated file to the phone share sheet, falling back to a
+ * download. Shared with the Money card's invoice export. */
+export async function deliverFile(blob: Blob, filename: string): Promise<void> {
   const file = new File([blob], filename, { type: blob.type });
   const nav = navigator as Navigator & {
     canShare?: (data: { files: File[] }) => boolean;

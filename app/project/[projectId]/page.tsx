@@ -7,6 +7,7 @@ import { createFloor, getProject, listFloors, listUnits, updateProject } from "@
 import type { Floor, FloorDefaults, Project } from "@/lib/types";
 import { TagChipEditor } from "@/components/tag-chip-editor";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
+import { MoneyCard } from "@/components/money-card";
 
 function defaultFloorDefaults(): FloorDefaults {
   return {
@@ -199,6 +200,8 @@ export default function ProjectPage() {
           </button>
         )}
       </section>
+
+      <MoneyCard project={project} onProjectChange={setProject} />
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-neutral-500">Room tags</h2>
