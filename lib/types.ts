@@ -142,6 +142,14 @@ export interface Unit extends SyncedRow {
 export type Deduct = null | "Dl" | "Dr" | "D";
 export type ControlOverride = null | "L" | "R";
 
+/**
+ * Whose error a flagged blind is: the factory cut it wrong, or it was
+ * measured wrong on site. Decides who pays for a recut (Mitch, 2026-08-27:
+ * "if there are cuts that need to be made, they pay for it if it's their
+ * error"). null = not attributed (yet).
+ */
+export type IssueFault = null | "factory" | "measure";
+
 export interface WindowRecord extends SyncedRow {
   unit_id: string;
   /** Room tag, e.g. "LR", "BR" */
@@ -205,6 +213,16 @@ export interface WindowRecord extends SyncedRow {
   longer_chain: boolean;
   /** Per-window motorization override; null/absent inherits the floor. */
   motorized_override?: boolean | null;
+  /**
+   * Install-issue note for this one blind ("cut 1/4 short", "wrong fabric"),
+   * recorded when a unit is blocked. Punch-list reality like Unit.note —
+   * never exported to the factory measure sheet. Empty/absent = no issue.
+   */
+  issue_note?: string;
+  /** Who caused the flagged issue — see IssueFault. Absent on old rows. */
+  issue_fault?: IssueFault;
+  /** This blind needs a recut/remake (factory pays when issue_fault is "factory"). */
+  issue_recut?: boolean;
   note: string;
   sort_order: number;
 }

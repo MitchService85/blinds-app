@@ -1,12 +1,16 @@
 "use client";
 
-import type { Unit } from "@/lib/types";
+import type { Unit, WindowRecord } from "@/lib/types";
 import { blockedOf, installOf } from "./status";
+import { windowTagLabel } from "@/lib/export/shared";
+import { issueSummary, windowHasIssue } from "./window-issue";
 
 export type InstallAction = "staged" | "complete" | "blocked" | "clear";
 
 interface InstallActionSheetProps {
   unit: Unit | null;
+  /** The unit's windows — flagged blind issues preview here. */
+  windows?: WindowRecord[];
   onAction: (action: InstallAction) => void;
   onOpenUnit: () => void;
   onEditNote: () => void;
@@ -22,6 +26,7 @@ interface InstallActionSheetProps {
  */
 export function InstallActionSheet({
   unit,
+  windows,
   onAction,
   onOpenUnit,
   onEditNote,
@@ -31,6 +36,7 @@ export function InstallActionSheet({
 
   const install = installOf(unit);
   const blocked = blockedOf(unit);
+  const issues = (windows ?? []).filter(windowHasIssue);
 
   return (
     <div
@@ -46,6 +52,21 @@ export function InstallActionSheet({
         {blocked && unit.note && (
           <div className="mb-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
             ⚠️ {unit.note}
+          </div>
+        )}
+
+        {issues.length > 0 && (
+          <div className="mb-3 flex flex-col gap-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            {issues.map((w) => (
+              <div key={w.id}>
+                ⚠️ {windowTagLabel(w)} — {issueSummary(w)}
+              </div>
+            ))}
+          </div>
+        )}
+        {blocked && issues.length === 0 && (
+          <div className="mb-3 text-xs text-neutral-500">
+            Flag the problem blinds one by one via <b>Open unit</b> → ⚠ on a window.
           </div>
         )}
 

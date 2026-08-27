@@ -22,8 +22,10 @@ import { blockedOf, installOf } from "@/components/status";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { ExportButton } from "@/components/export-button";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
-import { effectiveMeasure, effectiveMount, windowBlindCount } from "@/lib/export/shared";
+import { effectiveMeasure, effectiveMount, windowBlindCount, windowTagLabel } from "@/lib/export/shared";
 import { findDuplicateUnitNumbers, mergeUnits } from "@/lib/merge-units";
+import { useKeyboardInset } from "@/components/use-keyboard-inset";
+import { issueSummary, windowHasIssue } from "@/components/window-issue";
 
 type FloorMode = "measure" | "install";
 const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
@@ -135,6 +137,26 @@ export default function FloorPage() {
     }
     return { staged, done, blocked, toGo, blockedUnits };
   }, [units]);
+
+  /** Every flagged blind on the floor — the install-mode issues panel, and
+   * the running count of recuts the factory owes (their error, they pay). */
+  const windowIssues = useMemo(() => {
+    const out: Array<{ unit: Unit; window: WindowRecord }> = [];
+    for (const u of units) {
+      if (u.status === "na") continue;
+      for (const w of windowsByUnit.get(u.id) ?? []) {
+        if (windowHasIssue(w)) out.push({ unit: u, window: w });
+      }
+    }
+    return out;
+  }, [units, windowsByUnit]);
+  const factoryRecuts = useMemo(
+    () =>
+      windowIssues.filter(
+        ({ window: w }) => w.issue_recut === true && w.issue_fault === "factory"
+      ).length,
+    [windowIssues]
+  );
 
   async function refresh() {
     const data = await loadFloorPageData(projectId, floorId);
@@ -268,8 +290,14 @@ export default function FloorPage() {
 
   async function handleDefaultsChange(defaults: FloorDefaults) {
     if (!floor) return;
-    const updated = await updateFloor(floor.id, { defaults });
-    setFloor(updated);
+    // Reflect the keystroke synchronously: the form's inputs are controlled
+    // off floor.defaults, and setting state only after the Dexie write made
+    // every character wait out a round-trip — laggy caret, characters lost
+    // when typing fast, and iOS autocorrect losing the word it was fixing.
+    // The write result is not read back for the same reason: with a
+    // whole-object `defaults` patch, the last keystroke's write wins as-is.
+    setFloor({ ...floor, defaults });
+    await updateFloor(floor.id, { defaults });
   }
 
   /** Always writes BOTH job-info fields in one update: two separate
@@ -405,6 +433,20 @@ export default function FloorPage() {
               ))}
             </div>
           )}
+          {windowIssues.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+              <div className="font-semibold">
+                Blind issues
+                {factoryRecuts > 0 &&
+                  ` — ${factoryRecuts} recut${factoryRecuts === 1 ? "" : "s"} on the factory`}
+              </div>
+              {windowIssues.map(({ unit, window: w }) => (
+                <div key={w.id}>
+                  {unit.number} · {windowTagLabel(w)} — {issueSummary(w)}
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -530,6 +572,7 @@ export default function FloorPage() {
       {installSheetUnitId && (
         <InstallActionSheet
           unit={units.find((u) => u.id === installSheetUnitId) ?? null}
+          windows={windowsByUnit.get(installSheetUnitId) ?? []}
           onAction={(action) => handleInstallAction(installSheetUnitId, action)}
           onOpenUnit={() => router.push(`/project/${projectId}/floor/${floorId}/unit/${installSheetUnitId}`)}
           onEditNote={() => {
@@ -553,10 +596,15 @@ function NoteSheet({
   onChange: (note: string) => void;
   onClose: () => void;
 }) {
+  // Ride above the on-screen keyboard: this sheet is bottom-anchored and
+  // iOS keeps fixed elements behind the keyboard, leaving the caret hidden
+  // while the page scroll-jumps chasing it. See use-keyboard-inset.ts.
+  const keyboardInset = useKeyboardInset();
   if (!unit) return null;
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      style={{ paddingBottom: keyboardInset + 16 }}
       onClick={onClose}
     >
       <div

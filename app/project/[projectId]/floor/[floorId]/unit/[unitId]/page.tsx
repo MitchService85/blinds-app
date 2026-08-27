@@ -25,6 +25,12 @@ import type { ControlOverride, Deduct, Floor, MountType, Project, Unit, WindowRe
 import { Keypad, usePrecision } from "@/components/keypad";
 import { isTightMount, normalizeMount, panelControl } from "@/lib/export/shared";
 import { syncUnitTagIndices } from "@/components/window-tags";
+import {
+  WindowIssueEditor,
+  issueSummary,
+  windowHasIssue,
+  type WindowIssueFields,
+} from "@/components/window-issue";
 
 interface DraftWindow {
   id: string | null;
@@ -118,6 +124,8 @@ export default function WindowEntryPage() {
   // mid-entry and swallow that digit.
   const [draftSeq, setDraftSeq] = useState(0);
   const [unitNoteOpen, setUnitNoteOpen] = useState(false);
+  /** Window id whose per-blind issue editor is open in the list, if any. */
+  const [issueOpenId, setIssueOpenId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<UnitPhoto[]>([]);
   const [photoView, setPhotoView] = useState<UnitPhoto | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -218,7 +226,16 @@ export default function WindowEntryPage() {
         d.motorized_override === null &&
         d.panel_controls.every((c) => c == null) &&
         !d.checks_ack;
-      if (isEmpty) void deleteWindow(d.id!);
+      if (isEmpty) {
+        // Issue fields are set from the window list, not the entry draft, so
+        // the draft can't see them — check the stored row before deleting,
+        // or backing out of an issue-only row would silently lose the issue.
+        const id = d.id!;
+        void (async () => {
+          const row = await getWindow(id);
+          if (row && !windowHasIssue(row)) await deleteWindow(id);
+        })();
+      }
     };
   }, []);
 
@@ -527,6 +544,17 @@ export default function WindowEntryPage() {
   async function handleUnitNoteChange(note: string) {
     setUnit((u) => (u ? { ...u, note } : u));
     if (unit) await updateUnit(unit.id, { note });
+  }
+
+  /** Per-blind issue edit, straight onto the stored row (state first, so the
+   * controlled note input never waits out the write — see the floor page's
+   * handleDefaultsChange for the caret/autocorrect failure that causes). */
+  async function patchIssue(id: string, patch: Partial<WindowIssueFields>) {
+    const current = windows.find((w) => w.id === id);
+    if (!current) return;
+    const merged = { ...current, ...patch };
+    setWindows((ws) => ws.map((w) => (w.id === id ? merged : w)));
+    await upsertWindow(merged);
   }
 
   /** Preview of the tag suffix for a real (non-empty) draft.tag_base only —
@@ -1101,6 +1129,18 @@ export default function WindowEntryPage() {
             <div className="flex gap-2">
               <button
                 type="button"
+                onClick={() => setIssueOpenId((id) => (id === w.id ? null : w.id))}
+                aria-label={windowHasIssue(w) ? "Edit blind issue" : "Flag blind issue"}
+                className={`min-h-9 rounded-lg px-3 text-xs font-medium ${
+                  windowHasIssue(w)
+                    ? "bg-amber-500 text-white"
+                    : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
+                }`}
+              >
+                ⚠
+              </button>
+              <button
+                type="button"
                 onClick={() => loadForEdit(w)}
                 className="min-h-9 rounded-lg bg-neutral-100 px-3 text-xs font-medium dark:bg-neutral-800"
               >
@@ -1115,6 +1155,25 @@ export default function WindowEntryPage() {
               </button>
             </div>
           </div>
+          {windowHasIssue(w) && issueOpenId !== w.id && (
+            <button
+              type="button"
+              onClick={() => setIssueOpenId(w.id)}
+              className="text-left text-xs font-medium text-amber-800 dark:text-amber-300"
+            >
+              ⚠️ {issueSummary(w)}
+            </button>
+          )}
+          {issueOpenId === w.id && (
+            <WindowIssueEditor
+              value={w}
+              onChange={(patch) => void patchIssue(w.id, patch)}
+              onClear={() => {
+                setIssueOpenId(null);
+                void patchIssue(w.id, { issue_note: "", issue_fault: null, issue_recut: false });
+              }}
+            />
+          )}
           {windowWarnings.has(w.id) && (
             <div className="flex items-start gap-2">
               <div className="flex-1 text-xs font-medium text-amber-800 dark:text-amber-300">
