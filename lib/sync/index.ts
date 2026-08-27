@@ -237,6 +237,7 @@ function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
   } else if (table === "windows") {
     r.quantity = r.quantity ?? 1;
     r.note = r.note ?? "";
+    r.longer_chain = r.longer_chain ?? false;
     r.mount_override = r.mount_override ?? null;
     r.panel_controls = r.panel_controls ?? null;
     r.checks_ack = r.checks_ack ?? false;
@@ -322,6 +323,10 @@ const PULL_PAGE_SIZE = 500;
 export async function pullSince(): Promise<void> {
   const client = supabase;
   if (!client) return;
+  // Same backoff gate as drainOutbox: without it a failing site connection
+  // kept pulling while pushes were backed off, widening the window where
+  // the server copy lands over a local edit that hasn't pushed yet.
+  if (Date.now() < backoffUntil) return;
 
   try {
     const session = await getSession();
@@ -336,30 +341,61 @@ export async function pullSince(): Promise<void> {
   }
 }
 
+/**
+ * Pull watermark: `at` plus the last row's `id`, so a page boundary landing
+ * in the middle of rows that share one `updated_at` resumes exactly instead
+ * of skipping the ties (a strict `gt` on the timestamp alone lost them).
+ * Older installs stored a bare timestamp string — read as { at, id: "" }.
+ */
+interface PullCursor {
+  at: string;
+  id: string;
+}
+
+function readCursor(value: unknown): PullCursor {
+  if (typeof value === "string") return { at: value, id: "" };
+  const v = value as Partial<PullCursor> | undefined;
+  return { at: v?.at ?? "1970-01-01T00:00:00.000Z", id: v?.id ?? "" };
+}
+
 async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<void> {
   const watermarkKey = `sync:watermark:${table}`;
   const stored = await db.meta.get(watermarkKey);
-  let cursor = (stored?.value as string | undefined) ?? "1970-01-01T00:00:00.000Z";
+  let cursor = readCursor(stored?.value);
   const localTable = getLocalTable(table);
 
   for (;;) {
-    const { data, error } = await client
-      .from(table)
-      .select("*")
-      .gt("updated_at", cursor)
+    let query = client.from(table).select("*");
+    query = cursor.id
+      ? query.or(
+          `updated_at.gt."${cursor.at}",and(updated_at.eq."${cursor.at}",id.gt."${cursor.id}")`
+        )
+      : query.gt("updated_at", cursor.at);
+    const { data, error } = await query
       .order("updated_at", { ascending: true })
+      .order("id", { ascending: true })
       .limit(PULL_PAGE_SIZE);
     if (error) throw error;
     if (!data || data.length === 0) break;
 
     const rows = data as SyncedRow[];
+    // Last-write-wins holds on the pull side too: a local row with a newer
+    // updated_at (a pending edit whose push failed or hasn't run) must not
+    // be overwritten by an older server copy — that both lost the edit and
+    // then cleared its outbox entry as an LWW "loser" on the next drain.
+    const locals = await localTable.bulkGet(rows.map((r) => r.id));
+    const winners = rows.filter((row, i) => {
+      const local = locals[i];
+      return !local || row.updated_at > local.updated_at;
+    });
     await db.transaction("rw", localTable, async () => {
-      for (const row of rows) {
+      for (const row of winners) {
         await localTable.put(row);
       }
     });
 
-    cursor = rows[rows.length - 1].updated_at;
+    const last = rows[rows.length - 1];
+    cursor = { at: last.updated_at, id: last.id };
     await db.meta.put({ key: watermarkKey, value: cursor });
 
     if (rows.length < PULL_PAGE_SIZE) break;
@@ -370,8 +406,24 @@ async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<
 // Combined cycle
 // ---------------------------------------------------------------------------
 
+/**
+ * One push+pull cycle at a time: start() wires syncOnce to an interval,
+ * 'online', visibilitychange, and auth changes, and two interleaved cycles
+ * can pull under a half-finished drain. A call landing mid-cycle joins the
+ * running one instead of starting a second.
+ */
+let syncInFlight: Promise<void> | null = null;
+
 /** Push then pull once. Safe to call anytime; no-ops when unconfigured. */
-export async function syncOnce(): Promise<void> {
+export function syncOnce(): Promise<void> {
+  if (syncInFlight) return syncInFlight;
+  syncInFlight = runSyncOnce().finally(() => {
+    syncInFlight = null;
+  });
+  return syncInFlight;
+}
+
+async function runSyncOnce(): Promise<void> {
   await drainOutbox();
   await pullSince();
   // A pull can bring in the crew's canonical copy of a seeded example

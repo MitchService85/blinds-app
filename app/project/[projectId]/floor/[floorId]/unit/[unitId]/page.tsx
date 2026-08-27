@@ -257,9 +257,15 @@ export default function WindowEntryPage() {
       const id = draft.id;
       const current = windows.find((w) => w.id === id);
       if (current) {
-        const merged: WindowRecord = { ...current, ...patch };
-        void upsertWindow(merged);
-        setWindows((ws) => ws.map((w) => (w.id === id ? merged : w)));
+        // Optimistic list update from render state; the durable write merges
+        // the patch onto a freshly-read row (serialized on the queue) so it
+        // can't write back a tag_index that syncUnitTagIndices rewrote in
+        // the DB after this component last refreshed.
+        setWindows((ws) => ws.map((w) => (w.id === id ? { ...current, ...patch } : w)));
+        writeQueueRef.current = writeQueueRef.current.then(async () => {
+          const row = await getWindow(id);
+          if (row) await upsertWindow({ ...row, ...patch });
+        });
       }
       return;
     }
@@ -440,13 +446,25 @@ export default function WindowEntryPage() {
       panel_controls: remaining.every((c) => c == null) ? [] : remaining,
     });
     setActiveField((f) => (f === "height" ? f : Math.min(f, widths.length - 1)));
+    // Remount the keypad: its buffer still holds the REMOVED panel's digits
+    // (the index it was keyed on now names a different panel), and the next
+    // digit tap would append to that dead number — 36" became 361".
+    setDraftSeq((n) => n + 1);
   }
 
   async function handleDeleteWindow(id: string) {
     await deleteWindow(id);
     await syncUnitTagIndices(unitId);
     await refreshWindows();
-    if (draft.id === id) setDraft(blankDraft());
+    if (draft.id === id) {
+      // Full entry reset, keypad included: without the draftSeq bump the
+      // keypad keeps the deleted window's digit buffer and the next tap
+      // appends to it, committing a corrupted width into the blank draft.
+      setDraft(blankDraft());
+      setActiveField(0);
+      setNoteOpen(false);
+      setDraftSeq((n) => n + 1);
+    }
   }
 
   function loadForEdit(w: WindowRecord) {
@@ -552,9 +570,11 @@ export default function WindowEntryPage() {
   async function patchIssue(id: string, patch: Partial<WindowIssueFields>) {
     const current = windows.find((w) => w.id === id);
     if (!current) return;
-    const merged = { ...current, ...patch };
-    setWindows((ws) => ws.map((w) => (w.id === id ? merged : w)));
-    await upsertWindow(merged);
+    setWindows((ws) => ws.map((w) => (w.id === id ? { ...current, ...patch } : w)));
+    // Merge onto the freshly-read row, not render state, so a full-row
+    // upsert can't resurrect stale fields (see patchDraft's update branch).
+    const row = await getWindow(id);
+    if (row) await upsertWindow({ ...row, ...patch });
   }
 
   /** Preview of the tag suffix for a real (non-empty) draft.tag_base only —

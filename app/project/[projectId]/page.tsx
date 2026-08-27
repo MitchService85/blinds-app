@@ -98,8 +98,10 @@ export default function ProjectPage() {
   async function handleInfoChange(name: string, address: string) {
     if (!project) return;
     setProject({ ...project, name, address });
-    const updated = await updateProject(project.id, { name, address });
-    setProject(updated);
+    // Deliberately not reading the write result back into state: it is a
+    // keystroke stale by the time it resolves, and setting it reverts the
+    // controlled inputs mid-typing (dropped characters, broken autocorrect).
+    await updateProject(project.id, { name, address });
   }
 
   return (

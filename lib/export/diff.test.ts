@@ -96,6 +96,47 @@ describe("diffExports", () => {
     expect(d.floor.map((f) => f.label)).toContain("Mount");
   });
 
+  it("a pre-row-id snapshot diffed against live (id-carrying) data is not N added + N removed", () => {
+    // Old stored ExportRecords predate row ids; buildExportInput always sets
+    // them. Keying one side by id and the other positionally reported a
+    // byte-identical export as everything-added-everything-removed.
+    const prev = base(); // fixture carries no ids
+    const next = edit(base(), (i) => {
+      i.units.forEach((u, ui) =>
+        u.windows.forEach((w, wi) => {
+          w.id = `w-${ui}-${wi}`;
+        })
+      );
+    });
+    const d = diffExports(prev, next);
+    expect(d.identical).toBe(true);
+    expect(d.added).toBe(0);
+    expect(d.removed).toBe(0);
+  });
+
+  it("a legacy inside_tight override diffs on the Tight row, not as a mount change", () => {
+    const withOverride = (mount_override: "inside_tight" | null): ExportInput =>
+      edit(base(), (i) => {
+        i.units = [
+          {
+            number: "701",
+            status: "active",
+            windows: [
+              { id: "w1", tag_base: "LR", tag_index: 0, widths: [500], height: 900, quantity: 1,
+                control_override: null, deduct: null, longer_chain: false, note: "",
+                ...(mount_override ? { mount_override } : { mount_override: null }) },
+            ],
+          },
+        ];
+      });
+    const d = diffExports(withOverride("inside_tight"), withOverride(null));
+    const labels = d.windows[0]?.fields.map((f) => f.label) ?? [];
+    // The tight convention changed (yes -> floor default); the mount did not
+    // ("inside_tight" never meant an inside mount).
+    expect(labels).toContain("Tight");
+    expect(labels).not.toContain("Mount");
+  });
+
   it("matches by row id, so reordering a unit's windows is not a change", () => {
     const prev = edit(base(), (i) => {
       i.units.forEach((u, ui) =>

@@ -71,9 +71,16 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
     const base = pristine || whole === "0" ? "" : whole;
     const next = base + d;
     if (next.replace(/^0+/, "").length > MAX_WHOLE_DIGITS) return;
+    // The first digit replaces the seeded value INCLUDING its fraction: a
+    // carried-over height of 84 1/2 must not leak its 1/2 under a freshly
+    // typed 96 (the same failure addPanel's field note records for widths).
+    // Tapping a fraction first still keeps the seeded whole — adjusting
+    // just the fraction of a prefill stays one tap.
+    const nextFrac = pristine ? 0 : frac;
+    if (pristine) setFrac(0);
     setPristine(false);
     setWhole(next);
-    commit(next, frac);
+    commit(next, nextFrac);
   };
 
   const tapBackspace = () => {

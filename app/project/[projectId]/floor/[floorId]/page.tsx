@@ -202,7 +202,13 @@ export default function FloorPage() {
     });
   }
 
+  // Guards a double-tap on "Add unit": without it both taps pass the
+  // duplicate check against the same stale `units` and create two tiles
+  // with one number — which then trips the two-phones merge banner.
+  const addUnitBusyRef = useRef(false);
+
   async function handleAddUnit() {
+    if (addUnitBusyRef.current) return;
     const number = newUnitNumber.trim();
     if (!number) {
       setAddError("Enter a unit number.");
@@ -212,9 +218,14 @@ export default function FloorPage() {
       setAddError("That unit number already exists on this floor.");
       return;
     }
-    await createUnit({ floor_id: floorId, number, status: "active", sort_order: units.length });
-    setAddingUnit(false);
-    await refresh();
+    addUnitBusyRef.current = true;
+    try {
+      await createUnit({ floor_id: floorId, number, status: "active", sort_order: units.length });
+      setAddingUnit(false);
+      await refresh();
+    } finally {
+      addUnitBusyRef.current = false;
+    }
   }
 
   async function handleSetStatus(unitId: string, status: UnitStatus) {
@@ -264,7 +275,13 @@ export default function FloorPage() {
     if (action === "blocked") {
       if (!unit.note) {
         setInstallSheetUnitId(null);
+        // Refresh BEFORE opening the note sheet: on a big floor the full
+        // reload takes hundreds of ms, and a refresh resolving under the
+        // open editor would setUnits with a pre-typing snapshot — wiping
+        // the first characters of the note ("shim" becomes "im").
+        await refresh();
         setNoteUnitId(unitId);
+        return;
       }
       // else: leave the sheet open so the just-set blocked state + existing
       // note preview show (refresh below brings in the fresh unit).
@@ -306,8 +323,10 @@ export default function FloorPage() {
   async function handleJobInfoChange(orderNumber: string, trips: number | null) {
     if (!floor) return;
     setFloor({ ...floor, order_number: orderNumber, trips });
-    const updated = await updateFloor(floor.id, { order_number: orderNumber, trips });
-    setFloor(updated);
+    // The write result is deliberately not read back: it is stale by the
+    // time it resolves, and setting it would revert an input mid-typing
+    // (same failure handleDefaultsChange documents).
+    await updateFloor(floor.id, { order_number: orderNumber, trips });
   }
 
   /** Total blinds on the floor (each bay panel is one blind) — invoicing quantity. */

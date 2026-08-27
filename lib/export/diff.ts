@@ -17,6 +17,7 @@ import {
   effectiveMeasure,
   effectiveMotorized,
   effectiveMount,
+  isTightMount,
   normalizeColorCodes,
   normalizeMount,
   windowTagLabel,
@@ -95,26 +96,38 @@ function widthsLabel(widths: number[]): string {
  * Walk a snapshot in the same order buildWorkbook does, skipping the units it
  * skips, so the diff describes the rows that actually reached the factory.
  */
-function entries(input: ExportInput): Entry[] {
+function entries(input: ExportInput, useIds: boolean): Entry[] {
   const out: Entry[] = [];
   const seen = new Map<string, number>();
   for (const unit of input.units) {
     if (unit.status === "na") continue;
     for (const window of unit.windows) {
       const tag = windowTagLabel(window);
-      // Older snapshots predate row ids; fall back to a positional key that is
-      // stable as long as the unit's window list keeps its shape.
       const positional = `${unit.number}|${tag}`;
       const ordinal = seen.get(positional) ?? 0;
       seen.set(positional, ordinal + 1);
       out.push({
         unit,
         window,
-        key: window.id ?? `${positional}|${ordinal}`,
+        key: useIds && window.id ? window.id : `${positional}|${ordinal}`,
       });
     }
   }
   return out;
+}
+
+/**
+ * Row ids only match rows when BOTH snapshots carry them. Snapshots recorded
+ * before row ids existed have none, while a live buildExportInput always
+ * does — keying one side by id and the other positionally would report a
+ * byte-identical export as "N added, N removed". So ids are used only when
+ * every window on both sides has one; otherwise both sides fall back to the
+ * unit + tag + ordinal key.
+ */
+function bothCarryIds(prev: ExportInput, next: ExportInput): boolean {
+  const allIds = (input: ExportInput) =>
+    input.units.every((u) => u.windows.every((w) => typeof w.id === "string" && w.id.length > 0));
+  return allIds(prev) && allIds(next);
 }
 
 /**
@@ -145,12 +158,18 @@ function compareWindows(a: ExportWindow, b: ExportWindow): FieldChange[] {
   push("Deduct", a.deduct ?? "none", b.deduct ?? "none");
   push("Control", a.control_override ?? "floor default", b.control_override ?? "floor default");
   push("Control per panel", panelControlsLabel(a.panel_controls), panelControlsLabel(b.panel_controls));
-  push(
-    "Mount",
-    a.mount_override ? mountLabel(normalizeMount(a.mount_override)) : "floor default",
-    b.mount_override ? mountLabel(normalizeMount(b.mount_override)) : "floor default"
-  );
-  push("Tight", motorLabel(a.tight_override), motorLabel(b.tight_override));
+  // A legacy "inside_tight" override carried the tight meaning in the mount
+  // slot: its mount half normalises to "inherit the floor", and its tight
+  // half belongs on the Tight row — labelling it as a mount value reported
+  // a tight-convention change as a mount change.
+  const mountOverrideLabel = (m: ExportWindow["mount_override"]) => {
+    const own = normalizeMount(m);
+    return own ? mountLabel(own) : "floor default";
+  };
+  const tightOverrideOf = (w: ExportWindow) =>
+    w.tight_override ?? (isTightMount(w.mount_override) ? true : null);
+  push("Mount", mountOverrideLabel(a.mount_override), mountOverrideLabel(b.mount_override));
+  push("Tight", motorLabel(tightOverrideOf(a)), motorLabel(tightOverrideOf(b)));
   push("Chain length", chainLabel(a.chain_length), chainLabel(b.chain_length));
   push("Longer chain", a.longer_chain ? "yes" : "no", b.longer_chain ? "yes" : "no");
   push("Motorized", motorLabel(a.motorized_override), motorLabel(b.motorized_override));
@@ -204,8 +223,9 @@ function compareFloors(a: ExportInput, b: ExportInput): FieldChange[] {
  * export order itself.
  */
 export function diffExports(prev: ExportInput, next: ExportInput): ExportDiff {
-  const before = new Map(entries(prev).map((e) => [e.key, e]));
-  const after = entries(next);
+  const useIds = bothCarryIds(prev, next);
+  const before = new Map(entries(prev, useIds).map((e) => [e.key, e]));
+  const after = entries(next, useIds);
 
   const windows: WindowChange[] = [];
   let added = 0;
