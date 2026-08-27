@@ -342,7 +342,7 @@ export default function FloorPage() {
   if (!floor) return <main className="p-4 text-sm text-neutral-500">Loading…</main>;
 
   return (
-    <main className="flex flex-1 flex-col gap-4 p-4 pb-28">
+    <main className="flex flex-1 flex-col gap-4 p-4 pb-0">
       <header className="flex items-center gap-3">
         <button
           type="button"
@@ -562,7 +562,13 @@ export default function FloorPage() {
         </div>
       )}
 
-      <div className="safe-bottom fixed inset-x-0 bottom-0 flex gap-3 border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+      {/* Sticky in-flow, not fixed: iOS strands `fixed` bottom bars mid-screen
+          after the on-screen keyboard opens (field report — the bar "floated"
+          over the install grid after typing a blocked-unit note). Sticky is
+          positioned by the scroll container, which the keyboard never desyncs;
+          mt-auto keeps it at the viewport bottom on floors shorter than the
+          screen. Same pattern as the unit screen's Save button. */}
+      <div className="safe-bottom sticky bottom-0 z-30 -mx-4 mt-auto flex gap-3 border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
         <button
           type="button"
           onClick={handleSaveExit}

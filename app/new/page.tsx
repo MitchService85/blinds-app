@@ -82,7 +82,7 @@ export default function NewJobPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 pb-28">
+    <main className="flex flex-1 flex-col gap-6 p-4 pb-0">
       <header className="flex items-center gap-3">
         <button type="button" onClick={() => router.back()} className="min-h-11 min-w-11 text-xl">
           ←
@@ -179,7 +179,10 @@ export default function NewJobPage() {
         ))}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+      {/* Sticky in-flow, not fixed — this page is full of text inputs and iOS
+          strands `fixed` bottom bars after the keyboard opens (see the floor
+          screen's bar for the field report). */}
+      <div className="safe-bottom sticky bottom-0 z-30 -mx-4 mt-auto border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
         <button
           type="button"
           onClick={handleSave}
