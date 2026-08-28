@@ -443,13 +443,20 @@ export default function FloorPage() {
             🟢 {installSummary.staged} staged · ✅ {installSummary.done} done · ⚠️{" "}
             {installSummary.blocked} blocked · {installSummary.toGo} to go
           </div>
-          {installSummary.blockedUnits.length > 0 && (
+          {/* Only blocked units that carry a note: since per-blind issues,
+              crews clear the unit note and record the detail on the blinds
+              (field request) — a '"no note"' line was just noise, and the
+              blocked count, amber tiles, and Blind issues panel already say
+              the rest. */}
+          {installSummary.blockedUnits.some((u) => u.note) && (
             <div className="flex flex-col gap-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-              {installSummary.blockedUnits.map((u) => (
-                <div key={u.id}>
-                  ⚠️ {u.number} — &quot;{u.note || "no note"}&quot;
-                </div>
-              ))}
+              {installSummary.blockedUnits
+                .filter((u) => u.note)
+                .map((u) => (
+                  <div key={u.id}>
+                    ⚠️ {u.number} — &quot;{u.note}&quot;
+                  </div>
+                ))}
             </div>
           )}
           {windowIssues.length > 0 && (
