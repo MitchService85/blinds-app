@@ -48,9 +48,10 @@ happen).
 - **memberships**: id, updated_at, deleted, company_id, user_id (auth.users),
   email (lowercase), role `admin|member`, status `invited|active`. Unique on
   (company_id, email), and **v1 additionally enforces one company per email**
-  (unique on email overall): `current_company_id()` is singular, sign-in needs
-  no company picker, and nothing in the model blocks lifting this later.
-  `blinds.allowed_users` is retired.
+  (unique on email overall): `current_company_id()` is singular and sign-in
+  needs no company picker. `blinds.allowed_users` is retired.
+  See "Known limitation: one company per person" below — this is a deferred
+  decision, not an assumption that the case does not exist.
 - **platform_admins**: user_id list (Mitch). Grants exactly two abilities: create a
   company, create/revoke its invites. **A platform admin cannot read tenant data**
   — support access can be added later, with consent; the sales pitch includes
@@ -111,6 +112,26 @@ happen).
   select tenant rows; removed member loses access mid-session.
 - Golden-file export test unchanged (company_id never reaches the workbook).
 - Manual: two-account walkthrough (Mitch + a test account in a second company).
+
+## Known limitation: one company per person (deferred 2026-08-30)
+
+**This case is already real, not hypothetical.** Mike works Keep It Shady jobs
+sourced through Elite *and* Le Decor jobs through Danny. Under v1's unique-email
+rule he can hold only one workspace, so his likely workaround is a second email
+address — which fragments his identity and is worse than designing for it.
+
+The schema already permits it: `memberships` is a join table and a second row
+per user is natural. What v1 omits is the *active company* concept it would
+need — a header switcher (hidden for the single-company majority), the choice
+remembered per device, `current_company_id()` reading that choice instead of
+assuming a sole membership, and switching triggering a local reset-and-repull
+so a phone never holds two tenants' rows at once (the same mechanism the
+cutover already requires).
+
+Deliberately deferred so v1 ships; **revisit before onboarding any company
+whose crew is shared with another company on the platform**, which includes
+Le Decor if Danny ever becomes a tenant. Lifting it means dropping one unique
+constraint and adding the switcher; no data migration.
 
 ## Out of scope (v1)
 
