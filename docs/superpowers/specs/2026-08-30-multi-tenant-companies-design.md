@@ -47,7 +47,10 @@ happen).
   unit photos), `accent_color` (hex, optional), `quote_footer` (text, optional).
 - **memberships**: id, updated_at, deleted, company_id, user_id (auth.users),
   email (lowercase), role `admin|member`, status `invited|active`. Unique on
-  (company_id, email). `blinds.allowed_users` is retired.
+  (company_id, email), and **v1 additionally enforces one company per email**
+  (unique on email overall): `current_company_id()` is singular, sign-in needs
+  no company picker, and nothing in the model blocks lifting this later.
+  `blinds.allowed_users` is retired.
 - **platform_admins**: user_id list (Mitch). Grants exactly two abilities: create a
   company, create/revoke its invites. **A platform admin cannot read tenant data**
   — support access can be added later, with consent; the sales pitch includes
