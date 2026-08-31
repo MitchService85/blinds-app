@@ -1,5 +1,14 @@
 import Dexie, { type Table } from "dexie";
-import type { ExportRecord, Floor, Project, Unit, UnitPhoto, WindowRecord } from "./types";
+import type {
+  Company,
+  ExportRecord,
+  Floor,
+  Membership,
+  Project,
+  Unit,
+  UnitPhoto,
+  WindowRecord,
+} from "./types";
 import { getCompanyIdSync, setCompanyIdCache } from "./tenant";
 
 /**
@@ -11,6 +20,8 @@ import { getCompanyIdSync, setCompanyIdCache } from "./tenant";
  */
 
 export type OutboxTableName =
+  | "companies"
+  | "memberships"
   | "projects"
   | "floors"
   | "units"
@@ -40,6 +51,8 @@ class MeasureDB extends Dexie {
   windows!: Table<WindowRecord, string>;
   photos!: Table<UnitPhoto, string>;
   exports!: Table<ExportRecord, string>;
+  companies!: Table<Company, string>;
+  memberships!: Table<Membership, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<MetaEntry, string>;
 
@@ -66,6 +79,12 @@ class MeasureDB extends Dexie {
     // of materializing every snapshot the floor has ever exported.
     this.version(4).stores({
       exports: "id, floor_id, exported_at, updated_at, deleted, [floor_id+exported_at]",
+    });
+    // v5: the tenant tables. Cached locally like everything else so the
+    // company name and roster render offline.
+    this.version(5).stores({
+      companies: "id, updated_at, deleted",
+      memberships: "id, company_id, updated_at, deleted",
     });
   }
 }
@@ -94,11 +113,17 @@ async function writeRow<T extends { id: string; updated_at: string; deleted: boo
   // rather than a cross-tenant leak — but it must be right locally too, or the
   // row never lands. An existing company_id is never overwritten: pulled rows
   // and merges keep the company they were created under.
+  // `companies` is the tenant itself and is keyed by `id`; it has no
+  // company_id column, so stamping one would push a field the server does not
+  // have and the whole table's sync would fail.
+  const stampsCompany = tableName !== "companies";
   const withCompany = row as T & { company_id?: string };
   const companyId = getCompanyIdSync();
   const stamped: T = {
     ...row,
-    ...(companyId && !withCompany.company_id ? { company_id: companyId } : {}),
+    ...(stampsCompany && companyId && !withCompany.company_id
+      ? { company_id: companyId }
+      : {}),
     updated_at: at,
   };
   await db.transaction("rw", table, db.outbox, async () => {
@@ -434,4 +459,80 @@ export async function deleteExportRecord(id: string): Promise<void> {
   const existing = await db.exports.get(id);
   if (!existing) return;
   await writeRow(db.exports, "exports", { ...existing, deleted: true }, "delete");
+}
+
+// ---------------------------------------------------------------------------
+// Company and members
+// ---------------------------------------------------------------------------
+
+/**
+ * The acting company id, priming from meta if the in-memory cache is cold.
+ *
+ * start() primes at boot, but that is async and a direct navigation to a
+ * data-dependent screen can beat it — which rendered "no company on this
+ * device" for a device that plainly had one. Reads resolve; only the write
+ * funnel uses the synchronous cache (a measurement tap must not await, and
+ * normalizeForPush backfills anything written before priming).
+ */
+async function resolveCompanyId(): Promise<string | null> {
+  return getCompanyIdSync() ?? (await primeCompanyId());
+}
+
+/** The acting company's row, or undefined before the first sync brings it in. */
+export async function getCompany(): Promise<Company | undefined> {
+  const id = await resolveCompanyId();
+  if (!id) return undefined;
+  const row = await db.companies.get(id);
+  return row && !row.deleted ? row : undefined;
+}
+
+export async function updateCompany(patch: Partial<Omit<Company, "id">>): Promise<Company> {
+  const id = await resolveCompanyId();
+  if (!id) throw new Error("No acting company");
+  const existing = await db.companies.get(id);
+  if (!existing) throw new Error("Company not loaded yet");
+  return writeRow(db.companies, "companies", { ...existing, ...patch });
+}
+
+/** The acting company's roster, invited members included. */
+export async function listMembers(): Promise<Membership[]> {
+  const id = await resolveCompanyId();
+  if (!id) return [];
+  const rows = await db.memberships.where("company_id").equals(id).toArray();
+  return rows
+    .filter((m) => !m.deleted)
+    .sort((a, b) => a.email.localeCompare(b.email));
+}
+
+/**
+ * Invite someone by email. Creates a pending membership; their first code
+ * sign-in activates it. Emails are lowercased because GoTrue lowercases the
+ * address in the JWT, and a capital letter once locked Mike out entirely.
+ */
+export async function inviteMember(email: string, role: Membership["role"] = "member"): Promise<Membership> {
+  const company_id = await resolveCompanyId();
+  if (!company_id) throw new Error("No acting company");
+  return writeRow(db.memberships, "memberships", {
+    id: newId(),
+    updated_at: "",
+    deleted: false,
+    company_id,
+    user_id: null,
+    email: email.trim().toLowerCase(),
+    role,
+    status: "invited",
+  });
+}
+
+/** Remove someone. Soft delete, so the row syncs and the server locks them out. */
+export async function removeMember(id: string): Promise<void> {
+  const existing = await db.memberships.get(id);
+  if (!existing) return;
+  await writeRow(db.memberships, "memberships", { ...existing, deleted: true }, "delete");
+}
+
+export async function setMemberRole(id: string, role: Membership["role"]): Promise<void> {
+  const existing = await db.memberships.get(id);
+  if (!existing) return;
+  await writeRow(db.memberships, "memberships", { ...existing, role });
 }

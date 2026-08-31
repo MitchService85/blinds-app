@@ -262,3 +262,33 @@ export interface ExportRecord extends SyncedRow {
   /** The exact input passed to buildWorkbook, carrying row ids for diffing. */
   input: import("./export/exporter").ExportInput;
 }
+
+/**
+ * An installer company: the tenant boundary. Everything else in this file
+ * belongs to exactly one of these, and the server enforces it.
+ *
+ * Branding is stored here and consumed by quoting later — a quote goes out
+ * under the company's name, not ours.
+ */
+export interface Company extends SyncedRow {
+  name: string;
+  /** Compressed data URL, same inline pattern as unit photos. "" = none. */
+  logo: string;
+  /** Hex like "#0D6E6A", or "" to use the app default. */
+  accent_color: string;
+  /** Free text printed at the foot of a quote. */
+  quote_footer: string;
+}
+
+export type MemberRole = "admin" | "member";
+/** "invited" until that address first signs in; the sign-in is the acceptance. */
+export type MemberStatus = "invited" | "active";
+
+export interface Membership extends SyncedRow {
+  company_id: string;
+  /** Null until the invited person first signs in. */
+  user_id: string | null;
+  email: string;
+  role: MemberRole;
+  status: MemberStatus;
+}

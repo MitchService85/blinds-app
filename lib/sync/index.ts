@@ -83,6 +83,8 @@ export function isSyncConfigured(): boolean {
 // (pullSince) walk it, so a new table can never be wired into one and
 // forgotten in the other.
 const TABLES: OutboxTableName[] = [
+  "companies",
+  "memberships",
   "projects",
   "floors",
   "units",
@@ -101,6 +103,10 @@ function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
       return db.units as unknown as Table<SyncedRow, string>;
     case "windows":
       return db.windows as unknown as Table<SyncedRow, string>;
+    case "companies":
+      return db.companies as unknown as Table<SyncedRow, string>;
+    case "memberships":
+      return db.memberships as unknown as Table<SyncedRow, string>;
     case "photos":
       return db.photos as unknown as Table<SyncedRow, string>;
     case "exports":
@@ -231,7 +237,7 @@ function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
   // one (a build upgraded mid-session, or a row created while the membership
   // lookup was still in flight). The server rejects a write carrying another
   // company's id, so this can only ever supply the caller's own.
-  if (!r.company_id) {
+  if (table !== "companies" && !r.company_id) {
     const acting = getCompanyIdSync();
     if (acting) r.company_id = acting;
   }
