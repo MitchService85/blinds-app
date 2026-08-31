@@ -9,7 +9,7 @@ import type {
   UnitPhoto,
   WindowRecord,
 } from "./types";
-import { getCompanyIdSync, setCompanyIdCache } from "./tenant";
+import { DEMO_COMPANY_ID, getCompanyIdSync, setCompanyIdCache } from "./tenant";
 
 /**
  * Local-first IndexedDB store (Dexie). The UI reads/writes here only —
@@ -126,9 +126,15 @@ async function writeRow<T extends { id: string; updated_at: string; deleted: boo
       : {}),
     updated_at: at,
   };
+  // A sandbox row is durable locally but must never be queued for sync. The
+  // server has no such company, so a push would be rejected forever and wedge
+  // that table's outbox — the stuck-sync failure from August. Seeding already
+  // bypasses this funnel; this covers rows the visitor EDITS (setting pricing
+  // on the demo project queued it before this guard existed).
+  const isDemo = (stamped as T & { company_id?: string }).company_id === DEMO_COMPANY_ID;
   await db.transaction("rw", table, db.outbox, async () => {
     await table.put(stamped);
-    await db.outbox.add({ table: tableName, rowId: stamped.id, op, at });
+    if (!isDemo) await db.outbox.add({ table: tableName, rowId: stamped.id, op, at });
   });
   return stamped;
 }

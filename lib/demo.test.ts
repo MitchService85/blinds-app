@@ -44,3 +44,24 @@ describe("what the dashboard shows", () => {
     expect(visible([real, real], false)).toEqual([]);
   });
 });
+
+describe("the sandbox can never reach a real company", () => {
+  // Regression: setting pricing on the demo project queued it in the outbox.
+  // The server has no such company, so the push is rejected forever and that
+  // table's sync wedges — the stuck-outbox failure from August, triggered by
+  // a signed-out visitor simply trying the app and then signing in.
+  const queues = (companyId: string | undefined) => companyId !== DEMO_COMPANY_ID;
+
+  it("does not queue a demo row for sync", () => {
+    expect(queues(DEMO_COMPANY_ID)).toBe(false);
+  });
+
+  it("still queues a real company's row", () => {
+    expect(queues("c0000001-0000-4000-8000-000000000001")).toBe(true);
+  });
+
+  it("still queues a row written before the company resolved", () => {
+    // Unstamped rows are the crew's work; normalizeForPush backfills them.
+    expect(queues(undefined)).toBe(true);
+  });
+});

@@ -10,6 +10,14 @@
 // in lib/db.ts's meta helpers instead, driven by the auth layer, which already
 // imports both.
 
+/**
+ * The signed-out sandbox's company. Reserved: gen_random_uuid() cannot issue
+ * it, so it can never collide with a real company. Lives here rather than in
+ * lib/demo.ts because lib/db.ts's write funnel must recognise a demo row to
+ * keep it out of the outbox, and importing demo.ts there would cycle.
+ */
+export const DEMO_COMPANY_ID = "00000000-0000-0000-0000-0000000d3m0";
+
 let cached: string | null = null;
 
 /** The company this device writes as, or null before sign-in resolves one. */

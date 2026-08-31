@@ -11,10 +11,10 @@
 // and nothing can push them to a company. They also carry a reserved
 // company id that matches no real company.
 import { db } from "./db";
+import { DEMO_COMPANY_ID } from "./tenant";
 import type { Floor, Project, Unit, WindowRecord } from "./types";
 
-/** Matches no real company, so demo rows can never be mistaken for tenant data. */
-export const DEMO_COMPANY_ID = "00000000-0000-0000-0000-0000000d3m0";
+export { DEMO_COMPANY_ID };
 
 const DEMO_VERSION_KEY = "demo:version";
 /** Bump to replace the sandbox on devices that already have an older one. */
