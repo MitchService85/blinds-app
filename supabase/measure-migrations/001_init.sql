@@ -320,3 +320,15 @@ grant select, insert, update, delete
 revoke execute on function current_company_id(), is_company_admin(), is_platform_admin() from public, anon;
 grant execute on function current_company_id(), is_company_admin(), is_platform_admin() to authenticated;
 revoke all on platform_admins from anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Job money (merged from the pricing branch, 2026-08-31)
+-- ---------------------------------------------------------------------------
+-- Added during the cutover as parity columns (the old database had them from
+-- that branch's migration, and a copy would have dropped them silently). The
+-- non-negative guard came with the merge: a negative removal count would
+-- quietly subtract from an invoice.
+alter table projects add column if not exists pricing jsonb;
+alter table units add column if not exists removed integer not null default 0;
+alter table units drop constraint if exists units_removed_non_negative;
+alter table units add constraint units_removed_non_negative check (removed >= 0);

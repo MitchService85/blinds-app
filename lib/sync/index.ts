@@ -288,13 +288,16 @@ function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
     const acting = getCompanyIdSync();
     if (acting) r.company_id = acting;
   }
-  if (table === "floors") {
+  if (table === "projects") {
+    r.pricing = r.pricing ?? null;
+  } else if (table === "floors") {
     r.order_number = r.order_number ?? "";
     r.trips = r.trips ?? null;
   } else if (table === "units") {
     r.note = r.note ?? "";
     r.install = r.install ?? null;
     r.install_blocked = r.install_blocked ?? false;
+    r.removed = r.removed ?? 0;
   } else if (table === "windows") {
     r.quantity = r.quantity ?? 1;
     r.note = r.note ?? "";
