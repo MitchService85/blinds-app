@@ -284,3 +284,21 @@ end $$;
 grant select, insert, update, delete
   on companies, memberships, projects, floors, units, windows, photos, exports
   to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Applied and verified 2026-08-31 against project ucvvxgussmnyuaexaaxj.
+--
+-- Isolation proven by impersonating PostgREST (set role authenticated +
+-- request.jwt.claims) with two seeded companies:
+--   * each admin resolved only their own company and saw only their own rows
+--   * a rival reading another company's project BY EXACT ID got 0 rows
+--   * inserting a row stamped with another company's id RAISED
+--     "new row violates row-level security policy" (the with-check test)
+--   * reparenting another company's row into their own changed nothing
+--   * a signed-in user with no membership read 0 rows from every table
+--   * soft-deleting a membership locked that user out on the NEXT request,
+--     which is the property the live lookup exists to provide
+-- Anon holds no table grant at all (revoked above), so RLS is not the only
+-- thing standing between the public and tenant data.
+-- Test rows were deleted afterwards; the database is empty and ready for the
+-- real data migration.
