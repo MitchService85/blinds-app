@@ -7,7 +7,8 @@ import {
   type SupabaseClient,
 } from "@supabase/supabase-js";
 import type { Table } from "dexie";
-import { db, type OutboxTableName } from "../db";
+import { clearCompanyId, db, persistCompanyId, primeCompanyId, type OutboxTableName } from "../db";
+import { getCompanyIdSync } from "../tenant";
 import type { SyncedRow } from "../types";
 
 /**
@@ -51,16 +52,15 @@ const isBrowser = () => typeof window !== "undefined";
 
 /** Tables live in the `blinds` schema (see createClient below). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type BlindsClient = SupabaseClient<any, "blinds">;
+type BlindsClient = SupabaseClient<any, "public">;
 
 const supabase: BlindsClient | null =
   SUPABASE_URL && SUPABASE_ANON_KEY
     ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        // The app's tables live in a dedicated `blinds` schema, not `public`:
-        // the Supabase org is at its free-project cap, so this database is
-        // shared with HyperFocus (which owns `public`). See
-        // supabase/migrations/001_init.sql.
-        db: { schema: "blinds" },
+        // The app has its own project now (`measure`, ca-central-1) and owns
+        // `public` there. It previously lived in a `blinds` schema inside the
+        // HyperFocus project because the org was at its free-project cap; see
+        // supabase/measure-migrations/001_init.sql.
         auth: {
           persistSession: isBrowser(),
           autoRefreshToken: isBrowser(),
@@ -227,6 +227,14 @@ export async function drainOutbox(): Promise<void> {
  */
 function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
   const r: Record<string, unknown> = { ...(row as unknown as Record<string, unknown>) };
+  // Backfill the acting company onto rows written before this device resolved
+  // one (a build upgraded mid-session, or a row created while the membership
+  // lookup was still in flight). The server rejects a write carrying another
+  // company's id, so this can only ever supply the caller's own.
+  if (!r.company_id) {
+    const acting = getCompanyIdSync();
+    if (acting) r.company_id = acting;
+  }
   if (table === "floors") {
     r.order_number = r.order_number ?? "";
     r.trips = r.trips ?? null;
@@ -572,7 +580,57 @@ export async function verifyCode(
         : error.message,
     };
   }
+  const resolved = await resolveMembership();
+  if (resolved.error) return resolved;
   void syncOnce();
+  return { error: null };
+}
+
+/**
+ * After sign-in, find which company this person belongs to and remember it.
+ *
+ * Runs BEFORE the first sync on purpose: every row this device writes is
+ * stamped with the acting company, and the server rejects a write carrying
+ * anyone else's id, so a device that synced before resolving would push rows
+ * the server refuses. An invited-but-not-yet-active membership is activated
+ * here — the invite is a promise, the first sign-in is the acceptance.
+ */
+export async function resolveMembership(): Promise<{ error: string | null }> {
+  if (!supabase) return { error: null };
+  const session = await getSession();
+  if (!session?.user.email) return { error: "Signed in, but no email on the session." };
+
+  const { data, error } = await supabase
+    .from("memberships")
+    .select("id, company_id, status")
+    .eq("deleted", false)
+    .limit(1);
+
+  if (error) return { error: error.message };
+
+  const membership = data?.[0] as
+    | { id: string; company_id: string; status: string }
+    | undefined;
+
+  if (!membership) {
+    // Signed in but belongs to nothing. Deliberately creates nothing: a
+    // company exists only when Mitch sets it up (sales-led onboarding).
+    await clearCompanyId();
+    await supabase.auth.signOut();
+    return {
+      error:
+        "That address isn't on a Measure team yet. Ask your company admin to invite you.",
+    };
+  }
+
+  if (membership.status === "invited") {
+    await supabase
+      .from("memberships")
+      .update({ status: "active", user_id: session.user.id, updated_at: new Date().toISOString() })
+      .eq("id", membership.id);
+  }
+
+  await persistCompanyId(membership.company_id);
   return { error: null };
 }
 
@@ -607,6 +665,9 @@ export function extractTokenHash(input: string): string | null {
 }
 
 export async function signOutUser(): Promise<void> {
+  // Clear the acting company even when sync is unconfigured: nothing may be
+  // written under a company this device no longer belongs to.
+  await clearCompanyId();
   if (!supabase) return;
   await supabase.auth.signOut();
 }
@@ -631,6 +692,11 @@ let started = false;
 export function start(): void {
   if (started || !isBrowser()) return;
   started = true;
+
+  // Load the acting company before anything can write. A phone that has not
+  // reached the network since sign-in still records measurements offline, and
+  // every row it writes needs the stamp.
+  void primeCompanyId();
 
   if (supabase) {
     supabase.auth.getSession().then(({ data }) => {

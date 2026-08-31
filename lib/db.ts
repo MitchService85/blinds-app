@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { ExportRecord, Floor, Project, Unit, UnitPhoto, WindowRecord } from "./types";
+import { getCompanyIdSync, setCompanyIdCache } from "./tenant";
 
 /**
  * Local-first IndexedDB store (Dexie). The UI reads/writes here only —
@@ -87,7 +88,19 @@ async function writeRow<T extends { id: string; updated_at: string; deleted: boo
   op: OutboxOp = "put"
 ): Promise<T> {
   const at = new Date().toISOString();
-  const stamped: T = { ...row, updated_at: at };
+  // Stamp the acting company here, in the one funnel every create and update
+  // passes through, so no call site can forget it. The server rejects a write
+  // carrying anyone else's id, so a wrong or missing stamp is a failed sync
+  // rather than a cross-tenant leak — but it must be right locally too, or the
+  // row never lands. An existing company_id is never overwritten: pulled rows
+  // and merges keep the company they were created under.
+  const withCompany = row as T & { company_id?: string };
+  const companyId = getCompanyIdSync();
+  const stamped: T = {
+    ...row,
+    ...(companyId && !withCompany.company_id ? { company_id: companyId } : {}),
+    updated_at: at,
+  };
   await db.transaction("rw", table, db.outbox, async () => {
     await table.put(stamped);
     await db.outbox.add({ table: tableName, rowId: stamped.id, op, at });
@@ -305,6 +318,35 @@ export async function getMeta<T = unknown>(key: string): Promise<T | undefined> 
 
 export async function setMeta(key: string, value: unknown): Promise<void> {
   await db.meta.put({ key, value });
+}
+
+// ---------------------------------------------------------------------------
+// Acting company (see lib/tenant.ts for why the cache lives outside this file)
+// ---------------------------------------------------------------------------
+
+const COMPANY_KEY = "tenant:companyId";
+
+/** Load the persisted company into the in-memory cache. Call before writes. */
+export async function primeCompanyId(): Promise<string | null> {
+  const row = await db.meta.get(COMPANY_KEY);
+  const id = (row?.value as string | undefined) ?? null;
+  setCompanyIdCache(id);
+  return id;
+}
+
+/** Remember the company this device acts as, across reloads and offline. */
+export async function persistCompanyId(companyId: string): Promise<void> {
+  setCompanyIdCache(companyId);
+  await db.meta.put({ key: COMPANY_KEY, value: companyId });
+}
+
+/**
+ * Sign-out, or a membership that no longer resolves. Clears the id so nothing
+ * can be written under a company this device no longer belongs to.
+ */
+export async function clearCompanyId(): Promise<void> {
+  setCompanyIdCache(null);
+  await db.meta.delete(COMPANY_KEY);
 }
 
 // ---------------------------------------------------------------------------

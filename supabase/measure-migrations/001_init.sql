@@ -302,3 +302,21 @@ grant select, insert, update, delete
 -- thing standing between the public and tenant data.
 -- Test rows were deleted afterwards; the database is empty and ready for the
 -- real data migration.
+
+-- ---------------------------------------------------------------------------
+-- Hardening from the Supabase security linter (2026-08-31)
+-- ---------------------------------------------------------------------------
+-- Postgres grants EXECUTE to PUBLIC on new functions, so the three helpers
+-- were reachable anonymously over /rest/v1/rpc. They leak nothing without a
+-- session, but revoked from public+anon and re-granted to authenticated only.
+--
+-- Two linter notices remain and are BY DESIGN, not oversights:
+--   * "signed-in users can execute SECURITY DEFINER function" — required; the
+--     RLS policies themselves call these, and a user learning their own
+--     company id is not a disclosure.
+--   * "platform_admins has RLS enabled but no policies" — intended deny-all.
+--     It is read only through is_platform_admin(), which bypasses RLS as a
+--     definer function; no client may query it directly.
+revoke execute on function current_company_id(), is_company_admin(), is_platform_admin() from public, anon;
+grant execute on function current_company_id(), is_company_admin(), is_platform_admin() to authenticated;
+revoke all on platform_admins from anon, authenticated;
