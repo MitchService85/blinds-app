@@ -69,6 +69,53 @@ const supabase: BlindsClient | null =
       })
     : null;
 
+/**
+ * Which backend this build talks to. Sync watermarks are timestamps, and the
+ * cutover copies `updated_at` verbatim, so a phone moving to the new project
+ * would compare the new server's rows against a watermark it earned on the
+ * old one and conclude it had already seen everything — pulling nothing and
+ * showing an empty app that claimed to be synced.
+ *
+ * Stamping the backend into meta lets a switch be detected and the local
+ * cache rebuilt from scratch exactly once.
+ */
+const BACKEND_KEY = "sync:backendRef";
+
+function backendRef(): string {
+  if (!SUPABASE_URL) return "";
+  try {
+    return new URL(SUPABASE_URL).host;
+  } catch {
+    return SUPABASE_URL;
+  }
+}
+
+/**
+ * If this device last synced against a different backend, drop every synced
+ * table and all watermarks so the next pull rebuilds from the new server.
+ *
+ * The outbox is deliberately preserved: an edit made on the old backend that
+ * never pushed is still the crew's work, and it carries its own row, so it
+ * pushes to the new backend on the next drain (normalizeForPush stamps the
+ * company). Losing it would be losing a measurement.
+ */
+async function resetIfBackendChanged(): Promise<void> {
+  const current = backendRef();
+  if (!current) return;
+  const stored = (await db.meta.get(BACKEND_KEY))?.value as string | undefined;
+  if (stored === current) return;
+
+  if (stored) {
+    for (const table of TABLES) {
+      await getLocalTable(table).clear();
+    }
+    await Promise.all(TABLES.map((t) => db.meta.delete(`sync:watermark:${t}`)));
+    // The acting company came from the old backend's membership row.
+    await clearCompanyId();
+  }
+  await db.meta.put({ key: BACKEND_KEY, value: current });
+}
+
 /** True when this build has Supabase env vars — i.e. sync can ever run. */
 export function isSyncConfigured(): boolean {
   return supabase !== null;
@@ -699,10 +746,10 @@ export function start(): void {
   if (started || !isBrowser()) return;
   started = true;
 
-  // Load the acting company before anything can write. A phone that has not
-  // reached the network since sign-in still records measurements offline, and
-  // every row it writes needs the stamp.
-  void primeCompanyId();
+  // Detect a backend switch and rebuild the local cache if so, THEN prime the
+  // acting company. Order matters: the reset clears the company, and priming
+  // first would leave a stale id in memory pointing at the old backend.
+  void resetIfBackendChanged().then(() => primeCompanyId());
 
   if (supabase) {
     supabase.auth.getSession().then(({ data }) => {
