@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { seedIfNeeded } from "@/lib/seed";
+import { isDemoRow, seedDemoIfNeeded } from "@/lib/demo";
 import { db, listProjects } from "@/lib/db";
+import { useSyncStatus } from "@/lib/sync";
 import { windowBlindCount } from "@/lib/export/shared";
 import type { Project } from "@/lib/types";
 import { JobCard, type FloorProgress } from "@/components/job-card";
@@ -17,12 +18,16 @@ interface ProjectRow {
 
 export default function Home() {
   const [rows, setRows] = useState<ProjectRow[] | null>(null);
+  const { signedIn } = useSyncStatus();
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      await seedIfNeeded();
+      // The sandbox exists so a signed-out visitor has something to try. It
+      // used to be four real client jobs, which meant anyone opening the app
+      // saw a customer's measurements.
+      await seedDemoIfNeeded();
       // Four bulk reads and in-memory grouping. The obvious per-project /
       // per-floor / per-unit queries are ~100 sequential IndexedDB round
       // trips on today's data and grow with every job — noticeable on a
@@ -51,7 +56,13 @@ export default function Home() {
         blindsByUnit.set(w.unit_id, (blindsByUnit.get(w.unit_id) ?? 0) + windowBlindCount(w));
       }
 
-      const nextRows: ProjectRow[] = projects.map((project) => {
+      // Signed out you get the sandbox and nothing else; signed in you get
+      // your company's real jobs and not the sandbox. The server already
+      // refuses another tenant's rows — this is the local half, so a shared
+      // or borrowed phone cannot show a client's work to whoever picks it up.
+      const visible = projects.filter((p) => (signedIn ? !isDemoRow(p) : isDemoRow(p)));
+
+      const nextRows: ProjectRow[] = visible.map((project) => {
         const floorProgress: FloorProgress[] = (floorsByProject.get(project.id) ?? []).map(
           (floor) => {
             const relevant = (unitsByFloor.get(floor.id) ?? []).filter((u) => u.status !== "na");
@@ -88,7 +99,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [signedIn]);
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 pb-24">

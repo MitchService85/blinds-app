@@ -487,16 +487,10 @@ export function syncOnce(): Promise<void> {
 async function runSyncOnce(): Promise<void> {
   await drainOutbox();
   await pullSince();
-  // A pull can bring in the crew's canonical copy of a seeded example
-  // project — retire this device's own pure-seed copy so examples never
-  // duplicate across devices (dynamic import: seed.ts must stay out of this
-  // module's static graph for builds without it).
-  try {
-    const { adoptSeedDuplicates } = await import("../seed");
-    await adoptSeedDuplicates();
-  } catch {
-    // seed module absent or adoption failed — never block the sync loop.
-  }
+  // The seed-adoption pass is gone with lib/seed.ts: examples were real client
+  // jobs seeded per device, which both leaked customer data to a signed-out
+  // visitor and duplicated across phones. The sandbox that replaced it is
+  // local-only and never syncs, so there is nothing to adopt.
   await refreshSnapshot();
 }
 

@@ -7,9 +7,21 @@ export interface SyncedRow {
   deleted: boolean;
 }
 
+/**
+ * A row owned by exactly one company. Optional because it is stamped by
+ * lib/db.ts's write funnel rather than by callers, and because rows written
+ * before a device resolved its membership are backfilled on push.
+ *
+ * `companies` deliberately does NOT extend this: it is the tenant itself and
+ * is keyed by `id`.
+ */
+export interface TenantRow extends SyncedRow {
+  company_id?: string;
+}
+
 export type BuildingType = "residential" | "commercial";
 
-export interface Project extends SyncedRow {
+export interface Project extends TenantRow {
   name: string;
   address: string;
   building_type: BuildingType;
@@ -104,7 +116,7 @@ export interface FloorDefaults {
   };
 }
 
-export interface Floor extends SyncedRow {
+export interface Floor extends TenantRow {
   project_id: string;
   label: string;
   defaults: FloorDefaults;
@@ -119,7 +131,7 @@ export type UnitStatus = "active" | "na" | "done";
 /** Install lifecycle: null = not started, "staged" = 🟢 ready/handoff, "done" = ✅ */
 export type InstallStatus = null | "staged" | "done";
 
-export interface Unit extends SyncedRow {
+export interface Unit extends TenantRow {
   floor_id: string;
   number: string;
   status: UnitStatus;
@@ -150,7 +162,7 @@ export type ControlOverride = null | "L" | "R";
  */
 export type IssueFault = null | "factory" | "measure";
 
-export interface WindowRecord extends SyncedRow {
+export interface WindowRecord extends TenantRow {
   unit_id: string;
   /** Room tag, e.g. "LR", "BR" */
   tag_base: string;
@@ -234,7 +246,7 @@ export interface WindowRecord extends SyncedRow {
  * visible on the whole crew's phones — with no separate blob-storage upload
  * path to fail in a dead zone.
  */
-export interface UnitPhoto extends SyncedRow {
+export interface UnitPhoto extends TenantRow {
   unit_id: string;
   /** data:image/jpeg;base64,... */
   data: string;
@@ -252,7 +264,7 @@ export interface UnitPhoto extends SyncedRow {
  * The type-only import below is erased at compile time, so this does not
  * create a runtime cycle with lib/export/exporter.ts.
  */
-export interface ExportRecord extends SyncedRow {
+export interface ExportRecord extends TenantRow {
   floor_id: string;
   /** ISO timestamp of when the workbook was generated. */
   exported_at: string;
