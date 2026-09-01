@@ -25,6 +25,7 @@ import type { ControlOverride, Deduct, Floor, MountType, Project, Unit, WindowRe
 import { Keypad, usePrecision } from "@/components/keypad";
 import { isTightMount, normalizeMount, panelControl } from "@/lib/export/shared";
 import { syncUnitTagIndices } from "@/components/window-tags";
+import { blockedOf } from "@/components/status";
 import {
   WindowIssueEditor,
   issueSummary,
@@ -578,6 +579,14 @@ export default function WindowEntryPage() {
   }
 
   /** Billable removal count (see MoneyCard). Clamped at 0. */
+  /** Clear the block from inside the unit — install mode's action sheet is
+   * three taps away, and the fix usually happens right here. */
+  async function handleUnblock() {
+    if (!unit) return;
+    setUnit((u) => (u ? { ...u, install_blocked: false } : u));
+    await updateUnit(unit.id, { install_blocked: false });
+  }
+
   async function handleRemovedChange(removed: number) {
     if (!unit || Number.isNaN(removed)) return;
     const clamped = Math.max(0, removed);
@@ -646,6 +655,24 @@ export default function WindowEntryPage() {
           <span className="shrink-0 text-xs text-emerald-600 dark:text-emerald-400">✓ saved</span>
         )}
       </header>
+
+      {/* Confirms the block for someone who just tapped Blocked in install
+          mode and was brought straight here, and names both ways to explain
+          it: the unit note directly below, or a ⚠ on the specific blinds. */}
+      {blockedOf(unit) && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+          <span className="flex-1">
+            <b>⚠️ Blocked.</b> Note the unit below, or tap ⚠ on the blinds that are wrong.
+          </span>
+          <button
+            type="button"
+            onClick={() => void handleUnblock()}
+            className="min-h-9 shrink-0 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white active:bg-amber-700"
+          >
+            Unblock
+          </button>
+        </div>
+      )}
 
       <button
         type="button"

@@ -20,9 +20,9 @@ interface InstallActionSheetProps {
 /**
  * Tap target for an InstallTile (see spec: Install mode). Selecting
  * Staged/Complete/Blocked/Clear writes through updateUnit (handled by the
- * floor page, which owns the note-sheet handoff when Blocked is picked with
- * an empty note). "Open unit" drills into the windows list — installers
- * reference sizes on site.
+ * floor page, which also opens the unit when Blocked is picked — that is
+ * where the per-blind ⚠ flags and the unit note both live). "Open unit"
+ * drills into the windows list — installers reference sizes on site.
  */
 export function InstallActionSheet({
   unit,
@@ -77,9 +77,9 @@ export function InstallActionSheet({
             ))}
           </div>
         )}
-        {blocked && issues.length === 0 && (
+        {blocked && issues.length === 0 && !unit.note && (
           <div className="mb-3 text-xs text-neutral-500">
-            Flag the problem blinds one by one via <b>Open unit</b> → ⚠ on a window.
+            Nothing recorded yet — <b>Open unit</b> to note it or flag the blinds.
           </div>
         )}
 

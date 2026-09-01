@@ -246,10 +246,11 @@ export default function FloorPage() {
   /**
    * Staged/Complete/Clear are simple writes that close the sheet. Blocked
    * always sets install_blocked, but doesn't touch install itself (blocked
-   * is an independent overlay — see Unit.install_blocked): if the unit's
-   * note is empty, it hands off straight to the existing note sheet (a
-   * block needs an explanation); if a note already exists, the action sheet
-   * stays open showing it (see InstallActionSheet).
+   * is an independent overlay — see Unit.install_blocked), and then opens
+   * the unit: a block is usually about specific blinds rather than the
+   * whole unit (field note — per-blind issues turned out more common than
+   * unit notes), and the unit screen is where both live, the note at the
+   * top and a ⚠ on every window.
    */
   async function handleInstallAction(unitId: string, action: InstallAction) {
     const unit = units.find((u) => u.id === unitId);
@@ -272,23 +273,16 @@ export default function FloorPage() {
     }
     await updateUnit(unitId, patch);
 
-    if (action === "blocked") {
-      if (!unit.note) {
-        setInstallSheetUnitId(null);
-        // Refresh BEFORE opening the note sheet: on a big floor the full
-        // reload takes hundreds of ms, and a refresh resolving under the
-        // open editor would setUnits with a pre-typing snapshot — wiping
-        // the first characters of the note ("shim" becomes "im").
-        await refresh();
-        setNoteUnitId(unitId);
-        return;
-      }
-      // else: leave the sheet open so the just-set blocked state + existing
-      // note preview show (refresh below brings in the fresh unit).
-    } else {
-      setInstallSheetUnitId(null);
-    }
+    setInstallSheetUnitId(null);
     await refresh();
+
+    if (action === "blocked") {
+      // The unit screen confirms the block (banner at the top) and carries
+      // both ways to explain it. Navigating after the refresh keeps the
+      // floor correct for the back tap; install mode is remembered per
+      // floor, so back lands on the install grid, not measure.
+      router.push(`/project/${projectId}/floor/${floorId}/unit/${unitId}`);
+    }
   }
 
   function openNoteEditor(unitId: string) {

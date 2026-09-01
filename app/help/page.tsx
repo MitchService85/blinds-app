@@ -169,7 +169,8 @@ export default function HelpPage() {
 
       <Section title="Install mode" visual={<VisualInstall />}>
         <p>On a floor, flip the switch at the top from <b>Measure</b> to <b>Install</b>. Tap a unit and mark it.</p>
-        <p>🟢 staged means the blinds and hardware are dropped off and ready — or your half of the work is done and it&apos;s ready for your partner. ✅ means installed. ⚠️ blocked means something is stopping the install; the note says what.</p>
+        <p>🟢 staged means the blinds and hardware are dropped off and ready — or your half of the work is done and it&apos;s ready for your partner. ✅ means installed. ⚠️ blocked means something is stopping the install. Tapping <b>Blocked</b> opens the unit so you can say why: a note at the top for the whole unit, or <b>⚠</b> on the individual blinds that are wrong. <b>Unblock</b> is right there when it&apos;s sorted.</p>
+        <p>Each tile also shows how many blinds the unit takes, so you can count brackets and hardware before you start it. Tap one and the sheet spells it out — a three-panel bay is one opening but three blinds.</p>
         <p>A specific blind wrong? Open the unit and tap <b>⚠</b> on that window: say what&apos;s wrong, whose error it is (<b>Factory</b> or <b>Measure</b>), and whether it needs a recut. Install mode shows every flagged blind on the floor and counts the recuts that are on the factory — their error, they pay. None of this goes on the measure sheet you send them.</p>
       </Section>
 
