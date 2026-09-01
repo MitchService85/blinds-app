@@ -512,7 +512,12 @@ export default function FloorPage() {
               />
             ))
           : units.map((unit) => (
-              <InstallTile key={unit.id} unit={unit} onTap={() => setInstallSheetUnitId(unit.id)} />
+              <InstallTile
+                key={unit.id}
+                unit={unit}
+                blindCount={(windowsByUnit.get(unit.id) ?? []).reduce((n, w) => n + windowBlindCount(w), 0)}
+                onTap={() => setInstallSheetUnitId(unit.id)}
+              />
             ))}
         {mode === "measure" && (
           <button

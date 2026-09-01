@@ -2,7 +2,7 @@
 
 import type { Unit, WindowRecord } from "@/lib/types";
 import { blockedOf, installOf } from "./status";
-import { windowTagLabel } from "@/lib/export/shared";
+import { windowBlindCount, windowTagLabel } from "@/lib/export/shared";
 import { issueSummary, windowHasIssue } from "./window-issue";
 
 export type InstallAction = "staged" | "complete" | "blocked" | "clear";
@@ -37,6 +37,11 @@ export function InstallActionSheet({
   const install = installOf(unit);
   const blocked = blockedOf(unit);
   const issues = (windows ?? []).filter(windowHasIssue);
+  // Openings vs blinds differ on bays and repeat rows (one 3-panel bay is
+  // three blinds, three sets of brackets), so both are worth stating here —
+  // this sheet is what the installer opens before starting the unit.
+  const blinds = (windows ?? []).reduce((n, w) => n + windowBlindCount(w), 0);
+  const openings = (windows ?? []).length;
 
   return (
     <div
@@ -47,7 +52,15 @@ export function InstallActionSheet({
         className="w-full max-w-sm rounded-xl bg-white p-4 dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-1 text-sm font-semibold">Unit {unit.number}</div>
+        <div className="mb-1 flex items-baseline justify-between gap-2">
+          <span className="text-sm font-semibold">Unit {unit.number}</span>
+          {blinds > 0 && (
+            <span className="shrink-0 text-xs text-neutral-500 dark:text-neutral-400">
+              {blinds} blind{blinds === 1 ? "" : "s"}
+              {openings !== blinds && ` · ${openings} opening${openings === 1 ? "" : "s"}`}
+            </span>
+          )}
+        </div>
 
         {blocked && unit.note && (
           <div className="mb-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">

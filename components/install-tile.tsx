@@ -5,6 +5,12 @@ import { blockedOf, deriveInstallState, INSTALL_STATE_TILE_CLASSES, installOf } 
 
 interface InstallTileProps {
   unit: Unit;
+  /**
+   * Blinds ordered for this unit (panels x quantity). Shown on the tile so
+   * the installer can count brackets and hardware off the grid before
+   * starting a unit, without opening it (field request).
+   */
+  blindCount: number;
   /** Tap anywhere on the tile opens the action sheet (see floor page) — no
    * long-press, no direct navigation; unlike Measure mode's UnitTile, this
    * is a plain button, not a Link. */
@@ -14,7 +20,7 @@ interface InstallTileProps {
 /** Install-mode floor-grid tile — see spec: Install mode. Deliberately a
  * separate component from UnitTile (Measure mode) rather than a shared
  * component with a mode switch, so Measure mode stays exactly untouched. */
-export function InstallTile({ unit, onTap }: InstallTileProps) {
+export function InstallTile({ unit, blindCount, onTap }: InstallTileProps) {
   const state = deriveInstallState(unit);
   const install = installOf(unit);
   const blocked = blockedOf(unit);
@@ -35,6 +41,14 @@ export function InstallTile({ unit, onTap }: InstallTileProps) {
         {unit.number}
       </span>
       <span className="text-[11px] opacity-90">{subline}</span>
+      {/* Hardware count, dimmer than the status line so the install state
+          still reads first. Skipped on N/A units and on units with nothing
+          measured yet — there is no bracket count to carry up there. */}
+      {state !== "na" && blindCount > 0 && (
+        <span className="text-[11px] opacity-70">
+          {blindCount} blind{blindCount === 1 ? "" : "s"}
+        </span>
+      )}
     </button>
   );
 }
