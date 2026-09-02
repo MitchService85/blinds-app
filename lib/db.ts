@@ -3,6 +3,7 @@ import type {
   Company,
   ExportRecord,
   Floor,
+  InvoiceRecord,
   Membership,
   Project,
   Unit,
@@ -27,7 +28,8 @@ export type OutboxTableName =
   | "units"
   | "windows"
   | "photos"
-  | "exports";
+  | "exports"
+  | "invoices";
 export type OutboxOp = "put" | "delete";
 
 export interface OutboxEntry {
@@ -51,6 +53,7 @@ class MeasureDB extends Dexie {
   windows!: Table<WindowRecord, string>;
   photos!: Table<UnitPhoto, string>;
   exports!: Table<ExportRecord, string>;
+  invoices!: Table<InvoiceRecord, string>;
   companies!: Table<Company, string>;
   memberships!: Table<Membership, string>;
   outbox!: Table<OutboxEntry, number>;
@@ -85,6 +88,11 @@ class MeasureDB extends Dexie {
     this.version(5).stores({
       companies: "id, updated_at, deleted",
       memberships: "id, company_id, updated_at, deleted",
+    });
+    // v6: invoices. Indexed by project for the Money card's list and by
+    // issue_date so the invoices screen can order without a full scan.
+    this.version(6).stores({
+      invoices: "id, project_id, issue_date, status, updated_at, deleted",
     });
   }
 }
@@ -139,6 +147,29 @@ async function writeRow<T extends { id: string; updated_at: string; deleted: boo
   return stamped;
 }
 
+/**
+ * A child row belongs to its PARENT's company, not to whatever this device
+ * happens to be acting as.
+ *
+ * That is what seals the signed-out sandbox: a window added to a demo unit,
+ * or an invoice raised against the demo project, inherits the demo company
+ * and so is skipped by the outbox above. Without it the row would be stamped
+ * with the real company on sign-in and pushed with a parent id the server has
+ * never seen — a foreign-key rejection that repeats on every drain and wedges
+ * that table forever, which is the failure this codebase has already paid for
+ * twice. It is also just correct: a row cannot live under a different tenant
+ * from its parent.
+ *
+ * Returns undefined when the parent is unknown, leaving writeRow to stamp the
+ * acting company exactly as before.
+ */
+async function parentCompanyId<T extends { company_id?: string }>(
+  table: Table<T, string>,
+  parentId: string
+): Promise<string | undefined> {
+  return (await table.get(parentId))?.company_id;
+}
+
 // ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
@@ -188,6 +219,7 @@ export async function createFloor(
   }
 ): Promise<Floor> {
   return writeRow(db.floors, "floors", {
+    company_id: await parentCompanyId(db.projects, input.project_id),
     ...input,
     order_number: input.order_number ?? "",
     trips: input.trips ?? null,
@@ -232,6 +264,7 @@ export async function createUnit(
   }
 ): Promise<Unit> {
   return writeRow(db.units, "units", {
+    company_id: await parentCompanyId(db.floors, input.floor_id),
     ...input,
     note: input.note ?? "",
     install: input.install ?? null,
@@ -273,6 +306,7 @@ export async function createWindow(
   }
 ): Promise<WindowRecord> {
   return writeRow(db.windows, "windows", {
+    company_id: await parentCompanyId(db.units, input.unit_id),
     ...input,
     quantity: input.quantity ?? 1,
     panel_controls: input.panel_controls ?? null,
@@ -304,6 +338,7 @@ export async function upsertWindow(
   return writeRow(db.windows, "windows", {
     deleted: false,
     quantity: window.quantity ?? 1,
+    company_id: await parentCompanyId(db.units, window.unit_id),
     ...window,
     updated_at: window.updated_at ?? "",
   } as WindowRecord);
@@ -401,6 +436,7 @@ export async function createPhoto(
   input: Omit<UnitPhoto, "id" | "updated_at" | "deleted">
 ): Promise<UnitPhoto> {
   return writeRow(db.photos, "photos", {
+    company_id: await parentCompanyId(db.units, input.unit_id),
     ...input,
     id: newId(),
     updated_at: "",
@@ -426,6 +462,7 @@ export async function createExportRecord(
   input: Omit<ExportRecord, "id" | "updated_at" | "deleted">
 ): Promise<ExportRecord> {
   return writeRow(db.exports, "exports", {
+    company_id: await parentCompanyId(db.floors, input.floor_id),
     ...input,
     id: newId(),
     updated_at: "",
@@ -466,6 +503,72 @@ export async function deleteExportRecord(id: string): Promise<void> {
   const existing = await db.exports.get(id);
   if (!existing) return;
   await writeRow(db.exports, "exports", { ...existing, deleted: true }, "delete");
+}
+
+// ---------------------------------------------------------------------------
+// Invoices
+// ---------------------------------------------------------------------------
+
+/**
+ * Invoices are stored snapshots, not views (see the invoicing spec), so these
+ * helpers deliberately never recompute a total: whatever the editor worked out
+ * is what gets written, and whatever was written is what prints.
+ */
+export async function createInvoice(
+  fields: Omit<InvoiceRecord, "id" | "updated_at" | "deleted">
+): Promise<InvoiceRecord> {
+  return writeRow(db.invoices, "invoices", {
+    company_id: await parentCompanyId(db.projects, fields.project_id),
+    ...fields,
+    id: newId(),
+    updated_at: new Date().toISOString(),
+    deleted: false,
+  });
+}
+
+/**
+ * Write the whole invoice as the editor holds it.
+ *
+ * Deliberately NOT a read-modify-write patch: the editor autosaves on every
+ * keystroke, and two patches issued a few milliseconds apart both read the
+ * pre-edit row, so the second one writes back the first one's field unchanged
+ * and silently reverts it. (Renaming an invoice and then editing its bill-to
+ * did exactly that.) The window screen already writes whole rows through
+ * upsertWindow for this reason; an invoice follows the same rule.
+ */
+export async function saveInvoice(invoice: InvoiceRecord): Promise<InvoiceRecord> {
+  return writeRow(db.invoices, "invoices", invoice);
+}
+
+export async function deleteInvoice(id: string): Promise<void> {
+  const existing = await db.invoices.get(id);
+  if (!existing) return;
+  await writeRow(db.invoices, "invoices", { ...existing, deleted: true }, "delete");
+}
+
+export async function getInvoice(id: string): Promise<InvoiceRecord | undefined> {
+  const row = await db.invoices.get(id);
+  return row && !row.deleted ? row : undefined;
+}
+
+/** Newest first — an invoices list is read from the top. */
+export async function listInvoices(projectId: string): Promise<InvoiceRecord[]> {
+  const rows = await db.invoices.where("project_id").equals(projectId).toArray();
+  return rows
+    .filter((r) => !r.deleted)
+    .sort((a, b) => b.issue_date.localeCompare(a.issue_date) || b.updated_at.localeCompare(a.updated_at));
+}
+
+/**
+ * Every invoice the company holds. The numbering series is company-wide, not
+ * per project, so a new draft on one job has to see the numbers used on all
+ * the others.
+ */
+export async function listAllInvoices(): Promise<InvoiceRecord[]> {
+  const rows = await db.invoices.toArray();
+  return rows
+    .filter((r) => !r.deleted)
+    .sort((a, b) => b.issue_date.localeCompare(a.issue_date) || b.updated_at.localeCompare(a.updated_at));
 }
 
 // ---------------------------------------------------------------------------

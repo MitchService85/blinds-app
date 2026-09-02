@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getCompany,
   inviteMember,
@@ -12,7 +12,8 @@ import {
 } from "@/lib/db";
 import { compressImage } from "@/lib/photos";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
-import type { Company, Membership } from "@/lib/types";
+import { emptyBilling } from "@/lib/invoice/draft";
+import type { Company, CompanyBilling, Membership } from "@/lib/types";
 
 /**
  * Company settings and the team roster.
@@ -25,6 +26,11 @@ import type { Company, Membership } from "@/lib/types";
  */
 export default function CompanyPage() {
   const [company, setCompany] = useState<Company | null>(null);
+  // Billing is one jsonb value, so each edit rewrites the whole record. This
+  // ref is what it merges into: reading React state instead would let two
+  // edits landing in the same render both start from the pre-edit billing,
+  // and the second would quietly revert the first.
+  const latestBilling = useRef<CompanyBilling | null>(null);
   const [members, setMembers] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -46,6 +52,7 @@ export default function CompanyPage() {
     void (async () => {
       const [c, m] = await Promise.all([getCompany(), listMembers()]);
       if (cancelled) return;
+      latestBilling.current = c?.billing ?? null;
       setCompany(c ?? null);
       setMembers(m);
       setLoading(false);
@@ -63,6 +70,19 @@ export default function CompanyPage() {
   function patch(next: Partial<Company>) {
     setCompany((c) => (c ? { ...c, ...next } : c));
     void updateCompany(next).then(() => {
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 1200);
+      triggerSyncIfAvailable();
+    });
+  }
+
+  /** Patch one billing field. Billing is a single jsonb value, so a partial
+   * edit has to be merged against the whole record, never written alone. */
+  function patchBilling(next: Partial<CompanyBilling>) {
+    const billing = { ...(latestBilling.current ?? emptyBilling()), ...next };
+    latestBilling.current = billing;
+    setCompany((c) => (c ? { ...c, billing } : c));
+    void updateCompany({ billing }).then(() => {
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 1200);
       triggerSyncIfAvailable();
@@ -191,6 +211,8 @@ export default function CompanyPage() {
         </div>
       </section>
 
+      <BillingSection billing={company.billing ?? emptyBilling()} onChange={patchBilling} />
+
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-neutral-500">Team</h2>
 
@@ -264,5 +286,152 @@ export default function CompanyPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+/**
+ * Billing identity — what gets printed on an invoice and copied onto it at
+ * issue time. The HST number carries a warning because a Canadian invoice
+ * over $30 without one cannot be claimed as an input tax credit, which is how
+ * an invoice comes back from accounts payable instead of getting paid.
+ */
+function BillingSection({
+  billing,
+  onChange,
+}: {
+  billing: CompanyBilling;
+  onChange: (next: Partial<CompanyBilling>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const filled = Boolean(billing.hst_number.trim() && billing.address.trim());
+
+  return (
+    <section className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-h-11 items-center justify-between text-left"
+      >
+        <span className="text-sm font-semibold text-neutral-500">Invoicing details</span>
+        <span className="flex items-center gap-2 text-xs text-neutral-400">
+          {!filled && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+              incomplete
+            </span>
+          )}
+          {open ? "Hide" : "Edit"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+          <BillingField
+            label="Legal name"
+            hint="Only if it differs from the company name above."
+            value={billing.legal_name}
+            onChange={(v) => onChange({ legal_name: v })}
+          />
+          <BillingField
+            label="Address"
+            value={billing.address}
+            rows={3}
+            onChange={(v) => onChange({ address: v })}
+          />
+          <BillingField
+            label="Email"
+            value={billing.email}
+            type="email"
+            onChange={(v) => onChange({ email: v })}
+          />
+          <BillingField
+            label="Phone"
+            value={billing.phone}
+            type="tel"
+            onChange={(v) => onChange({ phone: v })}
+          />
+          <BillingField
+            label="HST / GST number"
+            hint="Required on any invoice over $30 for the customer to claim the tax back."
+            placeholder="12345 6789 RT0001"
+            value={billing.hst_number}
+            onChange={(v) => onChange({ hst_number: v })}
+          />
+          <BillingField
+            label="Invoice prefix"
+            hint={`Numbers run ${billing.invoice_prefix.trim() ? `${billing.invoice_prefix.trim()}-0001` : "0001"}, 0002, …`}
+            placeholder="KIS"
+            value={billing.invoice_prefix}
+            onChange={(v) => onChange({ invoice_prefix: v })}
+          />
+          <BillingField
+            label="Payment terms"
+            hint="Sets the due date on a new invoice. “Net 30” means 30 days out."
+            placeholder="Net 30"
+            value={billing.payment_terms}
+            onChange={(v) => onChange({ payment_terms: v })}
+          />
+          <BillingField
+            label="How to pay"
+            rows={3}
+            placeholder="e-transfer to ap@example.com, or cheque payable to …"
+            value={billing.payment_instructions}
+            onChange={(v) => onChange({ payment_instructions: v })}
+          />
+          <BillingField
+            label="Default bill to"
+            hint="Prefilled on every new invoice — usually the office you send them all to."
+            rows={3}
+            value={billing.default_bill_to}
+            onChange={(v) => onChange({ default_bill_to: v })}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function BillingField({
+  label,
+  hint,
+  value,
+  onChange,
+  rows,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+  placeholder?: string;
+  type?: string;
+}) {
+  const className =
+    "w-full rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900";
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm text-neutral-500">{label}</span>
+      {rows ? (
+        <textarea
+          value={value}
+          rows={rows}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className={`${className} py-2`}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          placeholder={placeholder}
+          autoCapitalize={type === "email" ? "none" : undefined}
+          autoCorrect={type === "email" ? "off" : undefined}
+          onChange={(e) => onChange(e.target.value)}
+          className={`${className} min-h-11`}
+        />
+      )}
+      {hint && <span className="mt-1 block text-xs text-neutral-400">{hint}</span>}
+    </label>
   );
 }

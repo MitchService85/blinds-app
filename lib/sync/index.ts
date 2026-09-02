@@ -133,6 +133,7 @@ const TABLES: OutboxTableName[] = [
   "companies",
   "memberships",
   "projects",
+  "invoices",
   "floors",
   "units",
   "windows",
@@ -144,6 +145,8 @@ function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
   switch (table) {
     case "projects":
       return db.projects as unknown as Table<SyncedRow, string>;
+    case "invoices":
+      return db.invoices as unknown as Table<SyncedRow, string>;
     case "floors":
       return db.floors as unknown as Table<SyncedRow, string>;
     case "units":
@@ -314,6 +317,26 @@ function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
   } else if (table === "exports") {
     r.blind_count = r.blind_count ?? 0;
     r.filename = r.filename ?? "";
+  } else if (table === "invoices") {
+    r.number = r.number ?? "";
+    r.issue_date = r.issue_date ?? "";
+    r.due_date = r.due_date ?? "";
+    r.status = r.status ?? "draft";
+    r.lines = r.lines ?? [];
+    r.hst_rate = r.hst_rate ?? 0;
+    r.subtotal_cents = r.subtotal_cents ?? 0;
+    r.hst_cents = r.hst_cents ?? 0;
+    r.total_cents = r.total_cents ?? 0;
+    r.issuer = r.issuer ?? {};
+    r.sent_at = r.sent_at ?? null;
+    r.paid_at = r.paid_at ?? null;
+    r.bill_to = r.bill_to ?? "";
+    r.po_number = r.po_number ?? "";
+    r.terms = r.terms ?? "";
+    r.note = r.note ?? "";
+    r.payment_instructions = r.payment_instructions ?? "";
+  } else if (table === "companies") {
+    r.billing = r.billing ?? null;
   }
   return r as unknown as SyncedRow;
 }
@@ -650,17 +673,23 @@ export async function resolveMembership(): Promise<{ error: string | null }> {
   const session = await getSession();
   if (!session?.user.email) return { error: "Signed in, but no email on the session." };
 
+  // Match on THIS person's address, not "whatever row comes back first".
+  // memberships_read lets any member see the whole roster, so an unfiltered
+  // limit(1) hands back an arbitrary teammate — and the activation below then
+  // stamps their invite with the wrong user's id and marks it accepted, so an
+  // invite is consumed by someone who was never sent it. Compared in JS
+  // because addresses are stored as typed and case must not decide identity.
   const { data, error } = await supabase
     .from("memberships")
-    .select("id, company_id, status")
-    .eq("deleted", false)
-    .limit(1);
+    .select("id, company_id, status, user_id, email")
+    .eq("deleted", false);
 
   if (error) return { error: error.message };
 
-  const membership = data?.[0] as
-    | { id: string; company_id: string; status: string }
-    | undefined;
+  const email = session.user.email.toLowerCase();
+  const membership = (
+    data as { id: string; company_id: string; status: string; user_id: string | null; email: string }[] | null
+  )?.find((m) => (m.email ?? "").toLowerCase() === email);
 
   if (!membership) {
     // Signed in but belongs to nothing. Deliberately creates nothing: a
@@ -673,7 +702,11 @@ export async function resolveMembership(): Promise<{ error: string | null }> {
     };
   }
 
-  if (membership.status === "invited") {
+  // Bind the row to the account that just proved it owns the address. Failure
+  // is deliberately not fatal: only an admin may write the roster, so a plain
+  // member's own claim is refused by RLS, and current_company_id() matches on
+  // the email anyway. Sign-in must not depend on a write we expect to bounce.
+  if (membership.status === "invited" || membership.user_id !== session.user.id) {
     await supabase
       .from("memberships")
       .update({ status: "active", user_id: session.user.id, updated_at: new Date().toISOString() })

@@ -324,6 +324,36 @@ export interface Company extends SyncedRow {
   accent_color: string;
   /** Free text printed at the foot of a quote. */
   quote_footer: string;
+  /** Billing identity printed on invoices. Absent = never filled in. */
+  billing?: CompanyBilling | null;
+}
+
+/**
+ * Who the invoice is *from*. One jsonb column rather than eight text ones,
+ * the same call as projects.pricing, and for the same reason: it is one
+ * cohesive thing the UI edits as a unit.
+ *
+ * `hst_number` is not decoration. A Canadian invoice over $30 must carry the
+ * supplier's GST/HST registration number for the customer to claim an input
+ * tax credit, so leaving it blank is what makes an invoice get bounced back.
+ */
+export interface CompanyBilling {
+  /** Registered name, when it differs from the trading name. "" = use `name`. */
+  legal_name: string;
+  /** Multi-line; printed as written. */
+  address: string;
+  email: string;
+  phone: string;
+  /** GST/HST registration number, e.g. "12345 6789 RT0001". */
+  hst_number: string;
+  /** Invoice number prefix, e.g. "KIS" -> "KIS-0001". */
+  invoice_prefix: string;
+  /** Default payment terms, e.g. "Net 30". */
+  payment_terms: string;
+  /** How to pay — e-transfer address, cheque payee, banking details. */
+  payment_instructions: string;
+  /** Default bill-to block for a new invoice, e.g. Elite's AP address. */
+  default_bill_to: string;
 }
 
 export type MemberRole = "admin" | "member";
@@ -337,4 +367,75 @@ export interface Membership extends SyncedRow {
   email: string;
   role: MemberRole;
   status: MemberStatus;
+}
+
+/**
+ * One row of an invoice. Deliberately a plain editable shape rather than a
+ * `InvoiceLine` from lib/pricing.ts: those are computed from live counts,
+ * these are what Mike decided to bill and are frozen alongside the totals.
+ */
+export interface InvoiceLineItem {
+  /** Local uuid — a stable React key that survives reordering and edits. */
+  id: string;
+  label: string;
+  /** null renders as a lump sum with no qty x rate breakdown. */
+  qty: number | null;
+  unit_cents: number | null;
+  amount_cents: number;
+}
+
+/** draft is editable; sent and paid are frozen (see the invoicing spec). */
+export type InvoiceStatus = "draft" | "sent" | "paid";
+
+/**
+ * The issuer block, copied onto the invoice when it is issued so a later
+ * rename or address change never rewrites a document already sent.
+ */
+export interface InvoiceIssuer {
+  name: string;
+  address: string;
+  email: string;
+  phone: string;
+  hst_number: string;
+  /** Compressed JPEG data URL, or "" — same field as Company.logo. */
+  logo: string;
+}
+
+/**
+ * A numbered invoice (see docs/superpowers/specs/2026-09-02-invoicing-design.md).
+ *
+ * Every money field is a stored integer-cent SNAPSHOT, never recomputed on
+ * read: the Money card follows the job as it changes, an invoice must not.
+ * `hst_rate` is stored for the same reason — a rate change must not restate
+ * last year's invoices.
+ */
+export interface InvoiceRecord extends TenantRow {
+  project_id: string;
+  /** e.g. "KIS-0007". User-editable; duplicates are flagged, not blocked. */
+  number: string;
+  /** "YYYY-MM-DD" — a calendar date, not a timestamp. */
+  issue_date: string;
+  /** "YYYY-MM-DD", or "" for no due date. */
+  due_date: string;
+  status: InvoiceStatus;
+  /** ISO timestamps of the status transitions; null until they happen. */
+  sent_at: string | null;
+  paid_at: string | null;
+  /** Multi-line bill-to block, printed as written. */
+  bill_to: string;
+  /** Their reference — PO, work order, or the factory order number. */
+  po_number: string;
+  /** Payment terms as printed, e.g. "Net 30". */
+  terms: string;
+  lines: InvoiceLineItem[];
+  /** Fraction, e.g. 0.13. Snapshot of HST_RATE at issue time. */
+  hst_rate: number;
+  subtotal_cents: number;
+  hst_cents: number;
+  total_cents: number;
+  /** Printed under the totals. */
+  note: string;
+  /** How to pay, copied from company billing at issue time. */
+  payment_instructions: string;
+  issuer: InvoiceIssuer;
 }

@@ -132,13 +132,32 @@ export async function seedDemoIfNeeded(): Promise<void> {
   });
 }
 
-/** Remove the sandbox — used when a real company's data arrives. */
+/**
+ * Remove the sandbox — used when a real company's data arrives.
+ *
+ * Deletes by company_id rather than by the seeded ids, so anything a visitor
+ * ADDED while trying the app goes with it. Those rows carry the demo company
+ * because every create inherits its parent's (see parentCompanyId in db.ts);
+ * matching on "demo-" ids alone would leave a visitor's own unit and its
+ * windows behind, orphaned and invisible.
+ */
 export async function clearDemo(): Promise<void> {
-  await db.transaction("rw", db.projects, db.floors, db.units, db.windows, db.meta, async () => {
-    await db.windows.where("unit_id").startsWith("demo-unit-").delete();
-    await db.units.where("floor_id").equals(F).delete();
-    await db.floors.delete(F);
-    await db.projects.delete(P);
-    await db.meta.delete(DEMO_VERSION_KEY);
-  });
+  // Dexie's typed overloads stop at seven tables, so the array form it takes
+  // for anything wider.
+  await db.transaction(
+    "rw",
+    [db.projects, db.floors, db.units, db.windows, db.photos, db.exports, db.invoices, db.meta],
+    async () => {
+      await Promise.all([
+        db.projects.filter(isDemoRow).delete(),
+        db.floors.filter(isDemoRow).delete(),
+        db.units.filter(isDemoRow).delete(),
+        db.windows.filter(isDemoRow).delete(),
+        db.photos.filter(isDemoRow).delete(),
+        db.exports.filter(isDemoRow).delete(),
+        db.invoices.filter(isDemoRow).delete(),
+      ]);
+      await db.meta.delete(DEMO_VERSION_KEY);
+    }
+  );
 }

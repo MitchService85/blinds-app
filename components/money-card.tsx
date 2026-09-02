@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db, listFloors, updateProject } from "@/lib/db";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  createInvoice,
+  db,
+  getCompany,
+  listAllInvoices,
+  listFloors,
+  updateProject,
+} from "@/lib/db";
 import {
   computeInvoice,
   countActualBlinds,
@@ -12,8 +21,10 @@ import {
   type Invoice,
   type MoneyFloor,
 } from "@/lib/pricing";
-import type { Project, ProjectPricing } from "@/lib/types";
+import type { InvoiceRecord, InvoiceStatus, Project, ProjectPricing } from "@/lib/types";
 import { deliverFile } from "@/lib/export/deliver";
+import { buildDraft, formatInvoiceDate, linesFromComputed } from "@/lib/invoice/draft";
+import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 
 /** A floor's money slice plus what the invoice workbook's appendix needs. */
 interface FloorMoney {
@@ -79,15 +90,31 @@ async function loadFloorMoney(projectId: string): Promise<FloorMoney[]> {
 }
 
 export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
+  const router = useRouter();
   const [floors, setFloors] = useState<FloorMoney[] | null>(null);
   const [editing, setEditing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     (async () => {
       setFloors(await loadFloorMoney(project.id));
     })();
   }, [project.id]);
+
+  useEffect(() => {
+    // The whole company's invoices, not just this project's: the number
+    // series is company-wide, so a new draft here has to see them all.
+    let cancelled = false;
+    void (async () => {
+      const all = await listAllInvoices();
+      if (!cancelled) setInvoices(all);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSave(pricing: ProjectPricing) {
     const updated = await updateProject(project.id, { pricing });
@@ -126,6 +153,34 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
     }
   }
 
+  /** Seed a draft from what the card is already showing, then open it. The
+   * lines arrive as ordinary editable rows — the job model gets it close, Mike
+   * decides what actually goes on the invoice. */
+  async function handleNewInvoice() {
+    if (!invoice || !floors || creating) return;
+    setCreating(true);
+    try {
+      const company = await getCompany();
+      const draft = buildDraft({
+        projectId: project.id,
+        lines: linesFromComputed(invoice),
+        company: company ?? { name: "", logo: "", billing: null },
+        // Only this project's own company counts toward the series — the
+        // sandbox's invoices sit in the same local table and must not bump a
+        // real company's numbering (or be bumped by it).
+        existingNumbers: sameCompany(invoices, project).map((i) => i.number),
+        poNumber: floors.map((f) => f.order_number).find(Boolean) ?? "",
+      });
+      const created = await createInvoice(draft);
+      triggerSyncIfAvailable();
+      router.push(`/project/${project.id}/invoice/${created.id}`);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const projectInvoices = invoices.filter((i) => i.project_id === project.id);
+
   return (
     <section>
       <div className="mb-2 flex items-baseline justify-between">
@@ -160,12 +215,61 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
                 disabled={exporting}
                 className="mt-3 min-h-11 w-full rounded-lg bg-neutral-800 text-sm font-medium text-white active:bg-neutral-700 disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900"
               >
-                {exporting ? "Exporting…" : "Invoice summary (.xlsx)"}
+                {exporting ? "Exporting…" : "Job cost summary (.xlsx)"}
               </button>
             )}
           </div>
         )
       )}
+
+      <div className="mt-4">
+        <div className="mb-2 flex items-baseline justify-between">
+          <h3 className="text-sm font-semibold text-neutral-500">Invoices</h3>
+          {projectInvoices.length > 0 && (
+            <span className="text-xs text-neutral-400">
+              {formatCents(
+                projectInvoices
+                  .filter((i) => i.status !== "draft")
+                  .reduce((sum, i) => sum + i.total_cents, 0)
+              )}{" "}
+              issued
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          {projectInvoices.map((inv) => (
+            <Link
+              key={inv.id}
+              href={`/project/${project.id}/invoice/${inv.id}`}
+              className="flex min-h-14 items-center justify-between gap-2 rounded-xl border border-neutral-200 p-3 active:bg-neutral-50 dark:border-neutral-800 dark:active:bg-neutral-900"
+            >
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{inv.number || "Untitled"}</span>
+                <span className="block text-xs text-neutral-500">
+                  {formatInvoiceDate(inv.issue_date)}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="tabular-nums text-sm">{formatCents(inv.total_cents)}</span>
+                <StatusPill status={inv.status} />
+              </span>
+            </Link>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleNewInvoice()}
+          disabled={!invoice || creating}
+          className="mt-2 min-h-11 w-full rounded-lg bg-neutral-100 text-sm font-medium disabled:opacity-50 dark:bg-neutral-800"
+        >
+          {creating ? "Creating…" : "+ New invoice"}
+        </button>
+        {!invoice && (
+          <div className="mt-1 text-xs text-neutral-400">
+            Set up pricing first — an invoice starts from these lines.
+          </div>
+        )}
+      </div>
 
       {editing && (
         <PricingSheet
@@ -175,6 +279,30 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
         />
       )}
     </section>
+  );
+}
+
+/** Rows that share a tenant with `owner`. An unstamped row on either side is
+ * included: it was written before this device resolved a membership and will
+ * be backfilled with this same company on push. */
+function sameCompany<T extends { company_id?: string }>(
+  rows: T[],
+  owner: { company_id?: string }
+): T[] {
+  return rows.filter((r) => !owner.company_id || !r.company_id || r.company_id === owner.company_id);
+}
+
+const STATUS_STYLE: Record<InvoiceStatus, string> = {
+  draft: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
+  sent: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-200",
+  paid: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200",
+};
+
+function StatusPill({ status }: { status: InvoiceStatus }) {
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[status]}`}>
+      {status}
+    </span>
   );
 }
 
