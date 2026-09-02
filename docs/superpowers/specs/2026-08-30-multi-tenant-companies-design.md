@@ -133,6 +133,38 @@ whose crew is shared with another company on the platform**, which includes
 Le Decor if Danny ever becomes a tenant. Lifting it means dropping one unique
 constraint and adding the switcher; no data migration.
 
+## Accepting an invite (revised 2026-09-02)
+
+The original flow had the signing-in person flip their own membership from
+`invited` to `active`. They cannot, and both halves of the deadlock are
+deliberate:
+
+- `memberships_write` is admin-only, so a plain member's `UPDATE` is refused.
+- `current_company_id()` counts only an **active** membership, so before
+  activation the invitee resolves to no company — which means
+  `memberships_read` shows them nothing, and they cannot even *see* the invite
+  addressed to them.
+
+Activation therefore happens in `accept_invite()` (migration 003), a
+security-definer function that is the one place neither policy applies. It
+will only ever touch a row whose email equals the address on the caller's own
+token, which GoTrue set from the inbox the code was mailed to — proving you
+can read that inbox is exactly what accepting an invite means, so the match
+*is* the authorisation. It never creates a membership (a company still exists
+only when Mitch sets one up), never touches `role`, and treats a soft-deleted
+row as the removal it is.
+
+Where someone already belongs to a team, that team wins over a later invite
+from a second company: switching underfoot would be the worst possible way to
+meet the limitation below.
+
+A second defect went with it. The client had been reading the roster with an
+unfiltered `limit(1)` — `memberships_read` returns the whole team — and then
+stamping *that arbitrary row* with the signing-in user's id and marking it
+accepted, so an invite could be consumed by someone it was never sent to. It
+had already happened once in production. Sign-in is now a single
+`accept_invite()` call and reads no roster at all.
+
 ## Out of scope (v1)
 
 Self-serve signup, billing/subscriptions, viewer role, per-tenant export

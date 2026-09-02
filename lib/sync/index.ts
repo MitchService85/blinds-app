@@ -665,33 +665,28 @@ export async function verifyCode(
  * Runs BEFORE the first sync on purpose: every row this device writes is
  * stamped with the acting company, and the server rejects a write carrying
  * anyone else's id, so a device that synced before resolving would push rows
- * the server refuses. An invited-but-not-yet-active membership is activated
- * here — the invite is a promise, the first sign-in is the acceptance.
+ * the server refuses. The invite is a promise; this first sign-in is the
+ * acceptance.
+ *
+ * The whole thing is one accept_invite() call because a pending invitee can
+ * see nothing to work with from here: memberships_read is scoped to
+ * current_company_id(), which only counts an ACTIVE membership, so before
+ * activation they cannot read even the invite addressed to them — and
+ * memberships_write is admin-only, so they cannot activate it either. The
+ * function is the one place that deadlock is broken, and it will only ever
+ * touch a row whose email matches the caller's own verified token
+ * (supabase/measure-migrations/003_accept_invite.sql).
  */
 export async function resolveMembership(): Promise<{ error: string | null }> {
   if (!supabase) return { error: null };
   const session = await getSession();
   if (!session?.user.email) return { error: "Signed in, but no email on the session." };
 
-  // Match on THIS person's address, not "whatever row comes back first".
-  // memberships_read lets any member see the whole roster, so an unfiltered
-  // limit(1) hands back an arbitrary teammate — and the activation below then
-  // stamps their invite with the wrong user's id and marks it accepted, so an
-  // invite is consumed by someone who was never sent it. Compared in JS
-  // because addresses are stored as typed and case must not decide identity.
-  const { data, error } = await supabase
-    .from("memberships")
-    .select("id, company_id, status, user_id, email")
-    .eq("deleted", false);
-
+  const { data, error } = await supabase.rpc("accept_invite");
   if (error) return { error: error.message };
 
-  const email = session.user.email.toLowerCase();
-  const membership = (
-    data as { id: string; company_id: string; status: string; user_id: string | null; email: string }[] | null
-  )?.find((m) => (m.email ?? "").toLowerCase() === email);
-
-  if (!membership) {
+  const companyId = data as string | null;
+  if (!companyId) {
     // Signed in but belongs to nothing. Deliberately creates nothing: a
     // company exists only when Mitch sets it up (sales-led onboarding).
     await clearCompanyId();
@@ -702,18 +697,7 @@ export async function resolveMembership(): Promise<{ error: string | null }> {
     };
   }
 
-  // Bind the row to the account that just proved it owns the address. Failure
-  // is deliberately not fatal: only an admin may write the roster, so a plain
-  // member's own claim is refused by RLS, and current_company_id() matches on
-  // the email anyway. Sign-in must not depend on a write we expect to bounce.
-  if (membership.status === "invited" || membership.user_id !== session.user.id) {
-    await supabase
-      .from("memberships")
-      .update({ status: "active", user_id: session.user.id, updated_at: new Date().toISOString() })
-      .eq("id", membership.id);
-  }
-
-  await persistCompanyId(membership.company_id);
+  await persistCompanyId(companyId);
   return { error: null };
 }
 
