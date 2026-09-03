@@ -24,7 +24,7 @@ import { ExportButton } from "@/components/export-button";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { effectiveMeasure, effectiveMount, windowBlindCount, windowTagLabel } from "@/lib/export/shared";
 import { findDuplicateUnitNumbers, mergeUnits } from "@/lib/merge-units";
-import { useKeyboardInset } from "@/components/use-keyboard-inset";
+import { BottomBar } from "@/components/bottom-bar";
 import { issueSummary, windowHasIssue } from "@/components/window-issue";
 
 type FloorMode = "measure" | "install";
@@ -285,9 +285,22 @@ export default function FloorPage() {
     }
   }
 
+  const notePanelRef = useRef<HTMLDivElement | null>(null);
+
   function openNoteEditor(unitId: string) {
     setNoteUnitId(unitId);
   }
+
+  // Bring the note panel into view once it has rendered, and put the caret in
+  // it. An effect rather than a rAF after setState so it cannot run before
+  // the panel exists. Same treatment the add-unit panel gets.
+  useEffect(() => {
+    if (!noteUnitId) return;
+    const el = notePanelRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.querySelector("textarea")?.focus();
+  }, [noteUnitId]);
 
   async function handleNoteChange(unitId: string, note: string) {
     setUnits((us) => us.map((u) => (u.id === unitId ? { ...u, note } : u)));
@@ -543,6 +556,13 @@ export default function FloorPage() {
               setAddError(null);
             }}
             onFocus={(e) => e.target.select()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleAddUnit();
+              }
+            }}
+            enterKeyHint="done"
             placeholder={`e.g. "431" or "Level 1 - FE"`}
             type="text"
             autoFocus
@@ -568,13 +588,21 @@ export default function FloorPage() {
         </div>
       )}
 
-      {/* Sticky in-flow, not fixed: iOS strands `fixed` bottom bars mid-screen
-          after the on-screen keyboard opens (field report — the bar "floated"
-          over the install grid after typing a blocked-unit note). Sticky is
-          positioned by the scroll container, which the keyboard never desyncs;
-          mt-auto keeps it at the viewport bottom on floors shorter than the
-          screen. Same pattern as the unit screen's Save button. */}
-      <div className="safe-bottom sticky bottom-0 z-30 -mx-4 mt-auto flex gap-3 border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+      {/* In the page, not in a fixed overlay. A textarea inside a fixed sheet
+          made WebKit scroll the document underneath to the very bottom on
+          every keystroke (see components/keyboard.tsx) — the "screen jumps
+          to the bottom when I type a note" report. In flow it scrolls like
+          any other field and the add-unit panel's reveal handles the rest. */}
+      {noteUnitId && (
+        <UnitNotePanel
+          ref={notePanelRef}
+          unit={units.find((u) => u.id === noteUnitId) ?? null}
+          onChange={(note) => handleNoteChange(noteUnitId, note)}
+          onClose={() => setNoteUnitId(null)}
+        />
+      )}
+
+      <BottomBar>
         <button
           type="button"
           onClick={handleSaveExit}
@@ -590,15 +618,7 @@ export default function FloorPage() {
             windowsByUnit={windowsByUnit}
           />
         )}
-      </div>
-
-      {noteUnitId && (
-        <NoteSheet
-          unit={units.find((u) => u.id === noteUnitId) ?? null}
-          onChange={(note) => handleNoteChange(noteUnitId, note)}
-          onClose={() => setNoteUnitId(null)}
-        />
-      )}
+      </BottomBar>
 
       {installSheetUnitId && (
         <InstallActionSheet
@@ -618,47 +638,41 @@ export default function FloorPage() {
   );
 }
 
-function NoteSheet({
+function UnitNotePanel({
+  ref,
   unit,
   onChange,
   onClose,
 }: {
+  ref: React.Ref<HTMLDivElement>;
   unit: Unit | null;
   onChange: (note: string) => void;
   onClose: () => void;
 }) {
-  // Ride above the on-screen keyboard: this sheet is bottom-anchored and
-  // iOS keeps fixed elements behind the keyboard, leaving the caret hidden
-  // while the page scroll-jumps chasing it. See use-keyboard-inset.ts.
-  const keyboardInset = useKeyboardInset();
   if (!unit) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-      style={{ paddingBottom: keyboardInset + 16 }}
-      onClick={onClose}
+      ref={ref}
+      className="rounded-xl border border-blue-300 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/20"
     >
-      <div
-        className="w-full max-w-sm rounded-xl bg-white p-4 dark:bg-neutral-900"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-2 text-sm font-semibold">Unit {unit.number} note</div>
-        <textarea
-          value={unit.note}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="e.g. shim, needs fascia, PRIORITY"
-          rows={3}
-          autoFocus
-          className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-3 min-h-11 w-full rounded-lg bg-neutral-100 text-sm font-medium dark:bg-neutral-800"
-        >
-          Done
-        </button>
+      <div className="mb-2 flex items-baseline justify-between">
+        <span className="text-sm font-semibold">Unit {unit.number} note</span>
+        <span className="text-xs text-neutral-500">saves as you type</span>
       </div>
+      <textarea
+        value={unit.note}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="e.g. shim, needs fascia, PRIORITY"
+        rows={3}
+        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        className="mt-3 min-h-11 w-full rounded-lg bg-neutral-800 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
+      >
+        Done
+      </button>
     </div>
   );
 }

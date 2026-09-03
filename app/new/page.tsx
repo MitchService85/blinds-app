@@ -6,6 +6,7 @@ import { createFloor, createProject } from "@/lib/db";
 import type { BuildingType, FloorDefaults } from "@/lib/types";
 import { TagChipEditor } from "@/components/tag-chip-editor";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
+import { BottomBar } from "@/components/bottom-bar";
 
 // Mike's own designations, which the factory processes and returns labelled
 // the same way. STU covers a studio/bachelor unit.
@@ -179,10 +180,7 @@ export default function NewJobPage() {
         ))}
       </div>
 
-      {/* Sticky in-flow, not fixed — this page is full of text inputs and iOS
-          strands `fixed` bottom bars after the keyboard opens (see the floor
-          screen's bar for the field report). */}
-      <div className="safe-bottom sticky bottom-0 z-30 -mx-4 mt-auto border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+      <BottomBar>
         <button
           type="button"
           onClick={handleSave}
@@ -191,7 +189,7 @@ export default function NewJobPage() {
         >
           {saving ? "Creating…" : "Create job"}
         </button>
-      </div>
+      </BottomBar>
     </main>
   );
 }

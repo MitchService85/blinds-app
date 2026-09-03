@@ -428,15 +428,12 @@ function PricingSheet({ initial, onSave, onClose }: PricingSheetProps) {
     }
   }
 
+  // In the page, not a fixed overlay: six text fields in a fixed sheet is
+  // exactly the case that makes WebKit scroll the document beneath to the
+  // bottom on every keystroke (components/keyboard.tsx).
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-full max-w-sm flex-col overflow-y-auto rounded-xl bg-white p-4 dark:bg-neutral-900"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="rounded-xl border border-blue-300 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/20">
+      <div>
         <div className="mb-3 text-sm font-semibold">Job pricing</div>
         <div className="flex flex-col gap-3">
           <DollarField

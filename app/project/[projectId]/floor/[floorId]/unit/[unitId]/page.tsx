@@ -3,6 +3,7 @@
 import { checkUnitWindows } from "@/lib/checks";
 import { compressImage } from "@/lib/photos";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { BottomBar } from "@/components/bottom-bar";
 import { useParams, useRouter } from "next/navigation";
 import {
   createWindow,
@@ -684,14 +685,25 @@ export default function WindowEntryPage() {
         <span className="shrink-0 text-xs text-blue-600">Edit</span>
       </button>
       {unitNoteOpen && (
-        <textarea
-          value={unit.note}
-          onChange={(e) => handleUnitNoteChange(e.target.value)}
-          placeholder="e.g. shim, needs fascia, PRIORITY"
-          rows={2}
-          autoFocus
-          className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        />
+        <div className="flex flex-col gap-2">
+          <textarea
+            value={unit.note}
+            onChange={(e) => handleUnitNoteChange(e.target.value)}
+            placeholder="e.g. shim, needs fascia, PRIORITY"
+            rows={2}
+            autoFocus
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          />
+          {/* A textarea gives the iOS home-screen app no keyboard dismiss
+              key of its own; this is it. */}
+          <button
+            type="button"
+            onClick={() => setUnitNoteOpen(false)}
+            className="min-h-10 self-end rounded-lg bg-neutral-100 px-4 text-sm font-medium dark:bg-neutral-800"
+          >
+            Done
+          </button>
+        </div>
       )}
 
       {/* Old blinds taken down here — feeds the project Money card's removal
@@ -1147,7 +1159,7 @@ export default function WindowEntryPage() {
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 -mx-1 px-1">
+      <BottomBar variant="floating">
         <button
           type="button"
           onClick={handleSaveNext}
@@ -1158,7 +1170,7 @@ export default function WindowEntryPage() {
         >
           {justSaved ? "✓ Saved" : "Save · next window"}
         </button>
-      </div>
+      </BottomBar>
         </>
       )}
 
