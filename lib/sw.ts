@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+/**
+ * Served by app/sw.js/route.ts with a per-deploy build id baked in, so the
+ * browser sees genuinely different bytes after each deploy — which is what
+ * makes updatefound (and so the update banner) fire at all.
+ */
 const SW_URL = "/sw.js";
 
 export interface ServiceWorkerUpdateState {
@@ -55,12 +60,18 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
     };
 
     navigator.serviceWorker
-      .register(SW_URL)
+      // updateViaCache "none": the worker script must be revalidated against
+      // the network, never served from the browser's HTTP cache.
+      .register(SW_URL, { updateViaCache: "none" })
       .then((registration) => {
         if (registration.waiting && navigator.serviceWorker.controller) {
           waitingWorkerRef.current = registration.waiting;
           if (!cancelled) setUpdateAvailable(true);
         }
+        // This register() call can itself start the update, in which case
+        // updatefound has already fired by the time this callback runs — so
+        // adopt an in-flight install as well as listening for the next one.
+        watchInstalling(registration);
         registration.addEventListener("updatefound", () => watchInstalling(registration));
       })
       .catch((err) => {
