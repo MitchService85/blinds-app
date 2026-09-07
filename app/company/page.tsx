@@ -136,82 +136,13 @@ export default function CompanyPage() {
           ←
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold break-words">{company.name || "Your company"}</h1>
-          <div className="text-sm text-neutral-500">Company settings</div>
+          <h1 className="text-xl font-semibold">Settings</h1>
+          <div className="text-sm text-neutral-500">{company.name || "Your company"}</div>
         </div>
         {savedFlash && (
           <span className="shrink-0 text-xs text-emerald-600 dark:text-emerald-400">✓ saved</span>
         )}
       </header>
-
-      <section className="flex flex-col gap-3">
-        <div>
-          <label className="mb-1 block text-sm text-neutral-500" htmlFor="company-name">
-            Company name
-          </label>
-          <input
-            id="company-name"
-            type="text"
-            value={company.name}
-            onChange={(e) => patch({ name: e.target.value })}
-            className="min-h-11 w-full rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-        </div>
-
-        <div>
-          <div className="mb-1 text-sm text-neutral-500">
-            Logo <span className="text-neutral-400">(printed on quotes)</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {company.logo ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={company.logo}
-                  alt="Company logo"
-                  className="h-16 w-16 rounded-lg border border-neutral-300 object-contain dark:border-neutral-700"
-                />
-                <button
-                  type="button"
-                  onClick={() => patch({ logo: "" })}
-                  className="min-h-9 rounded-lg bg-neutral-100 px-3 text-xs font-medium dark:bg-neutral-800"
-                >
-                  Remove
-                </button>
-              </>
-            ) : (
-              <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-500 dark:border-neutral-700">
-                +
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void handleLogo(f);
-                  }}
-                />
-              </label>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm text-neutral-500" htmlFor="quote-footer">
-            Quote footer <span className="text-neutral-400">(optional)</span>
-          </label>
-          <textarea
-            id="quote-footer"
-            value={company.quote_footer}
-            onChange={(e) => patch({ quote_footer: e.target.value })}
-            placeholder="e.g. Prices valid 30 days. HST extra."
-            rows={2}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-        </div>
-      </section>
-
-      <BillingSection billing={company.billing ?? emptyBilling()} onChange={patchBilling} />
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-neutral-500">Team</h2>
@@ -285,6 +216,77 @@ export default function CompanyPage() {
           {inviteError && <div className="text-xs text-red-600">{inviteError}</div>}
         </div>
       </section>
+
+      <h2 className="-mb-3 text-sm font-semibold text-neutral-500">Company</h2>
+      <section className="flex flex-col gap-3">
+        <div>
+          <label className="mb-1 block text-sm text-neutral-500" htmlFor="company-name">
+            Company name
+          </label>
+          <input
+            id="company-name"
+            type="text"
+            value={company.name}
+            onChange={(e) => patch({ name: e.target.value })}
+            className="min-h-11 w-full rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          />
+        </div>
+
+        <div>
+          <div className="mb-1 text-sm text-neutral-500">
+            Logo <span className="text-neutral-400">(printed on quotes)</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {company.logo ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={company.logo}
+                  alt="Company logo"
+                  className="h-16 w-16 rounded-lg border border-neutral-300 object-contain dark:border-neutral-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => patch({ logo: "" })}
+                  className="min-h-9 rounded-lg bg-neutral-100 px-3 text-xs font-medium dark:bg-neutral-800"
+                >
+                  Remove
+                </button>
+              </>
+            ) : (
+              <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-500 dark:border-neutral-700">
+                +
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void handleLogo(f);
+                  }}
+                />
+              </label>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-neutral-500" htmlFor="quote-footer">
+            Quote footer <span className="text-neutral-400">(optional)</span>
+          </label>
+          <textarea
+            id="quote-footer"
+            value={company.quote_footer}
+            onChange={(e) => patch({ quote_footer: e.target.value })}
+            placeholder="e.g. Prices valid 30 days. HST extra."
+            rows={2}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          />
+        </div>
+      </section>
+
+      <BillingSection billing={company.billing ?? emptyBilling()} onChange={patchBilling} />
+
     </main>
   );
 }
