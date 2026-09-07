@@ -389,7 +389,7 @@ export default function FloorPage() {
               type="button"
               onClick={() => selectMode(m)}
               aria-pressed={mode === m}
-              className={`min-h-9 px-3 text-xs font-medium capitalize ${
+              className={`min-h-11 px-3.5 text-sm font-medium capitalize ${
                 mode === m
                   ? "bg-blue-600 text-white"
                   : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
@@ -545,6 +545,12 @@ export default function FloorPage() {
         </div>
       )}
 
+      {units.length === 0 && mode === "measure" && (
+        <div className="text-sm text-neutral-500">
+          No units yet. Tap <b>+</b> to add the first one — the next number is suggested for you.
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {mode === "measure"
           ? units.map((unit) => (
@@ -650,7 +656,7 @@ export default function FloorPage() {
           onClick={handleSaveExit}
           className="min-h-14 flex-1 rounded-xl bg-neutral-800 text-base font-semibold text-white dark:bg-neutral-100 dark:text-neutral-900"
         >
-          Save & exit
+          Done
         </button>
         {project && (
           <ExportButton

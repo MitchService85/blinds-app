@@ -184,7 +184,7 @@ export default function Home() {
           <Link
             href="/help"
             aria-label="How to use Measure"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-300 text-sm font-semibold text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-neutral-300 text-sm font-semibold text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"
           >
             ?
           </Link>

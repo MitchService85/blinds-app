@@ -129,6 +129,14 @@ export default function WindowEntryPage() {
   // mid-entry and swallow that digit.
   const [draftSeq, setDraftSeq] = useState(0);
   const [unitNoteOpen, setUnitNoteOpen] = useState(false);
+  /**
+   * The rarely-used per-window options (quantity, chain, motorized, measure
+   * and mount overrides, note) fold away by default: on a 375x812 phone the
+   * fully expanded form pushed the fraction keys under the Save bar, and a
+   * typical window touches none of them. Opens itself when a window that
+   * uses any of them is loaded for edit, so nothing set is ever hidden.
+   */
+  const [moreOpen, setMoreOpen] = useState(false);
   /** Window id whose per-blind issue editor is open in the list, if any. */
   const [issueOpenId, setIssueOpenId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<UnitPhoto[]>([]);
@@ -260,6 +268,21 @@ export default function WindowEntryPage() {
       }
     };
   }, []);
+
+  /** Short chips for the collapsed "More options" row, e.g. "×3 · 48" chain". */
+  function advancedSummary(d: DraftWindow): string[] {
+    const out: string[] = [];
+    if (d.quantity > 1) out.push(`×${d.quantity}`);
+    if (d.chain_length !== null) out.push(`${d.chain_length}" chain`);
+    else if (d.longer_chain) out.push("Longer chain");
+    if (d.motorized_override === true) out.push("Motorized");
+    if (d.motorized_override === false) out.push("Not motorized");
+    if (d.tight_override === true) out.push("Tight");
+    if (d.tight_override === false) out.push("Not noted");
+    if (d.mount_override) out.push(d.mount_override === "inside" ? "Inside" : "Outside");
+    if (d.note) out.push("Note");
+    return out;
+  }
 
   function findPrefillHeight(tag: string): number {
     const matches = floorWindows.filter((w) => w.tag_base === tag && w.height > 0);
@@ -475,6 +498,10 @@ export default function WindowEntryPage() {
   }
 
   async function handleDeleteWindow(id: string) {
+    // A measurement is minutes of work on a ladder; one mis-tap on a 36px
+    // button must not erase it silently.
+    const w = windows.find((x) => x.id === id);
+    if (!confirm(`Delete ${w ? displayLabelFor(w) : "this window"}?`)) return;
     await deleteWindow(id);
     await syncUnitTagIndices(unitId);
     await refreshWindows();
@@ -513,6 +540,15 @@ export default function WindowEntryPage() {
       note: w.note,
     });
     setNoteOpen(Boolean(w.note));
+    setMoreOpen(
+      (w.quantity ?? 1) > 1 ||
+        w.chain_length != null ||
+        w.longer_chain ||
+        w.motorized_override != null ||
+        w.tight_override != null ||
+        w.mount_override != null ||
+        Boolean(w.note)
+    );
     setActiveField(0);
     setError(null);
     setDraftSeq((n) => n + 1);
@@ -555,6 +591,7 @@ export default function WindowEntryPage() {
     });
     setActiveField(0);
     setNoteOpen(false);
+    setMoreOpen(false);
     setDraftSeq((n) => n + 1);
     // Brief visual confirmation on the button itself — the data is already
     // durable (autosave writes on every tap), this just closes the loop for
@@ -746,6 +783,9 @@ export default function WindowEntryPage() {
       {/* Old blinds taken down here — feeds the project Money card's removal
           line. Direct input beside the steppers: a 36-blind side of Four
           Seasons shouldn't take 36 taps. */}
+      {/* Install-phase bookkeeping; hidden while measuring a unit that has
+          none recorded, so the entry screen keeps the keypad above the fold. */}
+      {(entryOpen === false || (unit.removed ?? 0) > 0) && (
       <div className="flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
         <span>🗑</span>
         <span className="flex-1">Old blinds removed</span>
@@ -777,8 +817,11 @@ export default function WindowEntryPage() {
           +
         </button>
       </div>
+      )}
 
-      {(photos.length > 0 || unitNoteOpen) && (
+      {/* The camera is always here: a photo of a problem is the fastest note
+          there is, and it used to hide until the text note was opened. */}
+      {(photos.length > 0 || unitNoteOpen || entryOpen === false) && (
         <div className="flex flex-wrap items-center gap-2">
           {photos.map((ph) => (
             <button
@@ -841,13 +884,15 @@ export default function WindowEntryPage() {
 
       {entryOpen && (
         <>
-      <div className="flex flex-wrap gap-2">
-        {/* Room tag is optional — office/zone-run jobs (Alcon-style) enter
-            dozens of untagged windows in walking order. */}
+      {/* One scrolling row, never a wrap: a second row of chips is what pushed
+          the fraction keys under the Save bar on a 375x812 phone. */}
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">
+        {/* Room tag is optional — office/zone-run jobs enter dozens of
+            untagged windows in walking order. */}
         <button
           type="button"
           onClick={() => selectTag("")}
-          className={`min-h-11 rounded-full border border-dashed px-4 text-sm font-medium ${
+          className={`min-h-11 shrink-0 rounded-full border border-dashed px-4 text-sm font-medium ${
             draft.tag_base === ""
               ? "border-blue-600 bg-blue-600 text-white"
               : "border-neutral-300 bg-white text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
@@ -860,7 +905,7 @@ export default function WindowEntryPage() {
             key={tag}
             type="button"
             onClick={() => selectTag(tag)}
-            className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
+            className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium ${
               draft.tag_base === tag
                 ? "border-blue-600 bg-blue-600 text-white"
                 : "border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
@@ -1017,6 +1062,25 @@ export default function WindowEntryPage() {
           <span className="text-sm">Left control</span>
         </label>
 
+        <button
+          type="button"
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+          className="flex min-h-11 w-full items-center justify-between rounded-lg bg-neutral-50 px-3 text-left text-sm dark:bg-neutral-800/60"
+        >
+          <span className="font-medium">
+            {moreOpen ? "Fewer options" : "More options"}
+            {!moreOpen && advancedSummary(draft).length > 0 && (
+              <span className="ml-2 font-normal text-blue-700 dark:text-blue-300">
+                {advancedSummary(draft).join(" · ")}
+              </span>
+            )}
+          </span>
+          <span className="text-neutral-400">{moreOpen ? "▴" : "▾"}</span>
+        </button>
+
+        {moreOpen && (
+        <>
         <label className="flex min-h-11 items-center gap-3">
           <input
             type="checkbox"
@@ -1192,6 +1256,8 @@ export default function WindowEntryPage() {
             + Note
           </button>
         )}
+        </>
+        )}
       </div>
 
       {error && <div className="text-sm text-red-600">{error}</div>}
@@ -1341,13 +1407,15 @@ export default function WindowEntryPage() {
       </div>
 
       {entryOpen === false && (
-        <button
-          type="button"
-          onClick={() => setEntryOpen(true)}
-          className="min-h-14 w-full rounded-xl bg-blue-600 text-base font-semibold text-white shadow-lg active:bg-blue-700"
-        >
-          + Add window
-        </button>
+        <BottomBar variant="floating">
+          <button
+            type="button"
+            onClick={() => setEntryOpen(true)}
+            className="min-h-14 w-full rounded-xl bg-blue-600 text-base font-semibold text-white shadow-lg active:bg-blue-700"
+          >
+            + Add window
+          </button>
+        </BottomBar>
       )}
     </main>
   );

@@ -79,7 +79,9 @@ export function JobCard({ project, floors, money = null, deficiencies = 0 }: Job
                 className="min-h-9 rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-medium active:bg-neutral-100 dark:border-neutral-700 dark:active:bg-neutral-800"
               >
                 {f.label} {f.total > 0 && f.done === f.total ? "✓" : `${f.done}/${f.total}`}
-                <span className="ml-1 text-neutral-400">· {f.blinds}</span>
+                <span className="ml-1 text-neutral-400">
+                  · {f.blinds} blind{f.blinds === 1 ? "" : "s"}
+                </span>
               </Link>
               {f.install && (
                 <div className="px-1 text-[11px] text-neutral-500 dark:text-neutral-400">

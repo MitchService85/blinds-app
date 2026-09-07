@@ -51,7 +51,17 @@ export default function NewJobPage() {
   }
 
   function addFloor() {
-    setFloors((fs) => [...fs, { key: crypto.randomUUID(), label: "", defaults: defaultFloorDefaults() }]);
+    // Floors of one building almost always share roll, drive, measure, mount
+    // and fabric codes — start the new one from the last one instead of
+    // making a ten-floor tower cost ten copies of the same form.
+    setFloors((fs) => [
+      ...fs,
+      {
+        key: crypto.randomUUID(),
+        label: "",
+        defaults: fs.length > 0 ? { ...fs[fs.length - 1].defaults } : defaultFloorDefaults(),
+      },
+    ]);
   }
   function updateFloor(key: string, patch: Partial<DraftFloor>) {
     setFloors((fs) => fs.map((f) => (f.key === key ? { ...f, ...patch } : f)));

@@ -222,7 +222,13 @@ export default function ProjectPage() {
         ) : (
           <button
             type="button"
-            onClick={() => setAdding(true)}
+            onClick={() => {
+              // Start from the last floor's defaults — same building, same
+              // roll/drive/measure/fabric codes nearly every time.
+              const last = floors[floors.length - 1]?.floor;
+              setNewDefaults(last ? { ...last.defaults } : defaultFloorDefaults());
+              setAdding(true);
+            }}
             className="mt-3 min-h-11 w-full rounded-lg bg-neutral-100 text-sm font-medium dark:bg-neutral-800"
           >
             + Add floor

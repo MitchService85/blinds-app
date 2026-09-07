@@ -147,7 +147,7 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
             key={d}
             type="button"
             onClick={() => tapDigit(d)}
-            className="min-h-14 rounded-lg bg-neutral-100 text-xl font-medium active:bg-neutral-200 dark:bg-neutral-800 dark:active:bg-neutral-700"
+            className="min-h-12 rounded-lg bg-neutral-100 text-xl font-medium active:bg-neutral-200 dark:bg-neutral-800 dark:active:bg-neutral-700"
           >
             {d}
           </button>
@@ -155,7 +155,7 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
         <button
           type="button"
           onClick={tapBackspace}
-          className="min-h-14 rounded-lg bg-neutral-200 text-lg font-medium active:bg-neutral-300 dark:bg-neutral-700 dark:active:bg-neutral-600"
+          className="min-h-12 rounded-lg bg-neutral-200 text-lg font-medium active:bg-neutral-300 dark:bg-neutral-700 dark:active:bg-neutral-600"
           aria-label="Backspace"
         >
           ⌫
@@ -163,14 +163,14 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
         <button
           type="button"
           onClick={() => tapDigit("0")}
-          className="min-h-14 rounded-lg bg-neutral-100 text-xl font-medium active:bg-neutral-200 dark:bg-neutral-800 dark:active:bg-neutral-700"
+          className="min-h-12 rounded-lg bg-neutral-100 text-xl font-medium active:bg-neutral-200 dark:bg-neutral-800 dark:active:bg-neutral-700"
         >
           0
         </button>
         <button
           type="button"
           onClick={tapClear}
-          className="min-h-14 rounded-lg bg-neutral-200 text-sm font-medium active:bg-neutral-300 dark:bg-neutral-700 dark:active:bg-neutral-600"
+          className="min-h-12 rounded-lg bg-neutral-200 text-sm font-medium active:bg-neutral-300 dark:bg-neutral-700 dark:active:bg-neutral-600"
         >
           Clear
         </button>
