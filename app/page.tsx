@@ -16,6 +16,8 @@ interface ProjectRow {
   project: Project;
   floors: FloorProgress[];
   money: JobMoney | null;
+  /** Open PM deficiencies on this job. */
+  deficiencies: number;
 }
 
 /** Cross-job totals for the strip at the top — the recap Mitch asked for
@@ -29,6 +31,7 @@ interface Overview {
   blocked: number;
   outstanding_cents: number;
   drafts: number;
+  deficiencies: number;
 }
 
 function moneyFor(invoices: InvoiceRecord[]): JobMoney | null {
@@ -62,12 +65,13 @@ export default function Home() {
       // per-floor / per-unit queries are ~100 sequential IndexedDB round
       // trips on today's data and grow with every job — noticeable on a
       // phone, and the dashboard is the screen that opens most.
-      const [projects, allFloors, allUnits, allWindows, allInvoices] = await Promise.all([
+      const [projects, allFloors, allUnits, allWindows, allInvoices, openDeficiencies] = await Promise.all([
         listProjects(),
         db.floors.filter((f) => !f.deleted).toArray(),
         db.units.filter((u) => !u.deleted).toArray(),
         db.windows.filter((w) => !w.deleted).toArray(),
         db.invoices.filter((i) => !i.deleted).toArray(),
+        db.deficiencies.filter((d) => !d.deleted && d.status === "open").toArray(),
       ]);
       const invoicesByProject = new Map<string, InvoiceRecord[]>();
       for (const inv of allInvoices) {
@@ -130,6 +134,7 @@ export default function Home() {
           project,
           floors: floorProgress,
           money: moneyFor(invoicesByProject.get(project.id) ?? []),
+          deficiencies: openDeficiencies.filter((d) => d.project_id === project.id).length,
         };
       });
 
@@ -156,9 +161,10 @@ export default function Home() {
             }
             acc.outstanding_cents += row.money?.outstanding_cents ?? 0;
             acc.drafts += row.money?.drafts ?? 0;
+            acc.deficiencies += row.deficiencies;
             return acc;
           },
-          { jobs: 0, blinds: 0, to_install: 0, blocked: 0, outstanding_cents: 0, drafts: 0 }
+          { jobs: 0, blinds: 0, to_install: 0, blocked: 0, outstanding_cents: 0, drafts: 0, deficiencies: 0 }
         )
       : null;
 
@@ -209,6 +215,13 @@ export default function Home() {
           {overview.drafts > 0 && (
             <Stat label={overview.drafts === 1 ? "draft invoice" : "draft invoices"} value={String(overview.drafts)} />
           )}
+          {overview.deficiencies > 0 && (
+            <Stat
+              label={overview.deficiencies === 1 ? "PM deficiency" : "PM deficiencies"}
+              value={String(overview.deficiencies)}
+              tone="rose"
+            />
+          )}
         </section>
       )}
 
@@ -220,7 +233,13 @@ export default function Home() {
 
       <div className="flex flex-col gap-3">
         {rows?.map((row) => (
-          <JobCard key={row.project.id} project={row.project} floors={row.floors} money={row.money} />
+          <JobCard
+            key={row.project.id}
+            project={row.project}
+            floors={row.floors}
+            money={row.money}
+            deficiencies={row.deficiencies}
+          />
         ))}
       </div>
 
@@ -243,14 +262,18 @@ function Stat({
 }: {
   label: string;
   value: string;
-  tone?: "amber";
+  tone?: "amber" | "rose";
   wide?: boolean;
 }) {
   return (
     <div className={`flex flex-col ${wide ? "col-span-2" : ""}`}>
       <span
         className={`text-lg font-semibold tabular-nums leading-tight ${
-          tone === "amber" ? "text-amber-700 dark:text-amber-300" : ""
+          tone === "amber"
+            ? "text-amber-700 dark:text-amber-300"
+            : tone === "rose"
+              ? "text-rose-700 dark:text-rose-300"
+              : ""
         }`}
       >
         {value}

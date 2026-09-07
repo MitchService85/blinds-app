@@ -4,6 +4,9 @@ import { checkUnitWindows } from "@/lib/checks";
 import { compressImage } from "@/lib/photos";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BottomBar } from "@/components/bottom-bar";
+import { DeficiencyList } from "@/components/deficiency-list";
+import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
+import type { Deficiency } from "@/lib/types";
 import { useParams, useRouter } from "next/navigation";
 import {
   createWindow,
@@ -131,6 +134,23 @@ export default function WindowEntryPage() {
   const [photos, setPhotos] = useState<UnitPhoto[]>([]);
   const [photoView, setPhotoView] = useState<UnitPhoto | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [deficiencies, setDeficiencies] = useState<Deficiency[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listDeficiencies(projectId).then((rows) => {
+      if (!cancelled) setDeficiencies(rows.filter((d) => d.unit_id === unitId));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, unitId]);
+
+  async function handleDeficiency(id: string, status: Deficiency["status"]) {
+    await setDeficiencyStatus(id, status);
+    const rows = await listDeficiencies(projectId);
+    setDeficiencies(rows.filter((d) => d.unit_id === unitId));
+  }
 
   const draftRef = useRef(draft);
   useEffect(() => {
@@ -660,6 +680,23 @@ export default function WindowEntryPage() {
       {/* Confirms the block for someone who just tapped Blocked in install
           mode and was brought straight here, and names both ways to explain
           it: the unit note directly below, or a ⚠ on the specific blinds. */}
+      {deficiencies.length > 0 && (
+        <div className="rounded-xl border border-rose-300 p-3 dark:border-rose-800">
+          <div className="mb-2 text-sm font-semibold text-rose-900 dark:text-rose-200">
+            PM deficiencies
+          </div>
+          <DeficiencyList
+            items={deficiencies}
+            windowLabel={(id) => {
+              const w = windows.find((x) => x.id === id);
+              return w ? displayLabelFor(w) : "blind";
+            }}
+            onResolve={(id) => void handleDeficiency(id, "resolved")}
+            onReopen={(id) => void handleDeficiency(id, "open")}
+          />
+        </div>
+      )}
+
       {blockedOf(unit) && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
           <span className="flex-1">

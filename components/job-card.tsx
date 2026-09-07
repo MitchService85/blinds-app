@@ -27,6 +27,8 @@ interface JobCardProps {
   project: Project;
   floors: FloorProgress[];
   money?: JobMoney | null;
+  /** Open PM deficiencies on this job. */
+  deficiencies?: number;
 }
 
 /**
@@ -35,7 +37,7 @@ interface JobCardProps {
  * header links to the project hub instead) so a single tap from the
  * dashboard reaches the floor you want to work on.
  */
-export function JobCard({ project, floors, money = null }: JobCardProps) {
+export function JobCard({ project, floors, money = null, deficiencies = 0 }: JobCardProps) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
       <Link href={`/project/${project.id}`} className="block">
@@ -50,6 +52,11 @@ export function JobCard({ project, floors, money = null }: JobCardProps) {
         </div>
       </Link>
 
+      {deficiencies > 0 && (
+        <div className="mt-2 text-xs font-medium text-rose-700 dark:text-rose-300">
+          {deficiencies} open PM deficienc{deficiencies === 1 ? "y" : "ies"}
+        </div>
+      )}
       {money && (
         <div className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
           {money.invoiced_cents > 0 && `${formatCents(money.invoiced_cents)} invoiced`}

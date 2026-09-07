@@ -97,7 +97,7 @@ export default function NewJobPage() {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Arbour House 15 Neighborhood Lane"
+            placeholder="Lakeside Towers, Phase 2"
             className="min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
           />
         </div>
@@ -106,7 +106,7 @@ export default function NewJobPage() {
           <input
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="15 Neighborhood Lane"
+            placeholder="100 Main St, Toronto"
             className="min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
           />
         </div>

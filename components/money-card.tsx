@@ -15,13 +15,14 @@ import {
   computeInvoice,
   countActualBlinds,
   countRemoved,
+  effectivePricing,
   emptyPricing,
   formatCents,
   parseDollarsToCents,
   type Invoice,
   type MoneyFloor,
 } from "@/lib/pricing";
-import type { InvoiceRecord, InvoiceStatus, Project, ProjectPricing } from "@/lib/types";
+import type { Company, InvoiceRecord, InvoiceStatus, Project, ProjectPricing } from "@/lib/types";
 import { deliverFile } from "@/lib/export/deliver";
 import { buildDraft, formatInvoiceDate, linesFromComputed } from "@/lib/invoice/draft";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
@@ -96,6 +97,7 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
   const [exporting, setExporting] = useState(false);
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [creating, setCreating] = useState(false);
+  const [company, setCompany] = useState<Company | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -108,8 +110,10 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
     // series is company-wide, so a new draft here has to see them all.
     let cancelled = false;
     void (async () => {
-      const all = await listAllInvoices();
-      if (!cancelled) setInvoices(all);
+      const [all, c] = await Promise.all([listAllInvoices(), getCompany()]);
+      if (cancelled) return;
+      setInvoices(all);
+      setCompany(c ?? null);
     })();
     return () => {
       cancelled = true;
@@ -122,9 +126,18 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
     setEditing(false);
   }
 
-  const pricing = project.pricing ?? null;
+  const stored = project.pricing ?? null;
+  // Contract and quoted count from the job; rates from Settings.
+  const pricing = stored ? effectivePricing(stored, company?.billing) : null;
   const invoice =
     pricing && floors ? computeInvoice(pricing, floors.map((f) => f.money)) : null;
+  const ratesSet = Boolean(
+    company?.billing &&
+      (company.billing.install_per_blind_cents != null ||
+        company.billing.removal_per_blind_cents != null ||
+        company.billing.motorized_premium_cents != null ||
+        company.billing.trip_charge_cents != null)
+  );
 
   async function handleInvoiceExport() {
     if (!pricing || !floors || !invoice || exporting) return;
@@ -160,7 +173,6 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
     if (!invoice || !floors || creating) return;
     setCreating(true);
     try {
-      const company = await getCompany();
       const draft = buildDraft({
         projectId: project.id,
         lines: linesFromComputed(invoice),
@@ -185,28 +197,38 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
     <section>
       <div className="mb-2 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-neutral-500">Money</h2>
-        {pricing && (
+        {stored && (
           <button type="button" onClick={() => setEditing(true)} className="text-sm text-blue-600">
             Edit
           </button>
         )}
       </div>
 
-      {!pricing ? (
+      {!stored ? (
         <button
           type="button"
           onClick={() => setEditing(true)}
           className="min-h-11 w-full rounded-lg bg-neutral-100 text-sm font-medium dark:bg-neutral-800"
         >
-          + Set up pricing
+          + Set contract
         </button>
       ) : (
+        pricing &&
         invoice && (
           <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
             <InvoiceLines invoice={invoice} />
             <VarianceBadge invoice={invoice} />
             {pricing.note && (
               <div className="mt-2 text-xs text-neutral-500">{pricing.note}</div>
+            )}
+            {!ratesSet && (
+              <div className="mt-2 text-xs text-neutral-500">
+                No labour rates set yet.{" "}
+                <Link href="/company" className="text-blue-600 underline">
+                  Add them in Settings
+                </Link>{" "}
+                to bill install, removal, motorized and trips.
+              </div>
             )}
             {invoice.lines.length > 0 && (
               <button
@@ -266,14 +288,14 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
         </button>
         {!invoice && (
           <div className="mt-1 text-xs text-neutral-400">
-            Set up pricing first — an invoice starts from these lines.
+            Set the contract first — an invoice starts from these lines.
           </div>
         )}
       </div>
 
       {editing && (
         <PricingSheet
-          initial={pricing ?? emptyPricing()}
+          initial={stored ?? emptyPricing()}
           onSave={handleSave}
           onClose={() => setEditing(false)}
         />
@@ -397,15 +419,11 @@ interface PricingSheetProps {
 }
 
 function PricingSheet({ initial, onSave, onClose }: PricingSheetProps) {
-  // Dollar fields live as strings while editing; blank = not billed.
+  // Dollar fields live as strings while editing; blank = not set.
   const [contract, setContract] = useState(centsToInput(initial.contract_cents));
   const [quoted, setQuoted] = useState(
     initial.quoted_blind_count === null ? "" : String(initial.quoted_blind_count)
   );
-  const [removal, setRemoval] = useState(centsToInput(initial.removal_per_blind_cents));
-  const [install, setInstall] = useState(centsToInput(initial.install_per_blind_cents));
-  const [motorized, setMotorized] = useState(centsToInput(initial.motorized_premium_cents));
-  const [trip, setTrip] = useState(centsToInput(initial.trip_charge_cents));
   const [note, setNote] = useState(initial.note);
   const [saving, setSaving] = useState(false);
 
@@ -414,13 +432,12 @@ function PricingSheet({ initial, onSave, onClose }: PricingSheetProps) {
     setSaving(true);
     try {
       const quotedCount = /^\d+$/.test(quoted.trim()) ? parseInt(quoted.trim(), 10) : null;
+      // Rates are company-wide now (Settings); the legacy per-project fields
+      // are carried through untouched so old rows keep parsing.
       await onSave({
+        ...initial,
         contract_cents: parseDollarsToCents(contract),
         quoted_blind_count: quotedCount,
-        removal_per_blind_cents: parseDollarsToCents(removal),
-        install_per_blind_cents: parseDollarsToCents(install),
-        motorized_premium_cents: parseDollarsToCents(motorized),
-        trip_charge_cents: parseDollarsToCents(trip),
         note,
       });
     } finally {
@@ -428,71 +445,58 @@ function PricingSheet({ initial, onSave, onClose }: PricingSheetProps) {
     }
   }
 
-  // In the page, not a fixed overlay: six text fields in a fixed sheet is
-  // exactly the case that makes WebKit scroll the document beneath to the
-  // bottom on every keystroke (components/keyboard.tsx).
+  // In the page, not a fixed overlay (components/keyboard.tsx).
   return (
     <div className="rounded-xl border border-blue-300 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/20">
-      <div>
-        <div className="mb-3 text-sm font-semibold">Job pricing</div>
-        <div className="flex flex-col gap-3">
-          <DollarField
-            label="Contract (Danny's locked price)"
-            value={contract}
-            onChange={setContract}
+      <div className="mb-3 text-sm font-semibold">Job contract</div>
+      <div className="flex flex-col gap-3">
+        <DollarField label="Contract price" value={contract} onChange={setContract} />
+        <label>
+          <span className="mb-1 block text-sm text-neutral-500">
+            Quoted blind count (from the plan takeoff)
+          </span>
+          <input
+            value={quoted}
+            onChange={(e) => setQuoted(e.target.value)}
+            inputMode="numeric"
+            placeholder="e.g. 96"
+            className="min-h-11 w-full rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
-          <label>
-            <span className="mb-1 block text-sm text-neutral-500">
-              Quoted blind count (from the plan takeoff)
-            </span>
-            <input
-              value={quoted}
-              onChange={(e) => setQuoted(e.target.value)}
-              inputMode="numeric"
-              placeholder="e.g. 96"
-              className="min-h-11 w-full rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-            />
-          </label>
-          <DollarField label="Removal, per old blind" value={removal} onChange={setRemoval} />
-          <DollarField label="Install labor, per blind" value={install} onChange={setInstall} />
-          <DollarField
-            label="Motorized premium, per blind"
-            value={motorized}
-            onChange={setMotorized}
+        </label>
+        <label>
+          <span className="mb-1 block text-sm text-neutral-500">Note</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. install billed separately, net 30"
+            rows={2}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
-          <DollarField label="Trip charge, per trip" value={trip} onChange={setTrip} />
-          <label>
-            <span className="mb-1 block text-sm text-neutral-500">Note</span>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. install billed to Elite net 30"
-              rows={2}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-            />
-          </label>
-          <div className="text-xs text-neutral-400">
-            Leave a rate blank when it isn&apos;t billed on this job — e.g. install already
-            inside the contract.
-          </div>
+        </label>
+        <div className="text-xs text-neutral-400">
+          Labour rates (install, removal, motorized, trips) are set once for the whole company in{" "}
+          <Link href="/company" className="underline">
+            Settings
+          </Link>
+          .
         </div>
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 flex-1 rounded-lg bg-neutral-100 text-sm font-medium dark:bg-neutral-800"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className="min-h-11 flex-1 rounded-lg bg-blue-600 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
+      </div>
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-11 flex-1 rounded-lg bg-neutral-100 text-sm font-medium dark:bg-neutral-800"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="min-h-11 flex-1 rounded-lg bg-blue-600 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
       </div>
     </div>
   );

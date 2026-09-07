@@ -5,7 +5,7 @@
 // recompute the invoice on every data refresh without touching Dexie or
 // ExcelJS. All money is integer cents; only formatting produces strings.
 import { effectiveMotorized } from "./export/shared";
-import type { FloorDefaults, ProjectPricing, UnitStatus } from "./types";
+import type { CompanyBilling, FloorDefaults, ProjectPricing, UnitStatus } from "./types";
 
 /** Ontario HST, applied on the invoice subtotal. */
 export const HST_RATE = 0.13;
@@ -173,5 +173,28 @@ export function emptyPricing(): ProjectPricing {
     motorized_premium_cents: null,
     trip_charge_cents: null,
     note: "",
+  };
+}
+
+/**
+ * The pricing the Money card actually computes with: the project's contract
+ * and quoted count, with the company's standard rates. Per-project rates
+ * are ignored on purpose — they moved to Settings (see ProjectPricing).
+ */
+export function effectivePricing(
+  project: ProjectPricing,
+  billing: Pick<
+    CompanyBilling,
+    "removal_per_blind_cents" | "install_per_blind_cents" | "motorized_premium_cents" | "trip_charge_cents"
+  > | null | undefined
+): ProjectPricing {
+  return {
+    contract_cents: project.contract_cents,
+    quoted_blind_count: project.quoted_blind_count,
+    removal_per_blind_cents: billing?.removal_per_blind_cents ?? null,
+    install_per_blind_cents: billing?.install_per_blind_cents ?? null,
+    motorized_premium_cents: billing?.motorized_premium_cents ?? null,
+    trip_charge_cents: billing?.trip_charge_cents ?? null,
+    note: project.note,
   };
 }

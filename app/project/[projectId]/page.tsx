@@ -8,6 +8,10 @@ import type { Floor, FloorDefaults, Project } from "@/lib/types";
 import { TagChipEditor } from "@/components/tag-chip-editor";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { MoneyCard } from "@/components/money-card";
+import { PmAccessCard } from "@/components/pm-access-card";
+import { DeficiencyList } from "@/components/deficiency-list";
+import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
+import type { Deficiency } from "@/lib/types";
 
 function defaultFloorDefaults(): FloorDefaults {
   return {
@@ -57,6 +61,28 @@ export default function ProjectPage() {
   const [newDefaults, setNewDefaults] = useState<FloorDefaults>(defaultFloorDefaults());
   const [saving, setSaving] = useState(false);
   const [editingInfo, setEditingInfo] = useState(false);
+  const [deficiencies, setDeficiencies] = useState<Deficiency[]>([]);
+  const [unitNumbers, setUnitNumbers] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const [ds, fs] = await Promise.all([listDeficiencies(projectId), listFloors(projectId)]);
+      const numbers = new Map<string, string>();
+      for (const f of fs) for (const u of await listUnits(f.id)) numbers.set(u.id, u.number);
+      if (cancelled) return;
+      setDeficiencies(ds);
+      setUnitNumbers(numbers);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  async function handleDeficiency(id: string, status: Deficiency["status"]) {
+    await setDeficiencyStatus(id, status);
+    setDeficiencies(await listDeficiencies(projectId));
+  }
 
   async function refresh() {
     const { project: p, floors: rows } = await loadProjectData(projectId);
@@ -204,7 +230,22 @@ export default function ProjectPage() {
         )}
       </section>
 
+      {deficiencies.some((d) => d.status === "open") && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-neutral-500">
+            Open deficiencies ({deficiencies.filter((d) => d.status === "open").length})
+          </h2>
+          <DeficiencyList
+            items={deficiencies.filter((d) => d.status === "open")}
+            unitNumber={(id) => unitNumbers.get(id) ?? "?"}
+            onResolve={(id) => void handleDeficiency(id, "resolved")}
+          />
+        </section>
+      )}
+
       <MoneyCard project={project} onProjectChange={setProject} />
+
+      <PmAccessCard projectId={projectId} />
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-neutral-500">Room tags</h2>

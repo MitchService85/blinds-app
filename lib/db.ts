@@ -1,11 +1,13 @@
 import Dexie, { type Table } from "dexie";
 import type {
   Company,
+  Deficiency,
   ExportRecord,
   Floor,
   InvoiceRecord,
   Membership,
   Project,
+  ProjectShare,
   Unit,
   UnitPhoto,
   WindowRecord,
@@ -29,7 +31,9 @@ export type OutboxTableName =
   | "windows"
   | "photos"
   | "exports"
-  | "invoices";
+  | "invoices"
+  | "project_shares"
+  | "deficiencies";
 export type OutboxOp = "put" | "delete";
 
 export interface OutboxEntry {
@@ -54,6 +58,8 @@ class MeasureDB extends Dexie {
   photos!: Table<UnitPhoto, string>;
   exports!: Table<ExportRecord, string>;
   invoices!: Table<InvoiceRecord, string>;
+  project_shares!: Table<ProjectShare, string>;
+  deficiencies!: Table<Deficiency, string>;
   companies!: Table<Company, string>;
   memberships!: Table<Membership, string>;
   outbox!: Table<OutboxEntry, number>;
@@ -93,6 +99,11 @@ class MeasureDB extends Dexie {
     // issue_date so the invoices screen can order without a full scan.
     this.version(6).stores({
       invoices: "id, project_id, issue_date, status, updated_at, deleted",
+    });
+    // v7: PM share links and the deficiencies they raise.
+    this.version(7).stores({
+      project_shares: "id, project_id, updated_at, deleted",
+      deficiencies: "id, project_id, unit_id, status, updated_at, deleted",
     });
   }
 }
@@ -569,6 +580,67 @@ export async function listAllInvoices(): Promise<InvoiceRecord[]> {
   return rows
     .filter((r) => !r.deleted)
     .sort((a, b) => b.issue_date.localeCompare(a.issue_date) || b.updated_at.localeCompare(a.updated_at));
+}
+
+// ---------------------------------------------------------------------------
+// PM share links and deficiencies
+// ---------------------------------------------------------------------------
+
+/** 32 random bytes, URL-safe. The link IS the authorisation, so it is long. */
+export function newShareToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (const b of bytes) out += b.toString(16).padStart(2, "0");
+  return out;
+}
+
+export async function createProjectShare(projectId: string, label: string): Promise<ProjectShare> {
+  return writeRow(db.project_shares, "project_shares", {
+    company_id: await parentCompanyId(db.projects, projectId),
+    id: newId(),
+    updated_at: "",
+    deleted: false,
+    project_id: projectId,
+    token: newShareToken(),
+    label,
+    revoked_at: null,
+    last_used_at: null,
+  });
+}
+
+export async function revokeProjectShare(id: string): Promise<void> {
+  const existing = await db.project_shares.get(id);
+  if (!existing) return;
+  await writeRow(db.project_shares, "project_shares", {
+    ...existing,
+    revoked_at: new Date().toISOString(),
+  });
+}
+
+export async function listProjectShares(projectId: string): Promise<ProjectShare[]> {
+  const rows = await db.project_shares.where("project_id").equals(projectId).toArray();
+  return rows.filter((r) => !r.deleted).sort((a, b) => a.updated_at.localeCompare(b.updated_at));
+}
+
+export async function listDeficiencies(projectId: string): Promise<Deficiency[]> {
+  const rows = await db.deficiencies.where("project_id").equals(projectId).toArray();
+  return rows.filter((r) => !r.deleted).sort((a, b) => b.raised_at.localeCompare(a.raised_at));
+}
+
+export async function listAllDeficiencies(): Promise<Deficiency[]> {
+  const rows = await db.deficiencies.toArray();
+  return rows.filter((r) => !r.deleted);
+}
+
+export async function setDeficiencyStatus(id: string, status: Deficiency["status"]): Promise<void> {
+  const existing = await db.deficiencies.get(id);
+  if (!existing) return;
+  await writeRow(db.deficiencies, "deficiencies", {
+    ...existing,
+    status,
+    resolved_at: status === "resolved" ? new Date().toISOString() : null,
+  });
 }
 
 // ---------------------------------------------------------------------------

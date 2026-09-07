@@ -24,13 +24,15 @@ export type BuildingType = "residential" | "commercial";
 /**
  * Job money for a project (see docs/superpowers/plans/2026-08-21-job-money-plan.md).
  *
- * Danny prices the contract off plan takeoffs and locks it BEFORE the crew
+ * The contract is priced off plan takeoffs and locked BEFORE the crew
  * measures, so there is no quote generation here: contract_cents is a recorded
- * fact, quoted_blind_count is his takeoff to compare actuals against, and the
- * per-unit rates are the crew's own billables on top. All money is integer
- * cents (same no-floats rule as integer sixteenths). A null rate means that
- * line simply isn't billed on this job — e.g. install already inside Danny's
- * contract.
+ * fact and quoted_blind_count is the takeoff to compare actuals against. All
+ * money is integer cents (same no-floats rule as integer sixteenths).
+ *
+ * The per-blind rates below are LEGACY as of 2026-09-06: rates are company
+ * defaults in CompanyBilling now, and the Money card reads those. The fields
+ * stay so rows written before the move still parse; the UI no longer edits
+ * them.
  */
 export interface ProjectPricing {
   /** Danny's locked contract price. */
@@ -352,8 +354,19 @@ export interface CompanyBilling {
   payment_terms: string;
   /** How to pay — e-transfer address, cheque payee, banking details. */
   payment_instructions: string;
-  /** Default bill-to block for a new invoice, e.g. Elite's AP address. */
+  /** Default bill-to block for a new invoice — the office most jobs bill to. */
   default_bill_to: string;
+  /**
+   * The company's standard rates, applied to every job. Integer cents; null
+   * = that line is not billed. These moved here from per-project pricing on
+   * 2026-09-06: a crew charges the same install rate on every job, so the
+   * project screen now asks only for what varies — the contract and the
+   * quoted count.
+   */
+  removal_per_blind_cents?: number | null;
+  install_per_blind_cents?: number | null;
+  motorized_premium_cents?: number | null;
+  trip_charge_cents?: number | null;
 }
 
 export type MemberRole = "admin" | "member";
@@ -438,4 +451,37 @@ export interface InvoiceRecord extends TenantRow {
   /** How to pay, copied from company billing at issue time. */
   payment_instructions: string;
   issuer: InvoiceIssuer;
+}
+
+/**
+ * A link handed to an external project manager for ONE project (see
+ * docs/superpowers/specs/2026-09-06-pm-view-design.md). The token is the
+ * whole authorisation; setting revoked_at kills it on their next request.
+ */
+export interface ProjectShare extends TenantRow {
+  project_id: string;
+  token: string;
+  /** Who holds it, e.g. "Pentacon PM". Stamped as raised_by on their flags. */
+  label: string;
+  revoked_at: string | null;
+  last_used_at: string | null;
+}
+
+export type DeficiencyStatus = "open" | "resolved";
+
+/**
+ * A complaint raised by a PM through their share link — the customer's
+ * words, not our fault attribution (that is the per-blind issue fields).
+ */
+export interface Deficiency extends TenantRow {
+  project_id: string;
+  unit_id: string;
+  /** Null when the complaint is about the unit as a whole. */
+  window_id: string | null;
+  share_id: string | null;
+  note: string;
+  raised_by: string;
+  raised_at: string;
+  status: DeficiencyStatus;
+  resolved_at: string | null;
 }

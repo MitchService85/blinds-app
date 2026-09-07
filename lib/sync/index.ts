@@ -139,6 +139,8 @@ const TABLES: OutboxTableName[] = [
   "windows",
   "photos",
   "exports",
+  "project_shares",
+  "deficiencies",
 ];
 
 function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
@@ -161,6 +163,10 @@ function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
       return db.photos as unknown as Table<SyncedRow, string>;
     case "exports":
       return db.exports as unknown as Table<SyncedRow, string>;
+    case "project_shares":
+      return db.project_shares as unknown as Table<SyncedRow, string>;
+    case "deficiencies":
+      return db.deficiencies as unknown as Table<SyncedRow, string>;
   }
 }
 
@@ -337,6 +343,17 @@ function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
     r.payment_instructions = r.payment_instructions ?? "";
   } else if (table === "companies") {
     r.billing = r.billing ?? null;
+  } else if (table === "project_shares") {
+    r.label = r.label ?? "";
+    r.revoked_at = r.revoked_at ?? null;
+    r.last_used_at = r.last_used_at ?? null;
+  } else if (table === "deficiencies") {
+    r.window_id = r.window_id ?? null;
+    r.share_id = r.share_id ?? null;
+    r.note = r.note ?? "";
+    r.raised_by = r.raised_by ?? "";
+    r.status = r.status ?? "open";
+    r.resolved_at = r.resolved_at ?? null;
   }
   return r as unknown as SyncedRow;
 }

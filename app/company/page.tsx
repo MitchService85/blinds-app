@@ -13,6 +13,7 @@ import {
 import { compressImage } from "@/lib/photos";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { emptyBilling } from "@/lib/invoice/draft";
+import { parseDollarsToCents } from "@/lib/pricing";
 import type { Company, CompanyBilling, Membership } from "@/lib/types";
 
 /**
@@ -379,6 +380,35 @@ function BillingSection({
             value={billing.payment_instructions}
             onChange={(v) => onChange({ payment_instructions: v })}
           />
+          <div className="mt-1 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+            <div className="mb-2 text-sm font-semibold text-neutral-500">Labour rates</div>
+            <div className="mb-3 text-xs text-neutral-400">
+              Charged on every job on top of the contract. Leave a rate blank when you don&apos;t bill
+              that line.
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <RateField
+                label="Install, per blind"
+                cents={billing.install_per_blind_cents ?? null}
+                onChange={(v) => onChange({ install_per_blind_cents: v })}
+              />
+              <RateField
+                label="Removal, per old blind"
+                cents={billing.removal_per_blind_cents ?? null}
+                onChange={(v) => onChange({ removal_per_blind_cents: v })}
+              />
+              <RateField
+                label="Motorized premium, per blind"
+                cents={billing.motorized_premium_cents ?? null}
+                onChange={(v) => onChange({ motorized_premium_cents: v })}
+              />
+              <RateField
+                label="Trip charge, per trip"
+                cents={billing.trip_charge_cents ?? null}
+                onChange={(v) => onChange({ trip_charge_cents: v })}
+              />
+            </div>
+          </div>
           <BillingField
             label="Default bill to"
             hint="Prefilled on every new invoice — usually the office you send them all to."
@@ -434,6 +464,46 @@ function BillingField({
         />
       )}
       {hint && <span className="mt-1 block text-xs text-neutral-400">{hint}</span>}
+    </label>
+  );
+}
+
+/** A dollar amount held as text while typing, stored as integer cents. */
+function RateField({
+  label,
+  cents,
+  onChange,
+}: {
+  label: string;
+  cents: number | null;
+  onChange: (cents: number | null) => void;
+}) {
+  const [text, setText] = useState(cents === null ? "" : (cents / 100).toFixed(2).replace(/\.00$/, ""));
+  const invalid = text.trim() !== "" && parseDollarsToCents(text) === null;
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs text-neutral-500">{label}</span>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">
+          $
+        </span>
+        <input
+          value={text}
+          inputMode="decimal"
+          placeholder="not billed"
+          onChange={(e) => {
+            setText(e.target.value);
+            if (e.target.value.trim() === "") onChange(null);
+            else {
+              const parsed = parseDollarsToCents(e.target.value);
+              if (parsed !== null) onChange(parsed);
+            }
+          }}
+          className={`min-h-11 w-full rounded-lg border px-3 pl-7 text-sm dark:bg-neutral-900 ${
+            invalid ? "border-red-400 dark:border-red-600" : "border-neutral-300 dark:border-neutral-700"
+          }`}
+        />
+      </div>
     </label>
   );
 }

@@ -138,7 +138,7 @@ export default function HelpPage() {
         <p>Everything saves by itself the moment you tap it. <b>Save · next window</b> just moves you to the next one.</p>
         <p><b>Measure</b> and <b>Mount</b> are two separate questions. Measure (Tight / Finished) is how you measured — tight to the opening so the factory takes its deduction, or the finished blind size as-is; Mount (Inside / Outside) is where the blind sits. A floor can set both. Pick them once in the floor&apos;s Edit bar and every exported row says so (&quot;TIGHT MEASURES&quot; / &quot;FINISHED MEASURES&quot;). One odd window? Override either one right on that window.</p>
         <p><b>Sample Building (demo)</b> is a made-up job for trying things out. It only shows when you&apos;re signed out, it never syncs anywhere, and it disappears once you sign in and your real jobs load. Real work is only ever visible to someone signed in to your company.</p>
-        <p>If you and Mike both create the same unit while apart, the floor shows a warning after sync with a one-tap <b>Merge</b>. Nothing is lost: every window and photo from both copies ends up on one unit, notes are joined, and repeated room tags renumber themselves (his LR becomes LR3 next to your LR1/LR2).</p>
+        <p>If two people create the same unit while apart, the floor shows a warning after sync with a one-tap <b>Merge</b>. Nothing is lost: every window and photo from both copies ends up on one unit, notes are joined, and repeated room tags renumber themselves (their LR becomes LR3 next to your LR1/LR2).</p>
         <p>Opening a unit that already has windows shows them first, with <b>+ Add window</b> underneath, so you can see what exists without scrolling. An empty unit goes straight to entry, and <b>Save · next window</b> keeps you entering, so a long run is never interrupted.</p>
         <p><b>Control per panel</b> shows up on residential bay windows: tap a panel to move it between the floor&apos;s default side, L and R. At 15 Neighborhood the left panel takes left control while the other two stay default. It stays hidden on office jobs, where left hand is rarely used.</p>
         <p><b>Fabric codes</b> live in the floor&apos;s Edit bar under &ldquo;Fabric color codes&rdquo;, and go in the sheet&apos;s header so the factory knows which fabric each room takes. There are five: <b>MBED</b> (master bedroom), <b>LIV</b>, <b>BED</b>, <b>KIT</b> and <b>STU</b>. Leave MBED blank and it uses the BED code, since a master usually takes the same treatment. <b>STU</b> is for a studio or bachelor, where the whole place doubles as the bedroom and normally wants blackout even though nothing in it is tagged as a bedroom.</p>
@@ -176,7 +176,7 @@ export default function HelpPage() {
 
       <Section title="Sending to the factory" visual={
         <div className="rounded-lg bg-neutral-800 p-3 text-center text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900">
-          Export → “44 Charles - Batch 4.xlsx”
+          Export → “Lakeside Towers - Level 4.xlsx”
         </div>
       }>
         <p>When a floor is measured, tap <b>Export</b>. You get the exact spreadsheet the factory expects, and your phone&apos;s share sheet sends it — Google Drive, email, AirDrop.</p>

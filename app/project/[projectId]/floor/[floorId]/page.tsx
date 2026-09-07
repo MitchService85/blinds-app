@@ -26,6 +26,9 @@ import { effectiveMeasure, effectiveMount, windowBlindCount, windowTagLabel } fr
 import { findDuplicateUnitNumbers, mergeUnits } from "@/lib/merge-units";
 import { BottomBar } from "@/components/bottom-bar";
 import { issueSummary, windowHasIssue } from "@/components/window-issue";
+import { DeficiencyList } from "@/components/deficiency-list";
+import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
+import type { Deficiency } from "@/lib/types";
 
 type FloorMode = "measure" | "install";
 const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
@@ -73,6 +76,23 @@ export default function FloorPage() {
   const [noteUnitId, setNoteUnitId] = useState<string | null>(null);
   const [mode, setMode] = useState<FloorMode>("measure");
   const [installSheetUnitId, setInstallSheetUnitId] = useState<string | null>(null);
+  const [deficiencies, setDeficiencies] = useState<Deficiency[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listDeficiencies(projectId).then((rows) => {
+      if (!cancelled) setDeficiencies(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  async function handleDeficiency(id: string, status: Deficiency["status"]) {
+    await setDeficiencyStatus(id, status);
+    setDeficiencies(await listDeficiencies(projectId));
+    triggerSyncIfAvailable();
+  }
 
   useEffect(() => {
     const stored = window.localStorage.getItem(`${FLOOR_MODE_KEY_PREFIX}${floorId}`);
@@ -482,6 +502,28 @@ export default function FloorPage() {
           )}
         </>
       )}
+
+      {(() => {
+        const unitIds = new Set(units.map((u) => u.id));
+        const open = deficiencies.filter((d) => d.status === "open" && unitIds.has(d.unit_id));
+        if (open.length === 0) return null;
+        return (
+          <div className="rounded-xl border border-rose-300 p-3 dark:border-rose-800">
+            <div className="mb-2 text-sm font-semibold text-rose-900 dark:text-rose-200">
+              PM deficiencies on this floor ({open.length})
+            </div>
+            <DeficiencyList
+              items={open}
+              unitNumber={(id) => units.find((u) => u.id === id)?.number ?? "?"}
+              windowLabel={(id) => {
+                const w = [...windowsByUnit.values()].flat().find((x) => x.id === id);
+                return w ? windowTagLabel(w) : "blind";
+              }}
+              onResolve={(id) => void handleDeficiency(id, "resolved")}
+            />
+          </div>
+        );
+      })()}
 
       {duplicateNumbers.size > 0 && mode === "measure" && (
         <div className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">

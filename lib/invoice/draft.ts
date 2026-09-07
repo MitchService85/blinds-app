@@ -25,6 +25,10 @@ export function emptyBilling(): CompanyBilling {
     payment_terms: "Net 30",
     payment_instructions: "",
     default_bill_to: "",
+    removal_per_blind_cents: null,
+    install_per_blind_cents: null,
+    motorized_premium_cents: null,
+    trip_charge_cents: null,
   };
 }
 
