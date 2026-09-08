@@ -161,18 +161,21 @@ export function UnitTile({
             >
               {unit.note ? "Edit note" : "Note"}
             </button>
-            {windowCount === 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  onDelete();
-                  setMenuOpen(false);
-                }}
-                className="block min-h-11 w-full px-3 text-left text-sm text-red-600 active:bg-red-50 dark:active:bg-red-950"
-              >
-                Delete unit
-              </button>
-            )}
+            {/* Always offered. It used to appear only for an empty unit, which
+                left a test unit with one window undeletable and gave no hint
+                why; the floor page confirms with what goes along with it. */}
+            <button
+              type="button"
+              onClick={() => {
+                onDelete();
+                setMenuOpen(false);
+              }}
+              className="block min-h-11 w-full px-3 text-left text-sm text-red-600 active:bg-red-50 dark:active:bg-red-950"
+            >
+              {windowCount === 0
+                ? "Delete unit"
+                : `Delete unit + ${windowCount} window${windowCount === 1 ? "" : "s"}`}
+            </button>
           </div>
         </>
       )}

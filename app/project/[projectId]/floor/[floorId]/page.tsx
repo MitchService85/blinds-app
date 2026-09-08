@@ -259,8 +259,16 @@ export default function FloorPage() {
   }
 
   async function handleDeleteUnit(unitId: string) {
+    const unit = units.find((u) => u.id === unitId);
+    const count = windowsByUnit.get(unitId)?.length ?? 0;
+    const what =
+      count === 0
+        ? `Delete unit ${unit?.number ?? ""}?`
+        : `Delete unit ${unit?.number ?? ""} and its ${count} window${count === 1 ? "" : "s"}? The measurements go with it.`;
+    if (!window.confirm(what)) return;
     await deleteUnit(unitId);
     await refresh();
+    triggerSyncIfAvailable();
   }
 
   /**

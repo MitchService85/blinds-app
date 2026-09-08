@@ -293,9 +293,23 @@ export async function updateUnit(id: string, patch: Partial<Omit<Unit, "id">>): 
   return writeRow(db.units, "units", { ...existing, ...patch });
 }
 
+/**
+ * Soft-delete a unit AND everything hanging off it. Children are tombstoned
+ * through the same funnel so the other phone drops them too; leaving them
+ * live under a deleted parent is invisible in the UI (every reader walks
+ * units first) but it is exactly the kind of orphan a later feature trips
+ * on. Deficiencies are left alone: a PM's complaint is a record of what
+ * they said, not a child of our data model.
+ */
 export async function deleteUnit(id: string): Promise<void> {
   const existing = await db.units.get(id);
   if (!existing) return;
+  const [windows, photos] = await Promise.all([
+    db.windows.where("unit_id").equals(id).filter((w) => !w.deleted).toArray(),
+    db.photos.where("unit_id").equals(id).filter((ph) => !ph.deleted).toArray(),
+  ]);
+  for (const w of windows) await writeRow(db.windows, "windows", { ...w, deleted: true }, "delete");
+  for (const ph of photos) await writeRow(db.photos, "photos", { ...ph, deleted: true }, "delete");
   await writeRow(db.units, "units", { ...existing, deleted: true }, "delete");
 }
 
