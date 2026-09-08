@@ -185,6 +185,13 @@ export interface Unit extends TenantRow {
    */
   removed?: number;
   sort_order: number;
+  /**
+   * The crew could not get in (tenant out, door locked, no key). Independent
+   * of install_blocked: blocked is OUR problem (factory/measure errors) and
+   * stays internal; locked is the customer's to fix, so it is the one state
+   * the PM view shows besides done. Absent on rows older than 2026-09-08.
+   */
+  locked?: boolean;
 }
 
 export type Deduct = null | "Dl" | "Dr" | "D";

@@ -306,6 +306,7 @@ function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
     r.note = r.note ?? "";
     r.install = r.install ?? null;
     r.install_blocked = r.install_blocked ?? false;
+    r.locked = r.locked ?? false;
     r.removed = r.removed ?? 0;
   } else if (table === "windows") {
     r.quantity = r.quantity ?? 1;

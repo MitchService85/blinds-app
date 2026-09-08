@@ -34,6 +34,8 @@ export interface PmUnit {
   id: string;
   number: string;
   done: boolean;
+  /** The crew could not get in — the PM arranges access. */
+  locked: boolean;
   windows: PmWindow[];
   deficiencies: PmDeficiency[];
 }

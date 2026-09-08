@@ -19,7 +19,7 @@ import type { Floor, FloorDefaults, InstallStatus, Project, Unit, UnitStatus, Wi
 import { UnitTile } from "@/components/unit-tile";
 import { InstallTile } from "@/components/install-tile";
 import { InstallActionSheet, type InstallAction } from "@/components/install-action-sheet";
-import { blockedOf, installOf } from "@/components/status";
+import { blockedOf, installOf, lockedOf } from "@/components/status";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { ExportButton } from "@/components/export-button";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
@@ -140,12 +140,14 @@ export default function FloorPage() {
     let staged = 0;
     let done = 0;
     let blocked = 0;
+    let locked = 0;
     let toGo = 0;
     const blockedUnits: Unit[] = [];
     for (const u of units) {
       if (u.status === "na") continue;
       const isBlocked = blockedOf(u);
       const install = installOf(u);
+      if (lockedOf(u)) locked++;
       if (isBlocked) {
         blocked++;
         blockedUnits.push(u);
@@ -156,7 +158,7 @@ export default function FloorPage() {
       }
       if (!isBlocked && install !== "done") toGo++;
     }
-    return { staged, done, blocked, toGo, blockedUnits };
+    return { staged, done, blocked, locked, toGo, blockedUnits };
   }, [units]);
 
   /** Every flagged blind on the floor — the install-mode issues panel, and
@@ -285,19 +287,23 @@ export default function FloorPage() {
     const unit = units.find((u) => u.id === unitId);
     if (!unit) return;
 
-    let patch: { install?: InstallStatus; install_blocked?: boolean };
+    let patch: { install?: InstallStatus; install_blocked?: boolean; locked?: boolean };
     switch (action) {
       case "staged":
-        patch = { install: "staged", install_blocked: false };
+        patch = { install: "staged", install_blocked: false, locked: false };
         break;
       case "complete":
-        patch = { install: "done", install_blocked: false };
+        patch = { install: "done", install_blocked: false, locked: false };
         break;
       case "clear":
-        patch = { install: null, install_blocked: false };
+        patch = { install: null, install_blocked: false, locked: false };
         break;
       case "blocked":
         patch = { install_blocked: true };
+        break;
+      case "locked":
+        // Toggle: tapping it again on a locked unit means we got in.
+        patch = { locked: !lockedOf(unit) };
         break;
     }
     await updateUnit(unitId, patch);
@@ -479,6 +485,9 @@ export default function FloorPage() {
             <span className="inline-flex items-center gap-1"><Icon name="circle-dot" size={14} className="text-emerald-600" />{installSummary.staged} staged</span>
             <span className="inline-flex items-center gap-1"><Icon name="check-circle" size={14} className="text-emerald-600" />{installSummary.done} done</span>
             <span className="inline-flex items-center gap-1"><Icon name="alert" size={14} className="text-amber-600" />{installSummary.blocked} blocked</span>
+            {installSummary.locked > 0 && (
+              <span className="inline-flex items-center gap-1"><Icon name="lock" size={14} className="text-violet-600" />{installSummary.locked} locked</span>
+            )}
             <span>{installSummary.toGo} to go</span>
           </div>
           {/* Only blocked units that carry a note: since per-blind issues,

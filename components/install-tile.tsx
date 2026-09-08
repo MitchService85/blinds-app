@@ -2,7 +2,7 @@
 
 import type { Unit } from "@/lib/types";
 import { Icon } from "@/components/icon";
-import { blockedOf, deriveInstallState, INSTALL_STATE_TILE_CLASSES, installOf } from "./status";
+import { blockedOf, deriveInstallState, INSTALL_STATE_TILE_CLASSES, installOf, lockedOf } from "./status";
 
 interface InstallTileProps {
   unit: Unit;
@@ -28,6 +28,12 @@ export function InstallTile({ unit, blindCount, onTap }: InstallTileProps) {
 
   let subline: React.ReactNode = "—";
   if (state === "na") subline = "N/A";
+  else if (lockedOf(unit))
+    subline = (
+      <>
+        <Icon name="lock" size={12} /> locked
+      </>
+    );
   else if (blocked)
     subline = (
       <>

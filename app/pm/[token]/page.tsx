@@ -10,6 +10,7 @@ import {
   type PmProject,
   type PmUnit,
 } from "@/lib/pm";
+import { Icon } from "@/components/icon";
 
 /**
  * What an external project manager sees (see
@@ -72,6 +73,11 @@ export default function PmPage() {
         {data.project.address && <div className="text-sm text-neutral-500">{data.project.address}</div>}
         <div className="mt-2 text-sm">
           <b>{total.done}</b> of <b>{total.total}</b> units done
+          {allUnits.some((u) => u.locked) && (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-900 dark:bg-violet-900/40 dark:text-violet-200">
+              <Icon name="lock" size={12} /> {allUnits.filter((u) => u.locked).length} locked, access needed
+            </span>
+          )}
         </div>
         <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
           <div
@@ -100,13 +106,27 @@ export default function PmPage() {
                     type="button"
                     onClick={() => setOpenUnitId(u.id === openUnitId ? null : u.id)}
                     className={`relative flex min-h-16 flex-col items-center justify-center rounded-lg border px-2 py-2 text-center ${
-                      u.done
-                        ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
-                        : "border-neutral-300 bg-neutral-50 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                      u.locked
+                        ? "border-violet-400 bg-violet-100 text-violet-900 dark:border-violet-600 dark:bg-violet-900/40 dark:text-violet-200"
+                        : u.done
+                          ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
+                          : "border-neutral-300 bg-neutral-50 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
                     } ${u.id === openUnitId ? "ring-2 ring-blue-500" : ""}`}
                   >
                     <span className="w-full truncate text-sm font-semibold">{u.number}</span>
-                    <span className="text-[11px] opacity-80">{u.done ? "✓ done" : "not yet"}</span>
+                    <span className="inline-flex items-center gap-1 text-[11px] opacity-80">
+                      {u.locked ? (
+                        <>
+                          <Icon name="lock" size={12} /> locked
+                        </>
+                      ) : u.done ? (
+                        <>
+                          <Icon name="check" size={12} /> done
+                        </>
+                      ) : (
+                        "not yet"
+                      )}
+                    </span>
                     {open > 0 && (
                       <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
                         {open}
@@ -185,8 +205,26 @@ function UnitPanel({
     <section className="rounded-xl border border-blue-300 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/20">
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-base font-semibold">Unit {unit.number}</h2>
-        <span className={`text-xs font-medium ${unit.done ? "text-emerald-700 dark:text-emerald-300" : "text-neutral-500"}`}>
-          {unit.done ? "✓ Installed" : "Not installed yet"}
+        <span
+          className={`inline-flex items-center gap-1 text-xs font-medium ${
+            unit.locked
+              ? "text-violet-700 dark:text-violet-300"
+              : unit.done
+                ? "text-emerald-700 dark:text-emerald-300"
+                : "text-neutral-500"
+          }`}
+        >
+          {unit.locked ? (
+            <>
+              <Icon name="lock" size={14} /> Locked — the crew couldn&apos;t get in
+            </>
+          ) : unit.done ? (
+            <>
+              <Icon name="check" size={14} /> Installed
+            </>
+          ) : (
+            "Not installed yet"
+          )}
         </span>
       </div>
 

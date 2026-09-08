@@ -48,13 +48,18 @@ export function blockedOf(unit: Pick<Unit, "install_blocked">): boolean {
   return unit.install_blocked ?? false;
 }
 
-export type InstallTileState = "na" | "blocked" | "done" | "staged" | "not_started";
+export function lockedOf(unit: Pick<Unit, "locked">): boolean {
+  return unit.locked ?? false;
+}
 
-/** Blocked wins over any install state (see spec); N/A wins over blocked. */
+export type InstallTileState = "na" | "locked" | "blocked" | "done" | "staged" | "not_started";
+
+/** N/A wins, then locked (we never got in), then blocked, then install state. */
 export function deriveInstallState(
-  unit: Pick<Unit, "status" | "install" | "install_blocked">
+  unit: Pick<Unit, "status" | "install" | "install_blocked" | "locked">
 ): InstallTileState {
   if (unit.status === "na") return "na";
+  if (lockedOf(unit)) return "locked";
   if (blockedOf(unit)) return "blocked";
   const install = installOf(unit);
   if (install === "done") return "done";
@@ -65,6 +70,8 @@ export function deriveInstallState(
 export const INSTALL_STATE_TILE_CLASSES: Record<InstallTileState, string> = {
   na: UNIT_STATE_TILE_CLASSES.na,
   not_started: UNIT_STATE_TILE_CLASSES.not_started,
+  locked:
+    "bg-violet-100 text-violet-900 border-violet-400 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-600",
   blocked:
     "bg-amber-100 text-amber-900 border-amber-400 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-600",
   staged:

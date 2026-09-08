@@ -16,7 +16,8 @@ export type IconName =
   | "more"
   | "close"
   | "copy"
-  | "help";
+  | "help"
+  | "lock";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   alert: (
@@ -79,6 +80,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <rect x="9" y="9" width="11" height="11" rx="1.5" />
       <path d="M15 9V5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15H9" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="1.8" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+      <circle cx="12" cy="15.3" r="1.3" fill="currentColor" stroke="none" />
     </>
   ),
   help: (

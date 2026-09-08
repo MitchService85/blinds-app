@@ -2,11 +2,11 @@
 
 import type { Unit, WindowRecord } from "@/lib/types";
 import { Icon } from "@/components/icon";
-import { blockedOf, installOf } from "./status";
+import { blockedOf, installOf, lockedOf } from "./status";
 import { windowBlindCount, windowTagLabel } from "@/lib/export/shared";
 import { issueSummary, windowHasIssue } from "./window-issue";
 
-export type InstallAction = "staged" | "complete" | "blocked" | "clear";
+export type InstallAction = "staged" | "complete" | "blocked" | "locked" | "clear";
 
 interface InstallActionSheetProps {
   unit: Unit | null;
@@ -37,6 +37,7 @@ export function InstallActionSheet({
 
   const install = installOf(unit);
   const blocked = blockedOf(unit);
+  const locked = lockedOf(unit);
   const issues = (windows ?? []).filter(windowHasIssue);
   // Openings vs blinds differ on bays and repeat rows (one 3-panel bay is
   // three blinds, three sets of brackets), so both are worth stating here —
@@ -96,6 +97,13 @@ export function InstallActionSheet({
             onClick={() => onAction("complete")}
           />
           <ActionButton label={<><Icon name="alert" className="text-amber-600" /> Blocked</>} active={blocked} onClick={() => onAction("blocked")} />
+          {/* Couldn't get in. The one exception the PM sees, because access is
+              theirs to arrange; blocked stays internal. */}
+          <ActionButton
+            label={<><Icon name="lock" className="text-violet-600" /> Locked out</>}
+            active={locked}
+            onClick={() => onAction("locked")}
+          />
           <ActionButton
             label="Clear"
             active={!blocked && install === null}
