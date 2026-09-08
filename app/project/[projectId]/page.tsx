@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { createFloor, getProject, listFloors, listUnits, updateProject } from "@/lib/db";
+import { createFloor, duplicateFloor, getProject, listFloors, listUnits, updateProject } from "@/lib/db";
+import { nextFloorLabel } from "@/lib/floor-copy";
+import { Icon } from "@/components/icon";
+import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import type { Floor, FloorDefaults, Project } from "@/lib/types";
 import { TagChipEditor } from "@/components/tag-chip-editor";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
@@ -112,6 +115,29 @@ export default function ProjectPage() {
     }
   }
 
+  const [duplicating, setDuplicating] = useState(false);
+
+  /** Copy a floor's defaults, units and measurements under a new label —
+   * towers repeat, and nobody should type 115 windows twice. */
+  async function handleDuplicateFloor(floorId: string, label: string) {
+    if (duplicating) return;
+    const suggested = nextFloorLabel(label);
+    const newLabel = window.prompt(`Copy "${label}" as a new floor named:`, suggested)?.trim();
+    if (!newLabel) return;
+    if (floors.some((f) => f.floor.label.trim().toLowerCase() === newLabel.toLowerCase())) {
+      window.alert(`There is already a floor called "${newLabel}".`);
+      return;
+    }
+    setDuplicating(true);
+    try {
+      await duplicateFloor(floorId, newLabel);
+      await refresh();
+      triggerSyncIfAvailable();
+    } finally {
+      setDuplicating(false);
+    }
+  }
+
   async function handleChipsChange(chips: string[]) {
     if (!project) return;
     const updated = await updateProject(project.id, { tag_chips: chips });
@@ -159,7 +185,7 @@ export default function ProjectPage() {
               onChange={(e) => handleInfoChange(e.target.value, project.address)}
               className="min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
             />
-            <span className="mt-1 block text-xs text-neutral-400">
+            <span className="mt-1 block text-xs text-neutral-500">
               Used in the export: “{project.name || "Project"} - Floor.xlsx”
             </span>
           </label>
@@ -178,16 +204,35 @@ export default function ProjectPage() {
         <h2 className="mb-2 text-sm font-semibold text-neutral-500">Floors / batches</h2>
         <div className="flex flex-col gap-2">
           {floors.map(({ floor, done, total }) => (
-            <Link
+            <div
               key={floor.id}
-              href={`/project/${projectId}/floor/${floor.id}`}
-              className="flex min-h-14 items-center justify-between rounded-xl border border-neutral-200 p-4 active:bg-neutral-50 dark:border-neutral-800 dark:active:bg-neutral-900"
+              className="flex min-h-14 items-stretch rounded-xl border border-neutral-200 dark:border-neutral-800"
             >
-              <span className="font-medium">{floor.label}</span>
-              <span className="text-sm text-neutral-500">
-                {total > 0 && done === total ? "✓ done" : `${done}/${total}`}
-              </span>
-            </Link>
+              <Link
+                href={`/project/${projectId}/floor/${floor.id}`}
+                className="flex min-w-0 flex-1 items-center justify-between rounded-l-xl p-4 active:bg-neutral-50 dark:active:bg-neutral-900"
+              >
+                <span className="truncate font-medium">{floor.label}</span>
+                <span className="ml-3 shrink-0 text-sm text-neutral-500">
+                  {total > 0 && done === total ? (
+                    <>
+                      <Icon name="check" size={16} className="text-emerald-600" /> done
+                    </>
+                  ) : (
+                    `${done}/${total}`
+                  )}
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => void handleDuplicateFloor(floor.id, floor.label)}
+                aria-label={`Duplicate ${floor.label}`}
+                title="Duplicate this floor's units and measurements"
+                className="flex w-12 items-center justify-center rounded-r-xl border-l border-neutral-200 text-neutral-500 active:bg-neutral-50 dark:border-neutral-800 dark:active:bg-neutral-900"
+              >
+                <Icon name="copy" />
+              </button>
+            </div>
           ))}
         </div>
 

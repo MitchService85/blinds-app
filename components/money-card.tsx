@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/icon";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -248,7 +249,7 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
         <div className="mb-2 flex items-baseline justify-between">
           <h3 className="text-sm font-semibold text-neutral-500">Invoices</h3>
           {projectInvoices.length > 0 && (
-            <span className="text-xs text-neutral-400">
+            <span className="text-xs text-neutral-500">
               {formatCents(
                 projectInvoices
                   .filter((i) => i.status !== "draft")
@@ -287,7 +288,7 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
           {creating ? "Creating…" : "+ New invoice"}
         </button>
         {!invoice && (
-          <div className="mt-1 text-xs text-neutral-400">
+          <div className="mt-1 text-xs text-neutral-500">
             Set the contract first — an invoice starts from these lines.
           </div>
         )}
@@ -340,7 +341,7 @@ function InvoiceLines({ invoice }: { invoice: Invoice }) {
             <dt className="text-neutral-600 dark:text-neutral-300">
               {line.label}
               {line.qty !== null && line.unit_cents !== null && (
-                <span className="text-neutral-400">
+                <span className="text-neutral-500">
                   {" "}
                   ({line.qty} × {formatCents(line.unit_cents)})
                 </span>
@@ -387,7 +388,7 @@ function VarianceBadge({ invoice }: { invoice: Invoice }) {
   if (invoice.variance > 0) {
     return (
       <div className={`${base} bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200`}>
-        ⚠ {invoice.actual_blinds} measured — {invoice.variance} over quote
+        <Icon name="alert" size={14} /> {invoice.actual_blinds} measured — {invoice.variance} over quote
       </div>
     );
   }
@@ -400,7 +401,7 @@ function VarianceBadge({ invoice }: { invoice: Invoice }) {
   }
   return (
     <div className={`${base} bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200`}>
-      ✓ {invoice.actual_blinds} measured — matches quote
+      <Icon name="check" size={14} /> {invoice.actual_blinds} measured — matches quote
     </div>
   );
 }
@@ -473,7 +474,7 @@ function PricingSheet({ initial, onSave, onClose }: PricingSheetProps) {
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>
-        <div className="text-xs text-neutral-400">
+        <div className="text-xs text-neutral-500">
           Labour rates (install, removal, motorized, trips) are set once for the whole company in{" "}
           <Link href="/company" className="underline">
             Settings
@@ -516,7 +517,7 @@ function DollarField({
     <label>
       <span className="mb-1 block text-sm text-neutral-500">{label}</span>
       <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
           $
         </span>
         <input

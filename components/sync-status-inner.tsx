@@ -28,7 +28,7 @@ export function SyncStatusInner() {
     ? status.state === "pending"
       ? `${status.pendingCount} pending`
       : (STATE_LABEL[status.state] ?? status.state)
-    : "sign in to sync";
+    : "Sign in";
 
   async function sendCode() {
     setBusy(true);

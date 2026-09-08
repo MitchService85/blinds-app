@@ -235,7 +235,7 @@ export default function CompanyPage() {
 
         <div>
           <div className="mb-1 text-sm text-neutral-500">
-            Logo <span className="text-neutral-400">(printed on quotes)</span>
+            Logo <span className="text-neutral-500">(printed on quotes)</span>
           </div>
           <div className="flex items-center gap-3">
             {company.logo ? (
@@ -273,7 +273,7 @@ export default function CompanyPage() {
 
         <div>
           <label className="mb-1 block text-sm text-neutral-500" htmlFor="quote-footer">
-            Quote footer <span className="text-neutral-400">(optional)</span>
+            Quote footer <span className="text-neutral-500">(optional)</span>
           </label>
           <textarea
             id="quote-footer"
@@ -316,7 +316,7 @@ function BillingSection({
         className="flex min-h-11 items-center justify-between text-left"
       >
         <span className="text-sm font-semibold text-neutral-500">Invoicing details</span>
-        <span className="flex items-center gap-2 text-xs text-neutral-400">
+        <span className="flex items-center gap-2 text-xs text-neutral-500">
           {!filled && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
               incomplete
@@ -382,7 +382,7 @@ function BillingSection({
           />
           <div className="mt-1 border-t border-neutral-200 pt-3 dark:border-neutral-800">
             <div className="mb-2 text-sm font-semibold text-neutral-500">Labour rates</div>
-            <div className="mb-3 text-xs text-neutral-400">
+            <div className="mb-3 text-xs text-neutral-500">
               Charged on every job on top of the contract. Leave a rate blank when you don&apos;t bill
               that line.
             </div>
@@ -463,7 +463,7 @@ function BillingField({
           className={`${className} min-h-11`}
         />
       )}
-      {hint && <span className="mt-1 block text-xs text-neutral-400">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-neutral-500">{hint}</span>}
     </label>
   );
 }
@@ -484,7 +484,7 @@ function RateField({
     <label className="block">
       <span className="mb-1 block text-xs text-neutral-500">{label}</span>
       <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
           $
         </span>
         <input

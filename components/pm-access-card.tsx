@@ -76,7 +76,7 @@ export function PmAccessCard({ projectId }: { projectId: string }) {
     <section>
       <div className="mb-2 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-neutral-500">Project manager access</h2>
-        <span className="text-xs text-neutral-400">progress + deficiencies only</span>
+        <span className="text-xs text-neutral-500">progress + deficiencies only</span>
       </div>
       <div className="flex flex-col gap-2">
         {active.map((s) => (
@@ -109,7 +109,7 @@ export function PmAccessCard({ projectId }: { projectId: string }) {
           </div>
         ))}
         {revoked.length > 0 && (
-          <div className="text-xs text-neutral-400">
+          <div className="text-xs text-neutral-500">
             {revoked.length} revoked link{revoked.length === 1 ? "" : "s"}
           </div>
         )}
@@ -155,7 +155,7 @@ export function PmAccessCard({ projectId }: { projectId: string }) {
             + Give a PM access
           </button>
         )}
-        <div className="text-xs text-neutral-400">
+        <div className="text-xs text-neutral-500">
           They see which units are installed and can flag a deficiency on a unit or a blind. No
           sizes, notes or pricing.
         </div>

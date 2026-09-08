@@ -46,7 +46,7 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
           className="h-5 w-5"
         />
         <span className="text-sm">
-          Reverse roll <span className="text-neutral-400">(exports &quot;Rev&quot;)</span>
+          Reverse roll <span className="text-neutral-500">(exports &quot;Rev&quot;)</span>
         </span>
       </label>
 
@@ -149,13 +149,13 @@ export function FloorDefaultsForm({ value, onChange }: FloorDefaultsFormProps) {
           className="h-5 w-5"
         />
         <span className="text-sm">
-          Motorized <span className="text-neutral-400">(whole floor; override per window)</span>
+          Motorized <span className="text-neutral-500">(whole floor; override per window)</span>
         </span>
       </label>
 
       <div>
         <div className="mb-1 text-sm text-neutral-500">
-          Chain type <span className="text-neutral-400">(optional)</span>
+          Chain type <span className="text-neutral-500">(optional)</span>
         </div>
         <input
           type="text"

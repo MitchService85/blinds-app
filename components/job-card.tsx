@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/icon";
 import type { Project } from "@/lib/types";
 import { formatCents } from "@/lib/pricing";
 
@@ -79,13 +80,16 @@ export function JobCard({ project, floors, money = null, deficiencies = 0 }: Job
                 className="min-h-9 rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-medium active:bg-neutral-100 dark:border-neutral-700 dark:active:bg-neutral-800"
               >
                 {f.label} {f.total > 0 && f.done === f.total ? "✓" : `${f.done}/${f.total}`}
-                <span className="ml-1 text-neutral-400">
+                <span className="ml-1 text-neutral-500">
                   · {f.blinds} blind{f.blinds === 1 ? "" : "s"}
                 </span>
               </Link>
               {f.install && (
-                <div className="px-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                  install 🟢{f.install.staged} ✅{f.install.done} ⚠️{f.install.blocked}
+                <div className="flex items-center gap-2 px-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+                  <span>install</span>
+                  <span className="inline-flex items-center gap-0.5"><Icon name="circle-dot" size={12} className="text-emerald-600" />{f.install.staged}</span>
+                  <span className="inline-flex items-center gap-0.5"><Icon name="check-circle" size={12} className="text-emerald-600" />{f.install.done}</span>
+                  <span className="inline-flex items-center gap-0.5"><Icon name="alert" size={12} className="text-amber-600" />{f.install.blocked}</span>
                 </div>
               )}
             </div>

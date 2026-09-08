@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Icon } from "@/components/icon";
 import type { Floor, Unit, WindowRecord } from "@/lib/types";
 import { checkFloor, type MeasurementWarning } from "@/lib/checks";
 import { buildExportInput, countBlinds, localDateISO } from "@/lib/export/build-input";
@@ -140,7 +141,7 @@ export function ExportButton({
       <button
         type="button"
         disabled
-        className="min-h-12 rounded-lg bg-neutral-200 px-4 text-sm font-medium text-neutral-400 dark:bg-neutral-800 dark:text-neutral-600"
+        className="min-h-12 rounded-lg bg-neutral-200 px-4 text-sm font-medium text-neutral-500 dark:bg-neutral-800 dark:text-neutral-600"
       >
         Export unavailable
       </button>
@@ -198,7 +199,7 @@ export function ExportButton({
                   <ul className="flex flex-col gap-2 text-sm text-amber-800 dark:text-amber-300">
                     {review.warnings.map((w) => (
                       <li key={w.window_id}>
-                        ⚠ {w.unit_number}-{w.tag}: {w.message}
+                        <Icon name="alert" size={14} /> {w.unit_number}-{w.tag}: {w.message}
                       </li>
                     ))}
                   </ul>

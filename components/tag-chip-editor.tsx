@@ -38,7 +38,7 @@ export function TagChipEditor({ chips, onChange }: TagChipEditorProps) {
               type="button"
               onClick={() => removeChip(chip)}
               aria-label={`Remove ${chip}`}
-              className="flex min-h-8 min-w-8 items-center justify-center text-base text-neutral-400 active:text-neutral-700 dark:active:text-neutral-200"
+              className="flex min-h-8 min-w-8 items-center justify-center text-base text-neutral-500 active:text-neutral-700 dark:active:text-neutral-200"
             >
               ×
             </button>

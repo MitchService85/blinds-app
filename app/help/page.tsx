@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Icon } from "@/components/icon";
 import type { ReactNode } from "react";
 
 /**
@@ -36,7 +37,7 @@ function VisualTiles() {
       <div className="rounded-lg border border-neutral-300 p-2 text-center text-sm font-semibold text-neutral-500 dark:border-neutral-700">
         403<div className="text-[10px] font-normal">to do</div>
       </div>
-      <div className="rounded-lg border border-neutral-300 p-2 text-center text-sm font-semibold text-neutral-400 line-through dark:border-neutral-700">
+      <div className="rounded-lg border border-neutral-300 p-2 text-center text-sm font-semibold text-neutral-500 line-through dark:border-neutral-700">
         404<div className="text-[10px] font-normal no-underline">skip</div>
       </div>
     </div>
@@ -73,7 +74,7 @@ function VisualBay() {
           34 5/8<div className="mt-1 font-semibold text-blue-600 dark:text-blue-400">Dl</div>
         </div>
         <div className="flex-[1.6] rounded border-2 border-neutral-400 p-2 text-center text-xs dark:border-neutral-600">
-          53<div className="mt-1 text-neutral-400">—</div>
+          53<div className="mt-1 text-neutral-500">—</div>
         </div>
         <div className="flex-1 rounded border-2 border-neutral-400 p-2 text-center text-xs dark:border-neutral-600">
           34 1/2<div className="mt-1 font-semibold text-blue-600 dark:text-blue-400">Dr</div>
@@ -87,9 +88,9 @@ function VisualBay() {
 function VisualInstall() {
   return (
     <div className="flex items-center justify-around text-center text-xs">
-      <div><div className="text-2xl">🟢</div>staged / my half done</div>
-      <div><div className="text-2xl">✅</div>installed</div>
-      <div><div className="text-2xl">⚠️</div>blocked — read the note</div>
+      <div><div className="mb-1 flex justify-center text-emerald-600"><Icon name="circle-dot" size={28} /></div>staged / my half done</div>
+      <div><div className="mb-1 flex justify-center text-emerald-600"><Icon name="check-circle" size={28} /></div>installed</div>
+      <div><div className="mb-1 flex justify-center text-amber-600"><Icon name="alert" size={28} /></div>blocked — read the note</div>
     </div>
   );
 }
@@ -97,7 +98,7 @@ function VisualInstall() {
 function VisualWarning() {
   return (
     <div className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-200">
-      ⚠️ side panels differ: 29 vs 34 7/8 — bay sides are usually near-equal, double-check this one
+      <Icon name="alert" size={14} /> side panels differ: 29 vs 34 7/8 — bay sides are usually near-equal, double-check this one
     </div>
   );
 }
@@ -106,9 +107,9 @@ function VisualSync() {
   return (
     <div className="flex items-center justify-around text-center text-xs text-neutral-600 dark:text-neutral-300">
       <div><div className="text-lg">📴</div>no signal?<br />keep working</div>
-      <div className="text-neutral-400">→</div>
+      <div className="text-neutral-500">→</div>
       <div><div className="text-lg">☁️</div>syncs itself<br />when signal returns</div>
-      <div className="text-neutral-400">→</div>
+      <div className="text-neutral-500">→</div>
       <div><div className="text-lg">📱</div>whole crew<br />sees it</div>
     </div>
   );
@@ -159,17 +160,17 @@ export default function HelpPage() {
 
       <Section title="Notes and photos" visual={
         <div className="flex items-center gap-2">
-          <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-xl dark:border-neutral-700">📷</div>
+          <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-xl dark:border-neutral-700"><Icon name="camera" /></div>
           <div className="rounded-lg border border-neutral-200 p-2 text-xs text-neutral-500 dark:border-neutral-800">“needs fascia — see photo”</div>
         </div>
       }>
-        <p>Every unit has a note (📝 at the top of its screen): shims, missing hardware, PRIORITY, whatever the next person needs to know.</p>
+        <p>Every unit has a note (<Icon name="note" size={14} /> at the top of its screen): shims, missing hardware, PRIORITY, whatever the next person needs to know.</p>
         <p>Add a photo right in the note — point the camera at the problem. The whole crew sees it on their own phones.</p>
       </Section>
 
       <Section title="Install mode" visual={<VisualInstall />}>
         <p>On a floor, flip the switch at the top from <b>Measure</b> to <b>Install</b>. Tap a unit and mark it.</p>
-        <p>🟢 staged means the blinds and hardware are dropped off and ready — or your half of the work is done and it&apos;s ready for your partner. ✅ means installed. ⚠️ blocked means something is stopping the install. Tapping <b>Blocked</b> opens the unit so you can say why: a note at the top for the whole unit, or <b>⚠</b> on the individual blinds that are wrong. <b>Unblock</b> is right there when it&apos;s sorted.</p>
+        <p><Icon name="circle-dot" size={14} className="text-emerald-600" /> <b>Staged</b> means the blinds and hardware are dropped off and ready — or your half of the work is done and it&apos;s ready for your partner. <Icon name="check-circle" size={14} className="text-emerald-600" /> means installed. <Icon name="alert" size={14} className="text-amber-600" /> <b>Blocked</b> means something is stopping the install. Tapping <b>Blocked</b> opens the unit so you can say why: a note at the top for the whole unit, or <b>⚠</b> on the individual blinds that are wrong. <b>Unblock</b> is right there when it&apos;s sorted.</p>
         <p>Each tile also shows how many blinds the unit takes, so you can count brackets and hardware before you start it. Tap one and the sheet spells it out — a three-panel bay is one opening but three blinds.</p>
         <p>A specific blind wrong? Open the unit and tap <b>⚠</b> on that window: say what&apos;s wrong, whose error it is (<b>Factory</b> or <b>Measure</b>), and whether it needs a recut. Install mode shows every flagged blind on the floor and counts the recuts that are on the factory — their error, they pay. None of this goes on the measure sheet you send them.</p>
       </Section>

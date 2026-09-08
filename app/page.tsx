@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/icon";
 import Link from "next/link";
 import { isDemoRow, seedDemoIfNeeded } from "@/lib/demo";
 import { db, listProjects } from "@/lib/db";
@@ -8,6 +9,7 @@ import { useSyncStatus } from "@/lib/sync";
 import { windowBlindCount } from "@/lib/export/shared";
 import type { InvoiceRecord, Project } from "@/lib/types";
 import { formatCents } from "@/lib/pricing";
+import { compareFloorLabels } from "@/lib/floor-copy";
 import { JobCard, type FloorProgress, type JobMoney } from "@/components/job-card";
 import { SyncStatus } from "@/components/sync-status";
 import { blockedOf, installOf } from "@/components/status";
@@ -81,7 +83,7 @@ export default function Home() {
       }
 
       const floorsByProject = new Map<string, typeof allFloors>();
-      for (const f of allFloors) {
+      for (const f of [...allFloors].sort((a, b) => compareFloorLabels(a.label, b.label))) {
         const list = floorsByProject.get(f.project_id) ?? [];
         list.push(f);
         floorsByProject.set(f.project_id, list);
@@ -170,23 +172,23 @@ export default function Home() {
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 pb-24">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Measure</h1>
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">Measure</h1>
+        <div className="flex items-center gap-2 whitespace-nowrap">
           <SyncStatus />
           <Link
             href="/company"
             className="flex min-h-11 items-center gap-1.5 rounded-full border border-neutral-300 px-3 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300"
           >
-            <span aria-hidden>⚙</span>
+            <Icon name="settings" size={18} />
             Settings
           </Link>
           <Link
             href="/help"
             aria-label="How to use Measure"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-neutral-300 text-sm font-semibold text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-neutral-300 text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"
           >
-            ?
+            <Icon name="help" />
           </Link>
         </div>
       </header>

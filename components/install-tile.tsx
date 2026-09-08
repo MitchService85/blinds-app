@@ -1,6 +1,7 @@
 "use client";
 
 import type { Unit } from "@/lib/types";
+import { Icon } from "@/components/icon";
 import { blockedOf, deriveInstallState, INSTALL_STATE_TILE_CLASSES, installOf } from "./status";
 
 interface InstallTileProps {
@@ -25,11 +26,26 @@ export function InstallTile({ unit, blindCount, onTap }: InstallTileProps) {
   const install = installOf(unit);
   const blocked = blockedOf(unit);
 
-  let subline = "—";
+  let subline: React.ReactNode = "—";
   if (state === "na") subline = "N/A";
-  else if (blocked) subline = "⚠️ blocked";
-  else if (install === "done") subline = "✓ done";
-  else if (install === "staged") subline = "🟢 staged";
+  else if (blocked)
+    subline = (
+      <>
+        <Icon name="alert" size={12} /> blocked
+      </>
+    );
+  else if (install === "done")
+    subline = (
+      <>
+        <Icon name="check" size={12} /> done
+      </>
+    );
+  else if (install === "staged")
+    subline = (
+      <>
+        <Icon name="circle-dot" size={12} /> staged
+      </>
+    );
 
   return (
     <button
@@ -40,7 +56,7 @@ export function InstallTile({ unit, blindCount, onTap }: InstallTileProps) {
       <span className="w-full truncate text-sm font-semibold" title={unit.number}>
         {unit.number}
       </span>
-      <span className="text-[11px] opacity-90">{subline}</span>
+      <span className="inline-flex items-center gap-1 text-[11px] opacity-90">{subline}</span>
       {/* Hardware count, dimmer than the status line so the install state
           still reads first. Skipped on N/A units and on units with nothing
           measured yet — there is no bracket count to carry up there. */}

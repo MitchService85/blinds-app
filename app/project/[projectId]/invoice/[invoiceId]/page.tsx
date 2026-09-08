@@ -449,7 +449,7 @@ function LineRow({
             type="button"
             onClick={onRemove}
             aria-label="Remove line"
-            className="min-h-11 min-w-11 shrink-0 text-lg text-neutral-400"
+            className="min-h-11 min-w-11 shrink-0 text-lg text-neutral-500"
           >
             ×
           </button>
@@ -500,7 +500,7 @@ function NumberCell({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs text-neutral-400">{label}</span>
+      <span className="mb-1 block text-xs text-neutral-500">{label}</span>
       <input
         value={value}
         inputMode="decimal"

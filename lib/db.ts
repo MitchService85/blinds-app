@@ -13,6 +13,7 @@ import type {
   WindowRecord,
 } from "./types";
 import { DEMO_COMPANY_ID, getCompanyIdSync, setCompanyIdCache } from "./tenant";
+import { carryUnitNumber, compareFloorLabels } from "./floor-copy";
 
 /**
  * Local-first IndexedDB store (Dexie). The UI reads/writes here only —
@@ -256,11 +257,63 @@ export async function deleteFloor(id: string): Promise<void> {
 }
 
 export async function listFloors(projectId: string): Promise<Floor[]> {
-  return db.floors.where("project_id").equals(projectId).filter((f) => !f.deleted).toArray();
+  const rows = await db.floors.where("project_id").equals(projectId).filter((f) => !f.deleted).toArray();
+  // Natural order ("Level 2" before "Level 10") everywhere floors are listed;
+  // Dexie returns them by creation, which put a duplicated floor on top.
+  return rows.sort((a, b) => compareFloorLabels(a.label, b.label));
 }
 
 export async function getFloor(id: string): Promise<Floor | undefined> {
   return db.floors.get(id);
+}
+
+/**
+ * Copy a floor's defaults, units and measurements onto a new floor. Towers
+ * repeat; typing 115 windows twice is the thing this saves. Install state,
+ * notes, photos, issues and check acknowledgements are NOT copied: they are
+ * history of the source floor, not facts about the new one. Goes through the
+ * normal create helpers so every row syncs and inherits the company.
+ */
+export async function duplicateFloor(sourceFloorId: string, newLabel: string): Promise<Floor> {
+  const source = await db.floors.get(sourceFloorId);
+  if (!source) throw new Error(`Floor ${sourceFloorId} not found`);
+  const floor = await createFloor({
+    project_id: source.project_id,
+    label: newLabel,
+    defaults: { ...source.defaults },
+  });
+  const units = (await listUnits(sourceFloorId)).sort((a, b) => a.sort_order - b.sort_order);
+  for (const u of units) {
+    const unit = await createUnit({
+      floor_id: floor.id,
+      number: carryUnitNumber(u.number, source.label, newLabel),
+      status: u.status === "na" ? "na" : "active",
+      sort_order: u.sort_order,
+    });
+    const windows = (await listWindows(u.id)).sort((a, b) => a.sort_order - b.sort_order);
+    for (const w of windows) {
+      await createWindow({
+        unit_id: unit.id,
+        tag_base: w.tag_base,
+        tag_index: w.tag_index,
+        widths: [...w.widths],
+        height: w.height,
+        quantity: w.quantity ?? 1,
+        control_override: w.control_override,
+        mount_override: w.mount_override,
+        panel_controls: w.panel_controls ?? null,
+        checks_ack: false,
+        tight_override: w.tight_override ?? null,
+        chain_length: w.chain_length ?? null,
+        motorized_override: w.motorized_override ?? null,
+        deduct: w.deduct,
+        longer_chain: w.longer_chain,
+        note: w.note,
+        sort_order: w.sort_order,
+      });
+    }
+  }
+  return floor;
 }
 
 // ---------------------------------------------------------------------------

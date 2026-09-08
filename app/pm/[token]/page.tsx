@@ -130,7 +130,7 @@ export default function PmPage() {
         />
       )}
 
-      <footer className="mt-4 text-center text-[11px] text-neutral-400">
+      <footer className="mt-4 text-center text-[11px] text-neutral-500">
         Shared with {data.label || "you"} · Measure
       </footer>
     </main>

@@ -1,6 +1,7 @@
 "use client";
 
 import { sortUnitsForDisplay, suggestUnitNumber } from "@/lib/unit-sort";
+import { Icon } from "@/components/icon";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -457,15 +458,15 @@ export default function FloorPage() {
               type="button"
               onClick={() => setDoneWarnings(null)}
               aria-label="Dismiss"
-              className="min-h-8 min-w-8 shrink-0 text-xs"
+              className="flex min-h-8 min-w-8 shrink-0 items-center justify-center"
             >
-              ✕
+              <Icon name="close" size={16} />
             </button>
           </div>
           <ul className="flex flex-col gap-1">
             {doneWarnings.map((w) => (
               <li key={w.window_id}>
-                ⚠ {w.unit_number}-{w.tag}: {w.message}
+                <Icon name="alert" size={14} /> {w.unit_number}-{w.tag}: {w.message}
               </li>
             ))}
           </ul>
@@ -474,9 +475,11 @@ export default function FloorPage() {
 
       {mode === "install" && (
         <>
-          <div className="text-sm text-neutral-600 dark:text-neutral-400">
-            🟢 {installSummary.staged} staged · ✅ {installSummary.done} done · ⚠️{" "}
-            {installSummary.blocked} blocked · {installSummary.toGo} to go
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-neutral-600 dark:text-neutral-400">
+            <span className="inline-flex items-center gap-1"><Icon name="circle-dot" size={14} className="text-emerald-600" />{installSummary.staged} staged</span>
+            <span className="inline-flex items-center gap-1"><Icon name="check-circle" size={14} className="text-emerald-600" />{installSummary.done} done</span>
+            <span className="inline-flex items-center gap-1"><Icon name="alert" size={14} className="text-amber-600" />{installSummary.blocked} blocked</span>
+            <span>{installSummary.toGo} to go</span>
           </div>
           {/* Only blocked units that carry a note: since per-blind issues,
               crews clear the unit note and record the detail on the blinds
@@ -489,7 +492,7 @@ export default function FloorPage() {
                 .filter((u) => u.note)
                 .map((u) => (
                   <div key={u.id}>
-                    ⚠️ {u.number} — &quot;{u.note}&quot;
+                    <Icon name="alert" size={14} /> {u.number} — &quot;{u.note}&quot;
                   </div>
                 ))}
             </div>
@@ -538,7 +541,7 @@ export default function FloorPage() {
           {[...duplicateNumbers].map(([number, ids]) => (
             <div key={number} className="flex items-center gap-2">
               <span className="flex-1">
-                ⚠ Unit <b>{number}</b> exists {ids.length} times — probably measured on two
+                <Icon name="alert" size={14} /> Unit <b>{number}</b> exists {ids.length} times — probably measured on two
                 phones at once.
               </span>
               <button
@@ -586,7 +589,7 @@ export default function FloorPage() {
           <button
             type="button"
             onClick={openAddUnit}
-            className="flex min-h-16 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-400 active:bg-neutral-50 dark:border-neutral-700 dark:active:bg-neutral-900"
+            className="flex min-h-16 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-500 active:bg-neutral-50 dark:border-neutral-700 dark:active:bg-neutral-900"
             aria-label="Add unit"
           >
             +

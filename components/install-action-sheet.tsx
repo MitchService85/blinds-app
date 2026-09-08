@@ -1,6 +1,7 @@
 "use client";
 
 import type { Unit, WindowRecord } from "@/lib/types";
+import { Icon } from "@/components/icon";
 import { blockedOf, installOf } from "./status";
 import { windowBlindCount, windowTagLabel } from "@/lib/export/shared";
 import { issueSummary, windowHasIssue } from "./window-issue";
@@ -64,7 +65,7 @@ export function InstallActionSheet({
 
         {blocked && unit.note && (
           <div className="mb-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            ⚠️ {unit.note}
+            <Icon name="alert" size={16} /> {unit.note}
           </div>
         )}
 
@@ -72,7 +73,7 @@ export function InstallActionSheet({
           <div className="mb-3 flex flex-col gap-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
             {issues.map((w) => (
               <div key={w.id}>
-                ⚠️ {windowTagLabel(w)} — {issueSummary(w)}
+                <Icon name="alert" size={14} /> {windowTagLabel(w)} — {issueSummary(w)}
               </div>
             ))}
           </div>
@@ -85,16 +86,16 @@ export function InstallActionSheet({
 
         <div className="flex flex-col gap-2">
           <ActionButton
-            label="🟢 Staged"
+            label={<><Icon name="circle-dot" className="text-emerald-600" /> Staged</>}
             active={!blocked && install === "staged"}
             onClick={() => onAction("staged")}
           />
           <ActionButton
-            label="✅ Complete"
+            label={<><Icon name="check-circle" className="text-emerald-600" /> Complete</>}
             active={!blocked && install === "done"}
             onClick={() => onAction("complete")}
           />
-          <ActionButton label="⚠️ Blocked" active={blocked} onClick={() => onAction("blocked")} />
+          <ActionButton label={<><Icon name="alert" className="text-amber-600" /> Blocked</>} active={blocked} onClick={() => onAction("blocked")} />
           <ActionButton
             label="Clear"
             active={!blocked && install === null}
@@ -124,7 +125,7 @@ function ActionButton({
   active,
   onClick,
 }: {
-  label: string;
+  label: React.ReactNode;
   active?: boolean;
   onClick: () => void;
 }) {
@@ -132,14 +133,14 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-h-12 items-center justify-between rounded-lg px-4 text-left text-sm font-medium ${
+      className={`flex min-h-12 items-center justify-between rounded-lg px-4 text-left text-sm font-medium [&_svg]:mr-2 ${
         active
-          ? "bg-blue-600 text-white"
+          ? "bg-blue-600 text-white [&_svg]:text-white"
           : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
       }`}
     >
-      {label}
-      {active && <span>✓</span>}
+      <span className="inline-flex items-center">{label}</span>
+      {active && <Icon name="check" size={18} />}
     </button>
   );
 }

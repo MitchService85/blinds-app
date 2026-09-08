@@ -1,6 +1,7 @@
 "use client";
 
 import { checkUnitWindows } from "@/lib/checks";
+import { Icon } from "@/components/icon";
 import { compressImage } from "@/lib/photos";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BottomBar } from "@/components/bottom-bar";
@@ -737,7 +738,7 @@ export default function WindowEntryPage() {
       {blockedOf(unit) && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
           <span className="flex-1">
-            <b>⚠️ Blocked.</b> Note the unit below, or tap ⚠ on the blinds that are wrong.
+            <b><Icon name="alert" size={14} /> Blocked.</b> Note the unit below, or tap the <Icon name="alert" size={12} /> on the blinds that are wrong.
           </span>
           <button
             type="button"
@@ -754,7 +755,7 @@ export default function WindowEntryPage() {
         onClick={() => setUnitNoteOpen((v) => !v)}
         className="flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-neutral-300 px-3 py-2 text-left text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300"
       >
-        <span>📝</span>
+        <Icon name="note" className="text-neutral-500" />
         <span className="flex-1 truncate">{unit.note || "Add a note for this unit"}</span>
         <span className="shrink-0 text-xs text-blue-600">Edit</span>
       </button>
@@ -787,7 +788,7 @@ export default function WindowEntryPage() {
           none recorded, so the entry screen keeps the keypad above the fold. */}
       {(entryOpen === false || (unit.removed ?? 0) > 0) && (
       <div className="flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
-        <span>🗑</span>
+        <Icon name="trash" className="text-neutral-500" />
         <span className="flex-1">Old blinds removed</span>
         <button
           type="button"
@@ -835,7 +836,7 @@ export default function WindowEntryPage() {
             </button>
           ))}
           <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-500 dark:border-neutral-700">
-            {photoBusy ? "…" : "📷"}
+            {photoBusy ? "…" : <Icon name="camera" size={24} />}
             <input
               type="file"
               accept="image/*"
@@ -965,7 +966,7 @@ export default function WindowEntryPage() {
                   type="button"
                   onClick={() => removePanel(i)}
                   aria-label={`Remove panel ${i + 1}`}
-                  className="min-h-6 min-w-6 text-neutral-400"
+                  className="min-h-6 min-w-6 text-neutral-500"
                 >
                   ×
                 </button>
@@ -1025,7 +1026,7 @@ export default function WindowEntryPage() {
         {project?.building_type === "residential" && draft.widths.length > 1 && (
           <div>
             <div className="mb-1 text-xs text-neutral-500">
-              Control per panel <span className="text-neutral-400">(tap to change)</span>
+              Control per panel <span className="text-neutral-500">(tap to change)</span>
             </div>
             {/* Scrolls sideways rather than shrinking: six panels at 375px
                 squeezed each button to 46px and the labels became unreadable. */}
@@ -1076,7 +1077,7 @@ export default function WindowEntryPage() {
               </span>
             )}
           </span>
-          <span className="text-neutral-400">{moreOpen ? "▴" : "▾"}</span>
+          <span className="text-neutral-500">{moreOpen ? "▴" : "▾"}</span>
         </button>
 
         {moreOpen && (
@@ -1089,7 +1090,7 @@ export default function WindowEntryPage() {
             onChange={() => patchDraft({ longer_chain: !draft.longer_chain })}
             className="h-5 w-5 disabled:opacity-40"
           />
-          <span className={`text-sm ${draft.chain_length !== null ? "text-neutral-400" : ""}`}>
+          <span className={`text-sm ${draft.chain_length !== null ? "text-neutral-500" : ""}`}>
             Longer chain
             {draft.chain_length !== null && (
               <span className="text-xs"> — replaced by the {draft.chain_length}&quot; length below</span>
@@ -1195,7 +1196,7 @@ export default function WindowEntryPage() {
             placeholder="inches"
             className="min-h-11 w-24 rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
-          <span className="text-xs text-neutral-400">
+          <span className="text-xs text-neutral-500">
             {draft.chain_length
               ? "goes in the Chain column"
               : "blank = not specified"}
@@ -1281,11 +1282,11 @@ export default function WindowEntryPage() {
         <h2 className="text-sm font-semibold text-neutral-500">This unit&apos;s windows</h2>
         {windowWarnings.size > 0 && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-            ⚠️ {windowWarnings.size} measurement{windowWarnings.size === 1 ? "" : "s"} flagged
+            <Icon name="alert" size={14} /> {windowWarnings.size} measurement{windowWarnings.size === 1 ? "" : "s"} flagged
             below — tap Edit to fix, or ignore if it&apos;s really like that.
           </div>
         )}
-        {windows.length === 0 && <div className="text-sm text-neutral-400">None yet.</div>}
+        {windows.length === 0 && <div className="text-sm text-neutral-500">None yet.</div>}
         {windows.map((w) => (
           <div
             key={w.id}
@@ -1336,13 +1337,13 @@ export default function WindowEntryPage() {
                 type="button"
                 onClick={() => setIssueOpenId((id) => (id === w.id ? null : w.id))}
                 aria-label={windowHasIssue(w) ? "Edit blind issue" : "Flag blind issue"}
-                className={`min-h-9 rounded-lg px-3 text-xs font-medium ${
+                className={`flex min-h-9 items-center rounded-lg px-3 text-xs font-medium ${
                   windowHasIssue(w)
                     ? "bg-amber-500 text-white"
                     : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
                 }`}
               >
-                ⚠
+                <Icon name="alert" size={16} />
               </button>
               <button
                 type="button"
@@ -1366,7 +1367,7 @@ export default function WindowEntryPage() {
               onClick={() => setIssueOpenId(w.id)}
               className="text-left text-xs font-medium text-amber-800 dark:text-amber-300"
             >
-              ⚠️ {issueSummary(w)}
+              <Icon name="alert" size={14} /> {issueSummary(w)}
             </button>
           )}
           {issueOpenId === w.id && (
@@ -1382,7 +1383,7 @@ export default function WindowEntryPage() {
           {windowWarnings.has(w.id) && (
             <div className="flex items-start gap-2">
               <div className="flex-1 text-xs font-medium text-amber-800 dark:text-amber-300">
-                ⚠️ {windowWarnings.get(w.id)}
+                <Icon name="alert" size={14} /> {windowWarnings.get(w.id)}
               </div>
               <button
                 type="button"
@@ -1397,7 +1398,7 @@ export default function WindowEntryPage() {
             <button
               type="button"
               onClick={() => void acknowledgeChecks(w.id, false)}
-              className="self-start text-[11px] text-neutral-400 underline decoration-dotted underline-offset-2"
+              className="self-start text-[11px] text-neutral-500 underline decoration-dotted underline-offset-2"
             >
               Checked, warnings off. Turn back on
             </button>

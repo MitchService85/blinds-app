@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Icon } from "@/components/icon";
 import Link from "next/link";
 import type { Unit, UnitStatus } from "@/lib/types";
 import { deriveUnitState, UNIT_STATE_TILE_CLASSES } from "./status";
@@ -91,17 +92,17 @@ export function UnitTile({
           {hasWarning && (
             <span
               title="Check measurements"
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] leading-none text-white"
+              className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white"
             >
-              ⚠
+              <Icon name="alert" size={12} />
             </span>
           )}
           {unit.note && (
             <span
               title={unit.note}
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] leading-none text-white"
+              className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white"
             >
-              📝
+              <Icon name="note" size={12} />
             </span>
           )}
         </div>
@@ -115,9 +116,9 @@ export function UnitTile({
           setMenuOpen((v) => !v);
         }}
         aria-label={`Unit ${unit.number} actions`}
-        className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-neutral-900/70 text-xs text-white dark:bg-white/80 dark:text-neutral-900"
+        className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-neutral-900/70 text-white dark:bg-white/80 dark:text-neutral-900"
       >
-        ⋯
+        <Icon name="more" size={16} />
       </button>
 
       {menuOpen && (
