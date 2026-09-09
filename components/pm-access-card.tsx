@@ -156,8 +156,8 @@ export function PmAccessCard({ projectId }: { projectId: string }) {
           </button>
         )}
         <div className="text-xs text-neutral-500">
-          They see which units are installed and can flag a deficiency on a unit or a blind. No
-          sizes, notes or pricing.
+          They see which units are installed, locked out, or need a revisit, and can flag a
+          deficiency on a unit or a blind. No sizes, notes, reasons or pricing.
         </div>
       </div>
     </section>

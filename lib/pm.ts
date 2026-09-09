@@ -36,6 +36,8 @@ export interface PmUnit {
   done: boolean;
   /** The crew could not get in — the PM arranges access. */
   locked: boolean;
+  /** Needs a revisit. The reason stays internal; the PM sees only the fact. */
+  blocked: boolean;
   windows: PmWindow[];
   deficiencies: PmDeficiency[];
 }

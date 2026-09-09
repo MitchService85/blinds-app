@@ -78,6 +78,11 @@ export default function PmPage() {
               <Icon name="lock" size={12} /> {allUnits.filter((u) => u.locked).length} locked, access needed
             </span>
           )}
+          {allUnits.some((u) => u.blocked && !u.locked) && (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
+              <Icon name="alert" size={12} /> {allUnits.filter((u) => u.blocked && !u.locked).length} need a revisit
+            </span>
+          )}
         </div>
         <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
           <div
@@ -108,7 +113,9 @@ export default function PmPage() {
                     className={`relative flex min-h-16 flex-col items-center justify-center rounded-lg border px-2 py-2 text-center ${
                       u.locked
                         ? "border-violet-400 bg-violet-100 text-violet-900 dark:border-violet-600 dark:bg-violet-900/40 dark:text-violet-200"
-                        : u.done
+                        : u.blocked
+                          ? "border-amber-400 bg-amber-100 text-amber-900 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-200"
+                          : u.done
                           ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
                           : "border-neutral-300 bg-neutral-50 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
                     } ${u.id === openUnitId ? "ring-2 ring-blue-500" : ""}`}
@@ -118,6 +125,10 @@ export default function PmPage() {
                       {u.locked ? (
                         <>
                           <Icon name="lock" size={12} /> locked
+                        </>
+                      ) : u.blocked ? (
+                        <>
+                          <Icon name="alert" size={12} /> revisit
                         </>
                       ) : u.done ? (
                         <>
@@ -209,7 +220,9 @@ function UnitPanel({
           className={`inline-flex items-center gap-1 text-xs font-medium ${
             unit.locked
               ? "text-violet-700 dark:text-violet-300"
-              : unit.done
+              : unit.blocked
+                ? "text-amber-700 dark:text-amber-300"
+                : unit.done
                 ? "text-emerald-700 dark:text-emerald-300"
                 : "text-neutral-500"
           }`}
@@ -217,6 +230,10 @@ function UnitPanel({
           {unit.locked ? (
             <>
               <Icon name="lock" size={14} /> Locked — the crew couldn&apos;t get in
+            </>
+          ) : unit.blocked ? (
+            <>
+              <Icon name="alert" size={14} /> Needs a revisit
             </>
           ) : unit.done ? (
             <>
