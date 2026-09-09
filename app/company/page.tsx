@@ -12,6 +12,7 @@ import {
 } from "@/lib/db";
 import { compressImage } from "@/lib/photos";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
+import { AccountCard } from "@/components/account-card";
 import { emptyBilling } from "@/lib/invoice/draft";
 import { parseDollarsToCents } from "@/lib/pricing";
 import type { Company, CompanyBilling, Membership } from "@/lib/types";
@@ -117,15 +118,20 @@ export default function CompanyPage() {
     return <main className="p-4 text-sm text-neutral-500">Loading…</main>;
   }
 
+  // No company row yet means signed out, or signed in but not yet synced —
+  // which is exactly when someone comes to this screen looking for the
+  // account controls. Show them here too rather than only alongside the
+  // company settings they cannot see.
   if (!company) {
     return (
-      <main className="flex flex-col gap-3 p-4">
+      <main className="flex flex-col gap-5 p-4">
         <Link href="/" className="text-sm text-blue-600">
           ← Back
         </Link>
         <p className="text-sm text-neutral-500">
           No company on this device yet. Sign in to sync and it will appear here.
         </p>
+        <AccountCard />
       </main>
     );
   }
@@ -288,6 +294,7 @@ export default function CompanyPage() {
 
       <BillingSection billing={company.billing ?? emptyBilling()} onChange={patchBilling} />
 
+      <AccountCard />
     </main>
   );
 }

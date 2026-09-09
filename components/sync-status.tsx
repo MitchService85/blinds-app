@@ -27,5 +27,11 @@ export function SyncStatus() {
   }, []);
 
   if (Inner) return <Inner />;
-  return <span className="text-xs text-neutral-500 dark:text-neutral-400">local only</span>;
+  // Same chip shape as the real control, so the header doesn't reflow when
+  // the dynamic import lands.
+  return (
+    <span className="flex min-h-11 items-center rounded-full border border-neutral-300 px-3 text-xs text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+      local only
+    </span>
+  );
 }

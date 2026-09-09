@@ -671,6 +671,10 @@ interface StatusSnapshot {
   state: SyncState;
   pendingCount: number;
   signedIn: boolean;
+  /** Which account this device is signed in as — the one thing you need to
+   * know when a phone is syncing to the wrong place, and the answer to
+   * "which of us is this?" without digging through the database. */
+  email: string | null;
   /** Human-readable detail of the most recent sync failure, if any. */
   errorDetail: string | null;
 }
@@ -681,6 +685,7 @@ let cachedSnapshot: StatusSnapshot = {
   state: supabase ? "offline" : "local-only",
   pendingCount: 0,
   signedIn: false,
+  email: null,
   errorDetail: null,
 };
 
@@ -721,7 +726,13 @@ async function refreshSnapshot(): Promise<void> {
     state = "synced";
   }
 
-  cachedSnapshot = { state, pendingCount, signedIn, errorDetail: lastSyncError };
+  cachedSnapshot = {
+    state,
+    pendingCount,
+    signedIn,
+    email: currentSession?.user?.email ?? null,
+    errorDetail: lastSyncError,
+  };
   notify();
 }
 
@@ -945,6 +956,8 @@ export interface SyncStatus {
   state: SyncState;
   pendingCount: number;
   signedIn: boolean;
+  /** The signed-in account's address, for "signed in as ...". */
+  email: string | null;
   /** Detail of the most recent sync failure, if any. */
   errorDetail: string | null;
   /** Run a full push+pull immediately (the manual "Sync now" button). */
@@ -989,6 +1002,7 @@ export function useSyncStatus(): SyncStatus {
     state: snapshot.state,
     pendingCount: snapshot.pendingCount,
     signedIn: snapshot.signedIn,
+    email: snapshot.email,
     errorDetail: snapshot.errorDetail,
     syncNow,
     signIn,

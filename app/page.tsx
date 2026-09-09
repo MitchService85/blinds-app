@@ -172,9 +172,12 @@ export default function Home() {
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 pb-24">
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h1 className="text-xl font-semibold">Measure</h1>
-        <div className="flex items-center gap-2 whitespace-nowrap">
+        {/* Wraps rather than running off the edge: three chips plus a long
+            sync label (e.g. "214 pending") does not fit a 320px phone on one
+            line. */}
+        <div className="flex flex-wrap items-center justify-end gap-2 [&>*]:whitespace-nowrap">
           <SyncStatus />
           <Link
             href="/company"

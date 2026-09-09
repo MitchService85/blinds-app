@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { useSyncStatus } from "@/lib/sync";
 
+// Chip labels stay short: this sits in a header beside two other chips, and
+// "offline — will sync" pushed the row past the edge of a small phone. The
+// full sentence lives inside the panel the chip opens.
 const STATE_LABEL: Record<string, string> = {
   "local-only": "local only",
   synced: "✓ synced",
-  offline: "offline — will sync",
+  offline: "offline",
   error: "sync error",
 };
 
@@ -59,10 +62,16 @@ export function SyncStatusInner() {
 
   return (
     <>
+      {/* A chip, not bare text. This button opens the only panel with Sync
+          now and Sign out in it, and as 12px grey text with a hover underline
+          it read as a status label — on a phone there is no hover, so there
+          was no affordance at all and the controls behind it might as well not
+          have existed ("there is no sign out option", 2026-09-09). Matches
+          the Settings and Help chips beside it. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs text-neutral-500 underline-offset-2 hover:underline dark:text-neutral-400"
+        className="flex min-h-11 items-center rounded-full border border-neutral-300 px-3 text-xs text-neutral-600 dark:border-neutral-700 dark:text-neutral-300"
       >
         {label}
       </button>
@@ -85,10 +94,16 @@ export function SyncStatusInner() {
 
             {status.signedIn ? (
               <>
+                {/* Name the account: two phones syncing to different places
+                    look identical from here otherwise. Settings has the same
+                    panel, with the sign-out people can actually find. */}
+                <p className="mb-1 text-sm font-medium break-all">
+                  {status.email ?? "Signed in"}
+                </p>
                 <p className="mb-2 text-sm text-neutral-500">
                   {status.pendingCount === 0
                     ? "Everything is synced."
-                    : `Signed in. ${status.pendingCount} change${
+                    : `${status.pendingCount} change${
                         status.pendingCount === 1 ? "" : "s"
                       } waiting to upload.`}
                 </p>
