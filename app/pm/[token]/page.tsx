@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   fetchPmProject,
@@ -63,10 +63,11 @@ export default function PmPage() {
 
   const allUnits = data.floors.flatMap((f) => f.units);
   const total = pmProgress(allUnits);
-  const openUnit = allUnits.find((u) => u.id === openUnitId) ?? null;
 
+  // w-full matters: mx-auto on a flex child drops it to shrink-to-fit, and the
+  // page was rendering 293px wide on a 390px phone, tiles squeezed to 82px.
   return (
-    <main className="mx-auto flex max-w-md flex-1 flex-col gap-5 p-4 pb-12">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 p-4 pb-12">
       <header>
         <div className="text-xs uppercase tracking-wide text-neutral-500">Install progress</div>
         <h1 className="text-xl font-semibold">{data.project.name}</h1>
@@ -102,12 +103,23 @@ export default function PmPage() {
                 {p.done}/{p.total} done
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {/* The open unit's panel is a full-width row placed straight after
+                the tile that was tapped. It used to render once, after every
+                floor, at the foot of the page — on a building with six floors
+                that is a screen or two below the tap, and the only visible
+                response was a thin ring on the tile: "nothing happens" (PM
+                report, 2026-09-09). Dense flow keeps the tapped row intact
+                (the tiles after it backfill its remaining cells) so the panel
+                lands directly under that row, accordion-style. It stays in the
+                page rather than in a fixed sheet: a note field in a fixed
+                overlay is what sends iOS scrolling to the end of the page while
+                typing (components/keyboard.tsx). */}
+            <div className="grid grid-flow-row-dense grid-cols-3 gap-2 sm:grid-cols-4">
               {floor.units.map((u) => {
                 const open = u.deficiencies.filter((d) => d.status === "open").length;
                 return (
+                  <Fragment key={u.id}>
                   <button
-                    key={u.id}
                     type="button"
                     onClick={() => setOpenUnitId(u.id === openUnitId ? null : u.id)}
                     className={`relative flex min-h-16 flex-col items-center justify-center rounded-lg border px-2 py-2 text-center ${
@@ -144,22 +156,24 @@ export default function PmPage() {
                       </span>
                     )}
                   </button>
+                  {u.id === openUnitId && (
+                    <div className="col-span-full">
+                      <UnitPanel
+                        key={u.id}
+                        token={token}
+                        unit={u}
+                        onFlagged={() => void load()}
+                        onClose={() => setOpenUnitId(null)}
+                      />
+                    </div>
+                  )}
+                  </Fragment>
                 );
               })}
             </div>
           </section>
         );
       })}
-
-      {openUnit && (
-        <UnitPanel
-          key={openUnit.id}
-          token={token}
-          unit={openUnit}
-          onFlagged={() => void load()}
-          onClose={() => setOpenUnitId(null)}
-        />
-      )}
 
       <footer className="mt-4 text-center text-[11px] text-neutral-500">
         Shared with {data.label || "you"} · Measure
@@ -189,6 +203,15 @@ function UnitPanel({
   const [sent, setSent] = useState(false);
   const [failed, setFailed] = useState(false);
   const labels = pmWindowLabels(unit);
+  const panelRef = useRef<HTMLElement>(null);
+
+  // The panel opens below the tapped row, which near the bottom of the screen
+  // means below the fold. Bring it up just far enough to be seen — "nearest"
+  // leaves the page alone when it is already in view, so a tap high on the
+  // screen does not lurch. Keyed by unit, so switching units runs this again.
+  useEffect(() => {
+    panelRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, []);
 
   async function submit() {
     if (!note.trim() || busy) return;
@@ -213,7 +236,10 @@ function UnitPanel({
   }
 
   return (
-    <section className="rounded-xl border border-blue-300 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/20">
+    <section
+      ref={panelRef}
+      className="rounded-xl border border-blue-300 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/20"
+    >
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-base font-semibold">Unit {unit.number}</h2>
         <span
