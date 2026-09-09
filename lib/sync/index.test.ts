@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { drainOutbox, isSyncConfigured, pullSince, signInWithEmail } from "./index";
+import { drainOutbox, isSyncConfigured, normalizeForPush, pullSince, signInWithEmail } from "./index";
+import { setCompanyIdCache } from "../tenant";
 
 // This test environment has no NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY set (see
 // package.json / CI — no .env is loaded), which is exactly the "inert"
@@ -63,5 +64,40 @@ describe("extractTokenHash", () => {
   it("treats a bare long token as a hash", async () => {
     const { extractTokenHash } = await import("./index");
     expect(extractTokenHash("pkce_9f8e7d6c5b4a3")).toBe("pkce_9f8e7d6c5b4a3");
+  });
+});
+
+describe("company backfill on push", () => {
+  // Mike's phone reached the signed-in state without ever resolving an acting
+  // company (he signed in before the membership flow existed, and the backend
+  // cutover cleared it), so every row it wrote carried no company_id and the
+  // server refused all 214 of them: "new row violates row-level security
+  // policy". Once the company resolves, this backfill is what makes the
+  // already-queued rows pushable — nothing has to be re-entered.
+  const row = (extra: Record<string, unknown> = {}) =>
+    ({ id: "w1", updated_at: "2026-09-09T00:00:00.000Z", deleted: false, ...extra }) as never;
+
+  it("stamps the acting company onto a row written without one", () => {
+    setCompanyIdCache("c0000001-0000-4000-8000-000000000001");
+    const out = normalizeForPush("windows", row()) as unknown as Record<string, unknown>;
+    expect(out.company_id).toBe("c0000001-0000-4000-8000-000000000001");
+  });
+
+  it("never overwrites the company a row was created under", () => {
+    setCompanyIdCache("c0000001-0000-4000-8000-000000000001");
+    const out = normalizeForPush("windows", row({ company_id: "other" })) as unknown as Record<string, unknown>;
+    expect(out.company_id).toBe("other");
+  });
+
+  it("leaves the row alone when no company has resolved yet", () => {
+    setCompanyIdCache(null);
+    const out = normalizeForPush("windows", row()) as unknown as Record<string, unknown>;
+    expect(out.company_id).toBeUndefined();
+  });
+
+  it("never stamps a company onto the companies table itself", () => {
+    setCompanyIdCache("c0000001-0000-4000-8000-000000000001");
+    const out = normalizeForPush("companies", row()) as unknown as Record<string, unknown>;
+    expect(out.company_id).toBeUndefined();
   });
 });

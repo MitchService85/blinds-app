@@ -275,7 +275,12 @@ export async function drainOutbox(): Promise<void> {
     lastSyncError = null;
     resetBackoff();
   } catch (err) {
-    lastSyncError = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
+    const raw = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
+    // The server's own words for "this device is not linked to your company"
+    // are unactionable on a ladder. Say what it means and what fixes it.
+    lastSyncError = /row-level security/i.test(raw)
+      ? "This device isn't linked to your company yet, so uploads are being refused. Nothing is lost — reopen the app with signal, and if it persists, sign out and back in."
+      : raw;
     scheduleBackoff();
   }
 }
@@ -287,7 +292,9 @@ export async function drainOutbox(): Promise<void> {
  * violates not-null constraint" was blocking every floors push). Explicit
  * defaults make every row uniform and NULL-free.
  */
-function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
+/** Exported for tests: this backfill is what rescues rows already queued by
+ * a device that had no acting company when they were written. */
+export function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
   const r: Record<string, unknown> = { ...(row as unknown as Record<string, unknown>) };
   // Backfill the acting company onto rows written before this device resolved
   // one (a build upgraded mid-session, or a row created while the membership
@@ -528,7 +535,39 @@ export function syncOnce(): Promise<void> {
   return syncInFlight;
 }
 
+/**
+ * Make sure this device knows which company it writes as, before anything is
+ * pushed.
+ *
+ * resolveMembership() used to run in exactly one place — the moment someone
+ * typed their sign-in code. A session outlives that by weeks (it refreshes
+ * itself), so a device that reached the signed-in state WITHOUT passing
+ * through that path had no acting company and no way to ever get one. Two
+ * real routes there: signing in before the membership flow existed, and the
+ * backend cutover, whose resetIfBackendChanged() deliberately clears the
+ * company and left nothing to re-resolve it.
+ *
+ * The cost was total and silent: writeRow only stamps a company when it has
+ * one, so every row was written without it, and every push was refused with
+ * "new row violates row-level security policy" — 214 of Mike's changes queued
+ * and rejected for nine days while the app reported "Signed in" (2026-09-09).
+ *
+ * Resolving here instead makes it self-healing: any device in that state
+ * repairs itself on its next sync, and normalizeForPush then backfills the
+ * company onto everything already waiting.
+ */
+async function ensureActingCompany(): Promise<void> {
+  if (!supabase) return;
+  if (getCompanyIdSync()) return;
+  // Cached from a previous run — start()'s prime may not have landed yet.
+  if (await primeCompanyId()) return;
+  if (!(await getSession())) return; // signed out: nothing to resolve
+  const { error } = await resolveMembership();
+  if (error) lastSyncError = error;
+}
+
 async function runSyncOnce(): Promise<void> {
+  await ensureActingCompany();
   await drainOutbox();
   await pullSince();
   // The seed-adoption pass is gone with lib/seed.ts: examples were real client
