@@ -199,8 +199,39 @@ async function getSession(): Promise<Session | null> {
 const BASE_BACKOFF_MS = 2_000;
 const MAX_BACKOFF_MS = 5 * 60 * 1_000;
 
+/**
+ * Push and pull back off independently.
+ *
+ * They used to share one window, so that a flaky site connection could not
+ * keep pulling while pushes were stalled — an older server copy landing over
+ * a local edit that had not gone up yet. pullTable's own last-write-wins
+ * guard covers that now (a newer local row is never overwritten), and the
+ * shared window had a far worse failure of its own: drainOutbox schedules the
+ * backoff, then runSyncOnce calls pullSince *in the same cycle*, which sees a
+ * window that was set microseconds ago and returns having done nothing. One
+ * permanently un-pushable row therefore stopped the device receiving anything
+ * at all, which is exactly how Mike's phone stopped seeing the duplicated
+ * floor while still reporting "Signed in".
+ */
 let backoffMs = 0;
 let backoffUntil = 0;
+let pullBackoffMs = 0;
+let pullBackoffUntil = 0;
+
+/**
+ * Is this error one that waiting cannot fix?
+ *
+ * PostgREST passes the Postgres SQLSTATE through: 42xxx (insufficient
+ * privilege, RLS, undefined column), 23xxx (constraint violations) and 22xxx
+ * (bad data) all mean the request is wrong, not that the server is busy.
+ * Backing off on those punishes every other table for something only a code
+ * or data change will clear, so they keep the normal cadence and simply leave
+ * their outbox entries queued.
+ */
+export function isPermanentError(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === "string" && /^(?:22|23|42|PGRST)/.test(code);
+}
 
 function scheduleBackoff(): void {
   // The triggering error isn't surfaced to the UI (see spec: sync failures
@@ -213,6 +244,16 @@ function scheduleBackoff(): void {
 function resetBackoff(): void {
   backoffMs = 0;
   backoffUntil = 0;
+}
+
+function schedulePullBackoff(): void {
+  pullBackoffMs = pullBackoffMs ? Math.min(pullBackoffMs * 2, MAX_BACKOFF_MS) : BASE_BACKOFF_MS;
+  pullBackoffUntil = Date.now() + pullBackoffMs;
+}
+
+function resetPullBackoff(): void {
+  pullBackoffMs = 0;
+  pullBackoffUntil = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,6 +277,11 @@ export async function drainOutbox(): Promise<void> {
 
     const entries = await db.outbox.orderBy("at").toArray();
     if (entries.length === 0) {
+      // Nothing queued means nothing left to have failed. Without this the
+      // last error outlives the rows it was about, and refreshSnapshot (which
+      // now reads lastSyncError, not just the backoff window) shows a device
+      // that is fully caught up as permanently in error.
+      lastSyncError = null;
       resetBackoff();
       return;
     }
@@ -281,7 +327,11 @@ export async function drainOutbox(): Promise<void> {
     lastSyncError = /row-level security/i.test(raw)
       ? "This device isn't linked to your company yet, so uploads are being refused. Nothing is lost — reopen the app with signal, and if it persists, sign out and back in."
       : raw;
-    scheduleBackoff();
+    // A rejected request is not a busy server: retrying it in five minutes
+    // fails exactly as it does now, while every other table waits out the
+    // window with it. Keep the cadence and let the offending rows sit.
+    if (isPermanentError(err)) resetBackoff();
+    else scheduleBackoff();
   }
 }
 
@@ -366,6 +416,19 @@ export function normalizeForPush(table: OutboxTableName, row: SyncedRow): Synced
   return r as unknown as SyncedRow;
 }
 
+/**
+ * Tables a device may edit but never create a row in.
+ *
+ * `companies` is the tenant itself: the row exists before anyone signs in, and
+ * `companies_insert` is `with check (is_platform_admin())`. Pushing it with
+ * PostgREST's .upsert() sends INSERT ... ON CONFLICT DO UPDATE, and Postgres
+ * checks that INSERT policy even on a statement that can only take the UPDATE
+ * branch — so an ordinary device is refused every single time.
+ */
+export function pushIsUpdateOnly(table: OutboxTableName): boolean {
+  return table === "companies";
+}
+
 async function pushBatch(
   client: BlindsClient,
   table: OutboxTableName,
@@ -411,8 +474,27 @@ async function pushBatch(
 
   if (winners.length > 0) {
     const payload = winners.map((row) => normalizeForPush(table, row));
-    const { error: upsertError } = await client.from(table).upsert(payload, { onConflict: "id" });
-    if (upsertError) throw upsertError;
+    if (pushIsUpdateOnly(table)) {
+      // A device can only ever EDIT its company; the row is created by the
+      // platform when the tenant is set up. That distinction matters because
+      // PostgREST compiles .upsert() to INSERT ... ON CONFLICT DO UPDATE, and
+      // Postgres checks the INSERT policy on that statement even when the row
+      // already exists and only the UPDATE branch will run. companies_insert
+      // is `with check (is_platform_admin())`, so every ordinary device was
+      // refused with "new row violates row-level security policy for table
+      // companies" — forever, since no retry can make Mike a platform admin.
+      // A plain .update() takes the companies_update path instead, and when
+      // RLS does exclude the row it returns zero rows rather than an error, so
+      // a non-admin's edit is dropped quietly instead of wedging the outbox.
+      for (const row of payload) {
+        const { id, ...fields } = row as unknown as Record<string, unknown> & { id: string };
+        const { error: updateError } = await client.from(table).update(fields).eq("id", id);
+        if (updateError) throw updateError;
+      }
+    } else {
+      const { error: upsertError } = await client.from(table).upsert(payload, { onConflict: "id" });
+      if (upsertError) throw upsertError;
+    }
   }
 
   // Entries for rows that lost the LWW comparison are cleared too — the
@@ -435,10 +517,9 @@ const PULL_PAGE_SIZE = 500;
 export async function pullSince(): Promise<void> {
   const client = supabase;
   if (!client) return;
-  // Same backoff gate as drainOutbox: without it a failing site connection
-  // kept pulling while pushes were backed off, widening the window where
-  // the server copy lands over a local edit that hasn't pushed yet.
-  if (Date.now() < backoffUntil) return;
+  // Pull's own window, not the push one — see the note above the backoff
+  // state. Downloading is never what a failed upload is waiting on.
+  if (Date.now() < pullBackoffUntil) return;
 
   try {
     const session = await getSession();
@@ -447,9 +528,9 @@ export async function pullSince(): Promise<void> {
     for (const table of TABLES) {
       await pullTable(client, table);
     }
-    resetBackoff();
+    resetPullBackoff();
   } catch {
-    scheduleBackoff();
+    schedulePullBackoff();
   }
 }
 
@@ -629,7 +710,10 @@ async function refreshSnapshot(): Promise<void> {
     state = "local-only";
   } else if (!navigator.onLine) {
     state = "offline";
-  } else if (Date.now() < backoffUntil) {
+  } else if (lastSyncError !== null || Date.now() < backoffUntil) {
+    // A permanent rejection deliberately leaves no backoff window (retrying
+    // it sooner costs nothing and waiting fixes nothing), so the window alone
+    // no longer tells the whole story — the unresolved error does.
     state = "error";
   } else if (pendingCount > 0) {
     state = "pending";
@@ -895,8 +979,9 @@ export function useSyncStatus(): SyncStatus {
   const signOut = useCallback(() => signOutUser(), []);
 
   const syncNow = useCallback(async () => {
-    // Manual sync ignores the error backoff — that's the point of the button.
+    // Manual sync ignores both error backoffs — that's the point of the button.
     resetBackoff();
+    resetPullBackoff();
     await syncOnce();
   }, []);
 
