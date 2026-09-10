@@ -13,8 +13,13 @@ export function ServiceWorkerRegister() {
 
   if (!updateAvailable) return null;
 
+  // The app paints edge-to-edge (viewportFit: cover, so the top bars can pad
+  // for the notch), which means a fixed top element with no inset sits UNDER
+  // the iOS status bar: the banner rendered behind the clock, and its Reload
+  // button could not be pressed (2026-09-10). Pad by the inset; the blue
+  // still runs up behind the status bar, the words and button sit below it.
   return (
-    <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-between gap-3 bg-blue-600 px-4 py-2 text-sm text-white shadow">
+    <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-between gap-3 bg-blue-600 px-4 pb-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] text-sm text-white shadow">
       <span>A new version is ready.</span>
       <button
         type="button"
