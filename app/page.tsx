@@ -176,12 +176,15 @@ export default function Home() {
         <h1 className="text-xl font-semibold">Measure</h1>
         {/* Wraps rather than running off the edge: three chips plus a long
             sync label (e.g. "214 pending") does not fit a 320px phone on one
-            line. */}
-        <div className="flex flex-wrap items-center justify-end gap-2 [&>*]:whitespace-nowrap">
+            line. No-wrap goes on each chip, never on this row's children:
+            SyncStatus renders its sign-in sheet as a sibling of its chip, and
+            a blanket rule here stopped the sheet's text wrapping — the sheet
+            grew past the screen and its button went with it (2026-09-10). */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <SyncStatus />
           <Link
             href="/company"
-            className="flex min-h-11 items-center gap-1.5 rounded-full border border-neutral-300 px-3 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300"
+            className="flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full border border-neutral-300 px-3 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300"
           >
             <Icon name="settings" size={18} />
             Settings

@@ -71,7 +71,7 @@ export function SyncStatusInner() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex min-h-11 items-center rounded-full border border-neutral-300 px-3 text-xs text-neutral-600 dark:border-neutral-700 dark:text-neutral-300"
+        className="flex min-h-11 items-center whitespace-nowrap rounded-full border border-neutral-300 px-3 text-xs text-neutral-600 dark:border-neutral-700 dark:text-neutral-300"
       >
         {label}
       </button>
