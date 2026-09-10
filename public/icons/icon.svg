@@ -4,49 +4,29 @@
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#137A72"/><stop offset="1" stop-color="#0A5652"/>
     </linearGradient>
-    <filter id="soft" x="-10%" y="-60%" width="120%" height="260%"><feGaussianBlur stdDeviation="9"/></filter>
-    <radialGradient id="glow" cx="0.5" cy="0.62" r="0.5">
-      <stop offset="0" stop-color="#F7B32B" stop-opacity="0.35"/><stop offset="1" stop-color="#F7B32B" stop-opacity="0"/>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/>
+    </linearGradient>
+    <radialGradient id="light" cx="0.5" cy="0.42" r="0.55">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.10"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </radialGradient>
   </defs>
   <rect width="512" height="512" fill="url(#bg)"/>
-  <rect width="512" height="512" fill="url(#glow)"/>
-  <!-- sun, mostly hidden behind the blind -->
-  <circle cx="256" cy="318" r="118" fill="#F7B32B"/>
-  <!-- the blind's shadow, so it hangs in front of the sun rather than on it -->
-  <rect x="112" y="272" width="288" height="30" rx="6" fill="#000" opacity="0.28" filter="url(#soft)"/>
-  <!-- pull cord -->
-  <rect x="389" y="286" width="6" height="86" rx="3" fill="#F6F1E7"/>
-  <circle cx="392" cy="386" r="15" fill="#F6F1E7"/>
-  <!-- fabric -->
-  <rect x="106" y="100" width="300" height="172" fill="#F6F1E7"/>
-  <!-- bottom rail doubles as a ruler -->
-  <rect x="106" y="262" width="300" height="28" rx="4" fill="#D8CFBF"/>
-  <rect x="120.5" y="273" width="3" height="17" fill="#0E6B65"/>
-<rect x="131.7" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="142.9" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="154.1" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="165.3" y="273" width="3" height="17" fill="#0E6B65"/>
-<rect x="176.5" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="187.7" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="198.9" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="210.1" y="273" width="3" height="17" fill="#0E6B65"/>
-<rect x="221.3" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="232.5" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="243.7" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="254.9" y="273" width="3" height="17" fill="#0E6B65"/>
-<rect x="266.1" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="277.3" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="288.5" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="299.7" y="273" width="3" height="17" fill="#0E6B65"/>
-<rect x="310.9" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="322.1" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="333.3" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="344.5" y="273" width="3" height="17" fill="#0E6B65"/>
-<rect x="355.7" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="366.9" y="281" width="3" height="9" fill="#0E6B65"/>
-<rect x="378.1" y="281" width="3" height="9" fill="#0E6B65"/>
-  <!-- roller tube -->
-  <rect x="96" y="76" width="320" height="38" rx="19" fill="#D6CDBD"/>
-  <rect x="96" y="76" width="320" height="38" rx="19" fill="url(#bg)" opacity="0.10"/>
+  <rect width="512" height="512" fill="url(#light)"/>
+
+  <!-- glass: light through the opening -->
+  <rect x="129" y="105" width="254" height="234" rx="10" fill="url(#glass)"/>
+  <!-- window frame -->
+  <rect x="129" y="105" width="254" height="234" rx="10" fill="none" stroke="#F6F1E7" stroke-width="26" stroke-linejoin="round"/>
+  <!-- mullions -->
+  <rect x="248" y="118" width="16" height="208" fill="#F6F1E7"/>
+  <rect x="142" y="214" width="228" height="16" fill="#F6F1E7"/>
+
+  <!-- sill: what makes a grid read as a window, even at 32px -->
+  <rect x="116" y="340" width="280" height="20" rx="6" fill="#F6F1E7"/>
+
+  <!-- dimension line: exactly the sill's width -->
+  <rect x="116" y="409" width="280" height="10" rx="5" fill="#F7B32B"/>
+  <rect x="116" y="391" width="10" height="46" rx="5" fill="#F7B32B"/>
+  <rect x="386" y="391" width="10" height="46" rx="5" fill="#F7B32B"/>
 </svg>
