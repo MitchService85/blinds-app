@@ -16,6 +16,7 @@ import {
   type OutboxTableName,
 } from "../db";
 import { getCompanyIdSync } from "../tenant";
+import { productionOrigin } from "../origin";
 import type { SyncedRow } from "../types";
 
 /**
@@ -796,7 +797,9 @@ export async function signInWithEmail(email: string): Promise<{ error: string | 
     email,
     options: {
       shouldCreateUser: true,
-      emailRedirectTo: isBrowser() ? window.location.origin : undefined,
+      // The production address, not the one this page is open at — a branch
+      // alias or deploy URL is behind Vercel's sign-in wall (lib/origin.ts).
+      emailRedirectTo: isBrowser() ? productionOrigin(window.location.origin) : undefined,
     },
   });
   if (!error) return { error: null };

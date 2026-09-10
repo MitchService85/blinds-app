@@ -11,6 +11,7 @@ export type IconName =
   | "circle-dot"
   | "note"
   | "camera"
+  | "image"
   | "trash"
   | "settings"
   | "more"
@@ -50,6 +51,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M4 8.5h3.2l1.6-2.5h6.4l1.6 2.5H20v10H4v-10Z" />
       <circle cx="12" cy="13.2" r="3.2" />
+    </>
+  ),
+  image: (
+    <>
+      <rect x="4" y="5" width="16" height="14" rx="1.8" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="m4.5 17.5 5-5 3.5 3.5 2.5-2.5 4.5 4.5" />
     </>
   ),
   trash: (

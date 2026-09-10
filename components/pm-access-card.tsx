@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createProjectShare, listProjectShares, revokeProjectShare } from "@/lib/db";
 import { pmShareUrl } from "@/lib/pm";
+import { productionOrigin } from "@/lib/origin";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import type { ProjectShare } from "@/lib/types";
 
@@ -50,7 +51,9 @@ export function PmAccessCard({ projectId }: { projectId: string }) {
   }
 
   async function handleShare(share: ProjectShare) {
-    const url = pmShareUrl(share.token, window.location.origin);
+    // The production address, whatever this page is open at: any other one
+    // is behind Vercel's sign-in wall for an outsider (lib/origin.ts).
+    const url = pmShareUrl(share.token, productionOrigin(window.location.origin));
     const nav = navigator as Navigator & { share?: (d: { url: string; title?: string }) => Promise<void> };
     if (nav.share) {
       try {
