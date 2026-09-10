@@ -68,8 +68,33 @@ export function useKeyboardOpen(): boolean {
       if (isTextEntry(e.relatedTarget)) return;
       setOpen(false);
     };
+    // The keyboard can close while the field keeps focus: iOS's own dismiss
+    // key does exactly that. Focus alone then says "keyboard up" for as long
+    // as the field stays focused, the bottom bar stays hidden, and the crew's
+    // first tap on where Done should be only serves to un-focus the field —
+    // the bar appears, and the SECOND tap works ("keep tapping until it
+    // works", 2026-09-10). The visual viewport growing back to full height
+    // while a text control is focused is the keyboard going; un-focus the
+    // field so every signal agrees. Geometry is a closer only, never an
+    // opener — the focus signal stays primary for the reasons above (iPads
+    // with hardware keyboards never shrink the viewport at all).
+    const vv = window.visualViewport;
+    let shrunk = false;
+    const onViewport = () => {
+      if (!vv) return;
+      const full = vv.height >= window.innerHeight - 1;
+      if (!full) {
+        shrunk = true;
+        return;
+      }
+      if (shrunk && isTextEntry(document.activeElement)) {
+        shrunk = false;
+        document.activeElement.blur(); // fires focusout → setOpen(false)
+      }
+    };
     document.addEventListener("focusin", onFocusIn);
     document.addEventListener("focusout", onFocusOut);
+    vv?.addEventListener("resize", onViewport);
     // A field autofocused before this hook mounted has already fired its
     // focusin — read the live state once (external-system sync, not
     // derived state).
@@ -78,6 +103,7 @@ export function useKeyboardOpen(): boolean {
     return () => {
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
+      vv?.removeEventListener("resize", onViewport);
     };
   }, []);
 

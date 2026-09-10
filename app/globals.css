@@ -64,6 +64,21 @@ html,
 body {
   max-width: 100%;
   overflow-x: clip;
+  /* 3. No rubber-band bounce. Done sits at the bottom edge and ← at the
+        top, and iOS swallows any tap that lands while the page is still
+        bouncing there — it reads as "the button didn't work", and a crew
+        member scrolling fast hits it constantly (2026-09-10). Nothing in
+        the app uses pull-to-refresh, so the bounce bought nothing. */
+  overscroll-behavior-y: none;
+}
+
+/* 4. Every control is tap-only: no double-tap-to-zoom, and no waiting to
+      see whether a touch is the start of a gesture before firing it. */
+button,
+a,
+label,
+[role="button"] {
+  touch-action: manipulation;
 }
 
 /* iOS standalone (home-screen) mode paints behind the status bar and home
