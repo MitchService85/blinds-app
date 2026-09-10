@@ -7,7 +7,14 @@ import {
   type SupabaseClient,
 } from "@supabase/supabase-js";
 import type { Table } from "dexie";
-import { clearCompanyId, db, persistCompanyId, primeCompanyId, type OutboxTableName } from "../db";
+import {
+  clearCompanyId,
+  db,
+  persistCompanyId,
+  primeCompanyId,
+  type OutboxEntry,
+  type OutboxTableName,
+} from "../db";
 import { getCompanyIdSync } from "../tenant";
 import type { SyncedRow } from "../types";
 
@@ -704,10 +711,28 @@ function getSnapshot(): StatusSnapshot {
   return cachedSnapshot;
 }
 
+/**
+ * How many ROWS are waiting to upload.
+ *
+ * Every keystroke appends an outbox entry, and the push collapses them per
+ * row before sending (drainOutbox groups by table then rowId). The count used
+ * to be the raw entry total, so filling in the invoicing form once read as
+ * "214 pending" — and for a day that number stood in for nine days of lost
+ * measurements in two people's heads (2026-09-08). Distinct rows is what the
+ * crew is actually asking about.
+ */
+export function distinctPendingRows(entries: Pick<OutboxEntry, "table" | "rowId">[]): number {
+  const rows = new Set<string>();
+  for (const e of entries) rows.add(`${e.table}:${e.rowId}`);
+  return rows.size;
+}
+
 async function refreshSnapshot(): Promise<void> {
   if (!isBrowser()) return;
 
-  const pendingCount = await db.outbox.count();
+  // No compound (table, rowId) index on the outbox, and it holds hundreds of
+  // entries at most, so read and reduce rather than index-scan.
+  const pendingCount = distinctPendingRows(await db.outbox.toArray());
   const signedIn = currentSession != null;
 
   let state: SyncState;

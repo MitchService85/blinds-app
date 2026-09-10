@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  distinctPendingRows,
   drainOutbox,
   isPermanentError,
   isSyncConfigured,
@@ -148,5 +149,36 @@ describe("backoff only punishes errors that waiting can fix", () => {
     expect(isPermanentError(new TypeError("Failed to fetch"))).toBe(false);
     expect(isPermanentError({ message: "network error" })).toBe(false);
     expect(isPermanentError({ code: "503" })).toBe(false);
+  });
+});
+
+describe("distinctPendingRows", () => {
+  // The pending count is what the crew reads to judge how much is at risk.
+  // Entries are per keystroke; rows are what upload. One form fill produced
+  // 214 entries for a single row and read as a disaster (2026-09-08).
+  it("counts one row however many keystrokes queued it", () => {
+    const entries = Array.from({ length: 214 }, () => ({ table: "companies" as const, rowId: "c1" }));
+    expect(distinctPendingRows(entries)).toBe(1);
+  });
+
+  it("counts distinct rows across tables, not entries", () => {
+    expect(
+      distinctPendingRows([
+        { table: "windows", rowId: "w1" },
+        { table: "windows", rowId: "w1" },
+        { table: "windows", rowId: "w2" },
+        { table: "units", rowId: "u1" },
+        { table: "companies", rowId: "c1" },
+        { table: "companies", rowId: "c1" },
+      ])
+    ).toBe(4);
+  });
+
+  it("keeps the same id on different tables apart", () => {
+    expect(distinctPendingRows([{ table: "units", rowId: "x" }, { table: "windows", rowId: "x" }])).toBe(2);
+  });
+
+  it("is zero for an empty outbox", () => {
+    expect(distinctPendingRows([])).toBe(0);
   });
 });
