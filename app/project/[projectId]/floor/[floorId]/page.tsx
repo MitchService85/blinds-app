@@ -287,13 +287,23 @@ export default function FloorPage() {
     const unit = units.find((u) => u.id === unitId);
     if (!unit) return;
 
-    let patch: { install?: InstallStatus; install_blocked?: boolean; locked?: boolean };
+    let patch: { install?: InstallStatus; install_blocked?: boolean; locked?: boolean; status?: Unit["status"] };
     switch (action) {
       case "staged":
         patch = { install: "staged", install_blocked: false, locked: false };
         break;
       case "complete":
-        patch = { install: "done", install_blocked: false, locked: false };
+        // An installed unit is a measured unit. The measure tick is a
+        // separate manual step, and on floors where the crew went straight
+        // to installing it never got pressed: Level 3 at Arbour House read
+        // "0/30 done" with 27 units hanging (2026-09-10). Marking N/A units
+        // is left alone — they were never meant to be measured.
+        patch = {
+          install: "done",
+          install_blocked: false,
+          locked: false,
+          ...(unit.status === "active" ? { status: "done" as const } : {}),
+        };
         break;
       case "clear":
         patch = { install: null, install_blocked: false, locked: false };
