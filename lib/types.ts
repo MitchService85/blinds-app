@@ -3,7 +3,11 @@
 
 export interface SyncedRow {
   id: string;
+  /** Stamped by the device that wrote the row; decides last-write-wins. */
   updated_at: string;
+  /** Stamped by the server on every write; what the pull pages by. Absent on
+   * a row this device wrote and has not yet seen come back. */
+  synced_at?: string;
   deleted: boolean;
 }
 

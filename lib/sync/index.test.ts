@@ -182,3 +182,16 @@ describe("distinctPendingRows", () => {
     expect(distinctPendingRows([])).toBe(0);
   });
 });
+
+describe("server stamps never travel back up", () => {
+  // synced_at is the server's own write stamp and what the pull pages by. A
+  // pulled row carries it locally; pushing it back would only be overwritten
+  // by the trigger, but a row must never claim a server time it did not get.
+  it("strips synced_at from a pushed row", () => {
+    setCompanyIdCache("c0000001-0000-4000-8000-000000000001");
+    const row = { id: "w1", updated_at: "2026-09-10T13:00:00.000Z", synced_at: "2026-09-10T13:00:01.000Z", deleted: false } as never;
+    const out = normalizeForPush("windows", row) as unknown as Record<string, unknown>;
+    expect("synced_at" in out).toBe(false);
+    expect(out.updated_at).toBe("2026-09-10T13:00:00.000Z");
+  });
+});

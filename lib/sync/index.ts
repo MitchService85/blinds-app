@@ -116,7 +116,9 @@ async function resetIfBackendChanged(): Promise<void> {
     for (const table of TABLES) {
       await getLocalTable(table).clear();
     }
-    await Promise.all(TABLES.map((t) => db.meta.delete(`sync:watermark:${t}`)));
+    await Promise.all(
+      TABLES.flatMap((t) => [db.meta.delete(`sync:watermark:${t}`), db.meta.delete(PULL_CURSOR_PREFIX + t)])
+    );
     // The acting company came from the old backend's membership row.
     await clearCompanyId();
   }
@@ -353,6 +355,9 @@ export async function drainOutbox(): Promise<void> {
  * a device that had no acting company when they were written. */
 export function normalizeForPush(table: OutboxTableName, row: SyncedRow): SyncedRow {
   const r: Record<string, unknown> = { ...(row as unknown as Record<string, unknown>) };
+  // The server stamps this itself on every write; a stale copy from the last
+  // pull must not travel back up with the row.
+  delete r.synced_at;
   // Backfill the acting company onto rows written before this device resolved
   // one (a build upgraded mid-session, or a row created while the membership
   // lookup was still in flight). The server rejects a write carrying another
@@ -542,11 +547,22 @@ export async function pullSince(): Promise<void> {
 }
 
 /**
- * Pull watermark: `at` plus the last row's `id`, so a page boundary landing
- * in the middle of rows that share one `updated_at` resumes exactly instead
- * of skipping the ties (a strict `gt` on the timestamp alone lost them).
- * Older installs stored a bare timestamp string — read as { at, id: "" }.
+ * Pull cursor: `at` plus the last row's `id`, so a page boundary landing in
+ * the middle of rows that share one timestamp resumes exactly instead of
+ * skipping the ties (a strict `gt` on the timestamp alone lost them).
+ *
+ * `at` is the server's synced_at, not the row's updated_at. Paging by the
+ * device-stamped updated_at hid any row that reached the server late with
+ * an old stamp — a phone whose cursor had passed that date was never told
+ * (a three-week-old copy of a whole project surfaced only on a from-scratch
+ * download, 2026-09-10). synced_at is stamped by the server on every write,
+ * so nothing that lands after this device's last pull can be older than its
+ * cursor. The key is versioned: the old updated_at-based cursor must not be
+ * read as a synced_at one, and starting fresh is also what flushes anything
+ * the old scheme already missed.
  */
+const PULL_CURSOR_PREFIX = "sync:cursor:synced_at:";
+
 interface PullCursor {
   at: string;
   id: string;
@@ -559,7 +575,7 @@ function readCursor(value: unknown): PullCursor {
 }
 
 async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<void> {
-  const watermarkKey = `sync:watermark:${table}`;
+  const watermarkKey = PULL_CURSOR_PREFIX + table;
   const stored = await db.meta.get(watermarkKey);
   let cursor = readCursor(stored?.value);
   const localTable = getLocalTable(table);
@@ -568,11 +584,11 @@ async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<
     let query = client.from(table).select("*");
     query = cursor.id
       ? query.or(
-          `updated_at.gt."${cursor.at}",and(updated_at.eq."${cursor.at}",id.gt."${cursor.id}")`
+          `synced_at.gt."${cursor.at}",and(synced_at.eq."${cursor.at}",id.gt."${cursor.id}")`
         )
-      : query.gt("updated_at", cursor.at);
+      : query.gt("synced_at", cursor.at);
     const { data, error } = await query
-      .order("updated_at", { ascending: true })
+      .order("synced_at", { ascending: true })
       .order("id", { ascending: true })
       .limit(PULL_PAGE_SIZE);
     if (error) throw error;
@@ -595,7 +611,9 @@ async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<
     });
 
     const last = rows[rows.length - 1];
-    cursor = { at: last.updated_at, id: last.id };
+    // Every pulled row carries synced_at (the server stamps it); the fallback
+    // only guards a server that has not run migration 007 yet.
+    cursor = { at: last.synced_at ?? last.updated_at, id: last.id };
     await db.meta.put({ key: watermarkKey, value: cursor });
 
     if (rows.length < PULL_PAGE_SIZE) break;
