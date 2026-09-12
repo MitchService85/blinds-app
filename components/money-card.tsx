@@ -11,6 +11,7 @@ import {
   listAllInvoices,
   listFloors,
   updateProject,
+  listTrips,
 } from "@/lib/db";
 import {
   computeInvoice,
@@ -23,7 +24,8 @@ import {
   type Invoice,
   type MoneyFloor,
 } from "@/lib/pricing";
-import type { Company, InvoiceRecord, InvoiceStatus, Project, ProjectPricing } from "@/lib/types";
+import { TRIP_PURPOSE_LABEL } from "@/components/trip-log";
+import type { Company, InvoiceRecord, InvoiceStatus, Project, ProjectPricing, Trip } from "@/lib/types";
 import { deliverFile } from "@/lib/export/deliver";
 import { buildDraft, formatInvoiceDate, linesFromComputed } from "@/lib/invoice/draft";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
@@ -37,6 +39,11 @@ interface FloorMoney {
 
 interface MoneyCardProps {
   project: Project;
+  /** Bumped by the trip log when a trip is added, billed/unbilled or removed,
+   * so the money here re-reads. The two cards sit on one screen; an invoice
+   * that still showed four trips after a fifth was logged would be read as
+   * the app losing it. */
+  tripsVersion?: number;
   /** Parent's copy of the project must follow a pricing save. */
   onProjectChange: (project: Project) => void;
 }
@@ -75,7 +82,6 @@ async function loadFloorMoney(projectId: string): Promise<FloorMoney[]> {
     order_number: f.order_number ?? "",
     money: {
       defaults: f.defaults,
-      trips: f.trips,
       units: units
         .filter((u) => u.floor_id === f.id)
         .map((u) => ({
@@ -91,9 +97,11 @@ async function loadFloorMoney(projectId: string): Promise<FloorMoney[]> {
   }));
 }
 
-export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
+export function MoneyCard({ project, onProjectChange, tripsVersion = 0 }: MoneyCardProps) {
   const router = useRouter();
   const [floors, setFloors] = useState<FloorMoney[] | null>(null);
+  // Trips are the project's, not the floors' — see lib/types.ts Trip.
+  const [tripLog, setTripLog] = useState<Trip[]>([]);
   const [editing, setEditing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
@@ -102,9 +110,11 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
 
   useEffect(() => {
     (async () => {
-      setFloors(await loadFloorMoney(project.id));
+      const [f, t] = await Promise.all([loadFloorMoney(project.id), listTrips(project.id)]);
+      setFloors(f);
+      setTripLog(t);
     })();
-  }, [project.id]);
+  }, [project.id, tripsVersion]);
 
   useEffect(() => {
     // The whole company's invoices, not just this project's: the number
@@ -131,7 +141,7 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
   // Contract and quoted count from the job; rates from Settings.
   const pricing = stored ? effectivePricing(stored, company?.billing) : null;
   const invoice =
-    pricing && floors ? computeInvoice(pricing, floors.map((f) => f.money)) : null;
+    pricing && floors ? computeInvoice(pricing, floors.map((f) => f.money), tripLog) : null;
   const ratesSet = Boolean(
     company?.billing &&
       (company.billing.install_per_blind_cents != null ||
@@ -157,7 +167,12 @@ export function MoneyCard({ project, onProjectChange }: MoneyCardProps) {
           label: f.label,
           blinds: countActualBlinds([f.money]),
           removed: countRemoved([f.money]),
-          trips: f.money.trips,
+        })),
+        trips: tripLog.map((t) => ({
+          date: t.date,
+          purpose: TRIP_PURPOSE_LABEL[t.purpose],
+          billable: t.billable,
+          note: t.note,
         })),
       };
       const blob = await mod.exportInvoiceToBlob(input);

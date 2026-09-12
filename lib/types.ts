@@ -496,3 +496,39 @@ export interface Deficiency extends TenantRow {
   status: DeficiencyStatus;
   resolved_at: string | null;
 }
+
+/**
+ * Why the crew went to site. Measure and install are the two halves of the
+ * job; a revisit is a return for something that went wrong (which is often
+ * not billable — see Trip.billable); "other" covers a site meeting, a drop-off
+ * or anything else worth a line on the invoice.
+ */
+export type TripPurpose = "measure" | "install" | "revisit" | "other";
+
+/**
+ * One visit to a project's site, for invoicing.
+ *
+ * Attached to the PROJECT, not a floor: a trip is a van arriving at a
+ * building, and one visit routinely covers several batches. (A per-floor
+ * `trips` count existed from 2026-08-21 and was never filled in on a single
+ * floor of any job — the shape did not match the work. Floor.trips is kept
+ * only so old rows still parse.)
+ *
+ * `date` is a plain calendar date ("2026-09-08"), not a timestamp: what
+ * matters for billing is which day the van went, and a timestamp would drag
+ * timezones into a number the crew reads off a calendar.
+ */
+export interface Trip extends TenantRow {
+  project_id: string;
+  /** Calendar date, "YYYY-MM-DD". */
+  date: string;
+  purpose: TripPurpose;
+  /**
+   * Whether this trip goes on the invoice. A return visit to fix our own
+   * measuring error is still worth logging — it is what the mistake cost —
+   * but the customer does not pay for it (Mitch's rule: "they pay for it if
+   * it's their error").
+   */
+  billable: boolean;
+  note: string;
+}

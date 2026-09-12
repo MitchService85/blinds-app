@@ -11,6 +11,7 @@ import type { Floor, FloorDefaults, Project } from "@/lib/types";
 import { TagChipEditor } from "@/components/tag-chip-editor";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { MoneyCard } from "@/components/money-card";
+import { TripLog } from "@/components/trip-log";
 import { PmAccessCard } from "@/components/pm-access-card";
 import { DeficiencyList } from "@/components/deficiency-list";
 import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
@@ -66,6 +67,7 @@ export default function ProjectPage() {
   const [editingInfo, setEditingInfo] = useState(false);
   const [deficiencies, setDeficiencies] = useState<Deficiency[]>([]);
   const [unitNumbers, setUnitNumbers] = useState<Map<string, string>>(new Map());
+  const [tripsVersion, setTripsVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -294,7 +296,9 @@ export default function ProjectPage() {
         </section>
       )}
 
-      <MoneyCard project={project} onProjectChange={setProject} />
+      <MoneyCard project={project} onProjectChange={setProject} tripsVersion={tripsVersion} />
+
+      <TripLog projectId={projectId} onChange={() => setTripsVersion((v) => v + 1)} />
 
       <PmAccessCard projectId={projectId} />
 

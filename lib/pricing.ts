@@ -5,7 +5,7 @@
 // recompute the invoice on every data refresh without touching Dexie or
 // ExcelJS. All money is integer cents; only formatting produces strings.
 import { effectiveMotorized } from "./export/shared";
-import type { CompanyBilling, FloorDefaults, ProjectPricing, UnitStatus } from "./types";
+import type { CompanyBilling, FloorDefaults, ProjectPricing, Trip, UnitStatus } from "./types";
 
 /** Ontario HST, applied on the invoice subtotal. */
 export const HST_RATE = 0.13;
@@ -26,9 +26,14 @@ export interface MoneyUnit {
 
 export interface MoneyFloor {
   defaults: Pick<FloorDefaults, "motorized">;
-  trips: number | null;
+  /** LEGACY per-floor count (see Trip): never used on a real job, never
+   * billed. Kept so rows written before the trip log still parse. */
+  trips?: number | null;
   units: MoneyUnit[];
 }
+
+/** A trip as the money math needs it. */
+export type MoneyTrip = Pick<Trip, "billable">;
 
 /** One blind per panel, times the quantity — the countBlinds definition
  * (Cleveland L12: 1 opening, 13 blinds). N/A units don't count: they were
@@ -69,8 +74,13 @@ export function countRemoved(floors: MoneyFloor[]): number {
   );
 }
 
-export function countTrips(floors: MoneyFloor[]): number {
-  return floors.reduce((sum, f) => sum + (f.trips ?? 0), 0);
+/**
+ * Billable trips only. A trip logged as not billable is a real visit the crew
+ * made — a revisit for our own measuring error, say — recorded so its cost is
+ * visible, but the customer does not pay for it.
+ */
+export function countTrips(trips: MoneyTrip[]): number {
+  return trips.filter((t) => t.billable).length;
 }
 
 export interface InvoiceLine {
@@ -99,7 +109,11 @@ export interface Invoice {
  * null means "not billed on this job" and produces no line; a rate that IS
  * set still produces no line while its count is zero (nothing to bill yet).
  */
-export function computeInvoice(pricing: ProjectPricing, floors: MoneyFloor[]): Invoice {
+export function computeInvoice(
+  pricing: ProjectPricing,
+  floors: MoneyFloor[],
+  trips: MoneyTrip[] = []
+): Invoice {
   const actual = countActualBlinds(floors);
   const lines: InvoiceLine[] = [];
 
@@ -126,7 +140,7 @@ export function computeInvoice(pricing: ProjectPricing, floors: MoneyFloor[]): I
   addRateLine("removal", "Removal of old blinds", countRemoved(floors), pricing.removal_per_blind_cents);
   addRateLine("install", "Install labor", actual, pricing.install_per_blind_cents);
   addRateLine("motorized", "Motorized premium", countMotorizedBlinds(floors), pricing.motorized_premium_cents);
-  addRateLine("trips", "Trip charges", countTrips(floors), pricing.trip_charge_cents);
+  addRateLine("trips", "Trip charges", countTrips(trips), pricing.trip_charge_cents);
 
   const subtotal = lines.reduce((sum, l) => sum + l.amount_cents, 0);
   // Cents are integers everywhere except this one rounding, at the HST line.

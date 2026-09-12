@@ -151,6 +151,7 @@ const TABLES: OutboxTableName[] = [
   "exports",
   "project_shares",
   "deficiencies",
+  "trips",
 ];
 
 function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
@@ -177,6 +178,8 @@ function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
       return db.project_shares as unknown as Table<SyncedRow, string>;
     case "deficiencies":
       return db.deficiencies as unknown as Table<SyncedRow, string>;
+    case "trips":
+      return db.trips as unknown as Table<SyncedRow, string>;
   }
 }
 
@@ -418,6 +421,10 @@ export function normalizeForPush(table: OutboxTableName, row: SyncedRow): Synced
     r.label = r.label ?? "";
     r.revoked_at = r.revoked_at ?? null;
     r.last_used_at = r.last_used_at ?? null;
+  } else if (table === "trips") {
+    r.billable = r.billable ?? true;
+    r.note = r.note ?? "";
+    r.purpose = r.purpose ?? "other";
   } else if (table === "deficiencies") {
     r.window_id = r.window_id ?? null;
     r.share_id = r.share_id ?? null;

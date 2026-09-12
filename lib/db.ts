@@ -8,6 +8,7 @@ import type {
   Membership,
   Project,
   ProjectShare,
+  Trip,
   Unit,
   UnitPhoto,
   WindowRecord,
@@ -34,7 +35,8 @@ export type OutboxTableName =
   | "exports"
   | "invoices"
   | "project_shares"
-  | "deficiencies";
+  | "deficiencies"
+  | "trips";
 export type OutboxOp = "put" | "delete";
 
 export interface OutboxEntry {
@@ -61,6 +63,7 @@ class MeasureDB extends Dexie {
   invoices!: Table<InvoiceRecord, string>;
   project_shares!: Table<ProjectShare, string>;
   deficiencies!: Table<Deficiency, string>;
+  trips!: Table<Trip, string>;
   companies!: Table<Company, string>;
   memberships!: Table<Membership, string>;
   outbox!: Table<OutboxEntry, number>;
@@ -105,6 +108,11 @@ class MeasureDB extends Dexie {
     this.version(7).stores({
       project_shares: "id, project_id, updated_at, deleted",
       deficiencies: "id, project_id, unit_id, status, updated_at, deleted",
+    });
+    // v8: the site-trip log. Indexed by project (the card lists one project's
+    // trips) and by date (they read newest first).
+    this.version(8).stores({
+      trips: "id, project_id, date, updated_at, deleted",
     });
   }
 }
@@ -708,6 +716,49 @@ export async function setDeficiencyStatus(id: string, status: Deficiency["status
     status,
     resolved_at: status === "resolved" ? new Date().toISOString() : null,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Site trips
+// ---------------------------------------------------------------------------
+
+export async function createTrip(
+  input: Omit<Trip, "id" | "updated_at" | "deleted" | "billable" | "note"> & {
+    billable?: boolean;
+    note?: string;
+  }
+): Promise<Trip> {
+  return writeRow(db.trips, "trips", {
+    id: newId(),
+    project_id: input.project_id,
+    date: input.date,
+    purpose: input.purpose,
+    billable: input.billable ?? true,
+    note: input.note ?? "",
+    company_id: await parentCompanyId(db.projects, input.project_id),
+    updated_at: "",
+    deleted: false,
+  });
+}
+
+export async function updateTrip(id: string, patch: Partial<Omit<Trip, "id">>): Promise<Trip | undefined> {
+  const existing = await db.trips.get(id);
+  if (!existing) return undefined;
+  return writeRow(db.trips, "trips", { ...existing, ...patch });
+}
+
+export async function deleteTrip(id: string): Promise<void> {
+  const existing = await db.trips.get(id);
+  if (!existing) return;
+  await writeRow(db.trips, "trips", { ...existing, deleted: true }, "delete");
+}
+
+/** A project's trips, newest first — the order they are read and logged in. */
+export async function listTrips(projectId: string): Promise<Trip[]> {
+  const rows = await db.trips.where("project_id").equals(projectId).toArray();
+  return rows
+    .filter((r) => !r.deleted)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.updated_at.localeCompare(a.updated_at));
 }
 
 // ---------------------------------------------------------------------------

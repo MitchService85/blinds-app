@@ -9,7 +9,15 @@ export interface InvoiceFloorSummary {
   label: string;
   blinds: number;
   removed: number;
-  trips: number | null;
+}
+
+/** One logged site visit, for the trip appendix. */
+export interface InvoiceTripSummary {
+  /** "YYYY-MM-DD". */
+  date: string;
+  purpose: string;
+  billable: boolean;
+  note: string;
 }
 
 export interface InvoiceExportInput {
@@ -22,6 +30,7 @@ export interface InvoiceExportInput {
   invoice: Invoice;
   note: string;
   floors: InvoiceFloorSummary[];
+  trips: InvoiceTripSummary[];
 }
 
 const SHEET_NAME = "Invoice";
@@ -90,14 +99,32 @@ export function buildInvoiceWorkbook(input: InvoiceExportInput): ExcelJS.Workboo
   sheet.getCell(row, 1).value = "Floor";
   sheet.getCell(row, 2).value = "Blinds";
   sheet.getCell(row, 3).value = "Removed";
-  sheet.getCell(row, 4).value = "Trips";
   row++;
   for (const floor of input.floors) {
     sheet.getCell(row, 1).value = floor.label;
     sheet.getCell(row, 2).value = floor.blinds;
     sheet.getCell(row, 3).value = floor.removed;
-    if (floor.trips !== null) sheet.getCell(row, 4).value = floor.trips;
     row++;
+  }
+
+  // Trip appendix: the dates behind the trip-charge line, so "why five
+  // trips?" is answered on the page rather than from memory. Non-billable
+  // visits are listed too and marked — they are part of the job's story even
+  // though the customer is not paying for them.
+  if (input.trips.length > 0) {
+    row++;
+    sheet.getCell(row, 1).value = "Trip";
+    sheet.getCell(row, 2).value = "For";
+    sheet.getCell(row, 3).value = "Billed";
+    sheet.getCell(row, 4).value = "Note";
+    row++;
+    for (const trip of input.trips) {
+      sheet.getCell(row, 1).value = trip.date;
+      sheet.getCell(row, 2).value = trip.purpose;
+      sheet.getCell(row, 3).value = trip.billable ? "yes" : "no charge";
+      sheet.getCell(row, 4).value = trip.note;
+      row++;
+    }
   }
 
   return workbook;

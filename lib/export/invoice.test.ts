@@ -19,7 +19,6 @@ function fourSeasonsInput(): InvoiceExportInput {
   const floors = [
     {
       defaults: {},
-      trips: 1,
       units: [side(12, 24, 36), side(4, 9, 13), side(12, 24, 36), side(4, 9, 13)],
     },
   ];
@@ -31,7 +30,8 @@ function fourSeasonsInput(): InvoiceExportInput {
       removal_per_blind_cents: 500,
       trip_charge_cents: 7_500,
     },
-    floors
+    floors,
+    [{ billable: true }, { billable: false }]
   );
   return {
     project_name: "Four Seasons",
@@ -40,7 +40,11 @@ function fourSeasonsInput(): InvoiceExportInput {
     order_numbers: ["A-1023"],
     invoice,
     note: "Install inside contract.",
-    floors: [{ label: "Main Floor", blinds: 98, removed: 98, trips: 1 }],
+    floors: [{ label: "Main Floor", blinds: 98, removed: 98 }],
+    trips: [
+      { date: "2026-08-14", purpose: "Measure", billable: true, note: "" },
+      { date: "2026-08-19", purpose: "Revisit", billable: false, note: "our miscut on 204" },
+    ],
   };
 }
 
@@ -77,7 +81,24 @@ describe("buildInvoiceWorkbook", () => {
     expect(sheet.getCell("A18").value).toBe("Main Floor");
     expect(sheet.getCell("B18").value).toBe(98);
     expect(sheet.getCell("C18").value).toBe(98);
-    expect(sheet.getCell("D18").value).toBe(1);
+
+    // Then the trip appendix: the dates behind the trip-charge line, so
+    // "why five trips?" is answered on the page. A visit we are not
+    // charging for is still listed, and marked as such.
+    expect(sheet.getCell("A20").value).toBe("Trip");
+    expect(sheet.getCell("A21").value).toBe("2026-08-14");
+    expect(sheet.getCell("B21").value).toBe("Measure");
+    expect(sheet.getCell("C21").value).toBe("yes");
+    expect(sheet.getCell("A22").value).toBe("2026-08-19");
+    expect(sheet.getCell("C22").value).toBe("no charge");
+    expect(sheet.getCell("D22").value).toBe("our miscut on 204");
+  });
+
+  it("omits the trip appendix when no trips are logged", () => {
+    const workbook = buildInvoiceWorkbook({ ...fourSeasonsInput(), trips: [] });
+    const sheet = workbook.getWorksheet("Invoice")!;
+    expect(sheet.getCell("A18").value).toBe("Main Floor");
+    expect(sheet.getCell("A20").value).toBeNull();
   });
 
   it("keeps money cells currency-formatted", () => {

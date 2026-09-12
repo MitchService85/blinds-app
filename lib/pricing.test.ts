@@ -91,8 +91,14 @@ describe("counts", () => {
     expect(countMotorizedBlinds(floors)).toBe(5);
   });
 
-  it("sums trips across floors, treating null as zero", () => {
-    expect(countTrips([floor({ trips: 2 }), floor({ trips: null }), floor({ trips: 1 })])).toBe(3);
+  // A trip logged as not billable is a real visit — a revisit for our own
+  // measuring error — recorded so its cost is visible, but not invoiced.
+  it("counts billable trips only", () => {
+    expect(
+      countTrips([{ billable: true }, { billable: false }, { billable: true }])
+    ).toBe(2);
+    expect(countTrips([])).toBe(0);
+    expect(countTrips([{ billable: false }])).toBe(0);
   });
 });
 
@@ -109,9 +115,10 @@ describe("computeInvoice", () => {
         quoted_blind_count: 96,
         removal_per_blind_cents: 500, // $5 x 98 = $490
         install_per_blind_cents: 1_000, // $10 x 98 = $980
-        trip_charge_cents: 7_500, // $75 x 1
+        trip_charge_cents: 7_500, // $75 x 1 billable trip
       }),
-      fourSeasons()
+      fourSeasons(),
+      [{ billable: true }, { billable: false }]
     );
     expect(invoice.lines.map((l) => l.key)).toEqual([
       "contract",
