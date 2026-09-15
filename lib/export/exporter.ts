@@ -44,11 +44,31 @@ const HEADER_ROW = [
 
 const DATA_START_ROW = 10;
 
-/** Suggested export filename per spec: "{project_name} - {floor_label}.xlsx". */
+/**
+ * "{project_name} - {floor_label} - {when}.xlsx", e.g.
+ * "Arbour House - Level 4 - 2026-09-15 4.26pm.xlsx".
+ *
+ * The time is in the name because two exports of one floor on one day used
+ * to produce two files with the same name, and the one that got opened was
+ * the older one (2026-09-15: a corrected sheet was "still wrong" until the
+ * file from twenty minutes earlier was ruled out). Date first, ISO order, so
+ * a folder of these sorts chronologically; a dot between hour and minute
+ * because a colon is not allowed in a filename on iOS, macOS or Windows.
+ */
 export function suggestedFilename(
-  input: Pick<ExportInput, "project_name" | "floor_label">
+  input: Pick<ExportInput, "project_name" | "floor_label">,
+  at: Date = new Date()
 ): string {
-  return `${input.project_name} - ${input.floor_label}.xlsx`;
+  return `${input.project_name} - ${input.floor_label} - ${exportTimeStamp(at)}.xlsx`;
+}
+
+/** "2026-09-15 4.26pm" in the device's own timezone — what the crew's clock says. */
+export function exportTimeStamp(at: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const date = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+  const h24 = at.getHours();
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${date} ${h12}.${pad(at.getMinutes())}${h24 < 12 ? "am" : "pm"}`;
 }
 
 function setIfPresent(cell: ExcelJS.Cell, value: string | undefined | null) {

@@ -8,7 +8,7 @@
 // the file briefly not existing.
 declare module "@/lib/export/exporter" {
   export function exportFloorToBlob(input: unknown): Promise<Blob>;
-  export function suggestedFilename(input: unknown): string;
+  export function suggestedFilename(input: unknown, at?: Date): string;
 }
 
 declare module "@/lib/sync" {

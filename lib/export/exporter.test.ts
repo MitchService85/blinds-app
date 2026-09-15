@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type ExcelJS from "exceljs";
-import { buildNoteString, buildWorkbook, suggestedFilename, type ExportInput } from "./exporter";
+import {
+  buildNoteString,
+  buildWorkbook,
+  exportTimeStamp,
+  suggestedFilename,
+  type ExportInput,
+} from "./exporter";
 import inputFixture from "../../fixtures/level4-input.json";
 import goldenFixture from "../../fixtures/level4-golden.json";
 
@@ -65,10 +71,34 @@ describe("buildWorkbook golden file (Arbour House Level 4)", () => {
 });
 
 describe("suggestedFilename", () => {
-  it('builds "{project_name} - {floor_label}.xlsx"', () => {
+  it('builds "{project_name} - {floor_label} - {date time}.xlsx"', () => {
     expect(
-      suggestedFilename({ project_name: "Arbour House 15 Neighborhood Lane", floor_label: "Level 4" })
-    ).toBe("Arbour House 15 Neighborhood Lane - Level 4.xlsx");
+      suggestedFilename(
+        { project_name: "Arbour House 15 Neighborhood Lane", floor_label: "Level 4" },
+        new Date(2026, 8, 15, 16, 26)
+      )
+    ).toBe("Arbour House 15 Neighborhood Lane - Level 4 - 2026-09-15 4.26pm.xlsx");
+  });
+
+  it("stamps two exports of the same floor on the same day differently", () => {
+    const input = { project_name: "Daniel’s 1707 Ritson Rd N", floor_label: "Block B2 (430)" };
+    expect(suggestedFilename(input, new Date(2026, 8, 15, 15, 59))).not.toBe(
+      suggestedFilename(input, new Date(2026, 8, 15, 16, 26))
+    );
+  });
+
+  it("uses no characters a phone or desktop refuses in a filename", () => {
+    const name = suggestedFilename({ project_name: "Job", floor_label: "L1" }, new Date(2026, 0, 5, 9, 7));
+    expect(name).not.toMatch(/[:/\\?*"<>|]/);
+    expect(name).toBe("Job - L1 - 2026-01-05 9.07am.xlsx");
+  });
+});
+
+describe("exportTimeStamp", () => {
+  it("reads like a clock: 12-hour, no leading zero on the hour, padded minutes", () => {
+    expect(exportTimeStamp(new Date(2026, 8, 15, 0, 5))).toBe("2026-09-15 12.05am");
+    expect(exportTimeStamp(new Date(2026, 8, 15, 12, 0))).toBe("2026-09-15 12.00pm");
+    expect(exportTimeStamp(new Date(2026, 8, 15, 23, 59))).toBe("2026-09-15 11.59pm");
   });
 });
 
