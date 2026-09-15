@@ -114,7 +114,7 @@ describe("diffExports", () => {
     expect(d.removed).toBe(0);
   });
 
-  it("a legacy inside_tight override diffs on the Tight row, not as a mount change", () => {
+  it("a legacy inside_tight override diffs on the Measure row, not as a mount change", () => {
     const withOverride = (mount_override: "inside_tight" | null): ExportInput =>
       edit(base(), (i) => {
         i.units = [
@@ -131,9 +131,9 @@ describe("diffExports", () => {
       });
     const d = diffExports(withOverride("inside_tight"), withOverride(null));
     const labels = d.windows[0]?.fields.map((f) => f.label) ?? [];
-    // The tight convention changed (yes -> floor default); the mount did not
-    // ("inside_tight" never meant an inside mount).
-    expect(labels).toContain("Tight");
+    // The measure convention changed (tight -> floor default); the mount did
+    // not ("inside_tight" never meant an inside mount).
+    expect(labels).toContain("Measure");
     expect(labels).not.toContain("Mount");
   });
 

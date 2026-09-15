@@ -56,6 +56,12 @@ export function buildExportInput({
           // whose stored array can be longer than widths.
           panel_controls: w.panel_controls?.slice(0, w.widths.length) ?? null,
           mount_override: w.mount_override ?? null,
+          // Both measure columns ride along: `measure_override` is what the
+          // exporter reads, `tight_override` is the legacy boolean kept in
+          // step for a phone on an older bundle. Omitting the first is what
+          // made a window marked Finished still export "TIGHT MEASURES"
+          // (2026-09-15) — it fell through to the floor default.
+          measure_override: w.measure_override ?? null,
           tight_override: w.tight_override ?? null,
           deduct: w.deduct,
           chain_length: w.chain_length ?? null,

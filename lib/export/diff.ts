@@ -166,10 +166,23 @@ function compareWindows(a: ExportWindow, b: ExportWindow): FieldChange[] {
     const own = normalizeMount(m);
     return own ? mountLabel(own) : "floor default";
   };
-  const tightOverrideOf = (w: ExportWindow) =>
-    w.tight_override ?? (isTightMount(w.mount_override) ? true : null);
+  // Resolved the same way the exporter resolves it (windowMeasure), but
+  // stopping at "floor default" instead of folding the floor in: this row
+  // reports what the window itself says. It has to read all three columns,
+  // or flipping a window from Tight to Finished would show up as "no
+  // changes since the last export".
+  const measureOverrideLabel = (w: ExportWindow): string => {
+    if (w.measure_override === "tight" || w.measure_override === "finished") {
+      return w.measure_override;
+    }
+    if (w.measure_override === "none") return "not noted";
+    if (w.tight_override === true) return "tight";
+    if (w.tight_override === false) return "not noted";
+    if (isTightMount(w.mount_override)) return "tight";
+    return "floor default";
+  };
   push("Mount", mountOverrideLabel(a.mount_override), mountOverrideLabel(b.mount_override));
-  push("Tight", motorLabel(tightOverrideOf(a)), motorLabel(tightOverrideOf(b)));
+  push("Measure", measureOverrideLabel(a), measureOverrideLabel(b));
   push("Chain length", chainLabel(a.chain_length), chainLabel(b.chain_length));
   push("Longer chain", a.longer_chain ? "yes" : "no", b.longer_chain ? "yes" : "no");
   push("Motorized", motorLabel(a.motorized_override), motorLabel(b.motorized_override));
