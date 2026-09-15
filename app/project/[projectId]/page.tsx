@@ -35,6 +35,16 @@ interface FloorRow {
   total: number;
 }
 
+/**
+ * The floor's note, or "" when there isn't one. `extra_note` is required on
+ * the type but can arrive undefined from a phone on a bundle older than the
+ * field, and a whitespace-only note is not a note — neither should light the
+ * badge up.
+ */
+function floorNote(floor: Floor): string {
+  return (floor.defaults?.extra_note ?? "").trim();
+}
+
 /** Pure data load (no state writes) so both the mount effect and the
  * post-mutation refresh handler below can share it without the effect
  * calling out to a component-level function that sets state itself. */
@@ -214,7 +224,22 @@ export default function ProjectPage() {
                 href={`/project/${projectId}/floor/${floor.id}`}
                 className="flex min-w-0 flex-1 items-center justify-between rounded-l-xl p-4 active:bg-neutral-50 dark:active:bg-neutral-900"
               >
-                <span className="truncate font-medium">{floor.label}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate font-medium">{floor.label}</span>
+                  {/* Same blue note badge a unit tile carries, for the same
+                      reason: the floor note ("DRILL HOLES IN FASCIA") is the
+                      kind of thing you need to know you have BEFORE opening
+                      the floor, and this list was the only screen that hid
+                      it. */}
+                  {floorNote(floor) && (
+                    <span
+                      title={floorNote(floor)}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white"
+                    >
+                      <Icon name="note" size={12} />
+                    </span>
+                  )}
+                </span>
                 <span className="ml-3 shrink-0 text-sm text-neutral-500">
                   {total > 0 && done === total ? (
                     <>
