@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   createUnit,
+  deleteFloor,
   deleteUnit,
   getFloor,
   getProject,
@@ -261,6 +262,45 @@ export default function FloorPage() {
     await refresh();
   }
 
+  /**
+   * Rename this floor. Same read-modify-write funnel as the defaults, and the
+   * label is the only field a mistyped floor needs — a floor added as "Block
+   * B1, Block B2" could not be corrected at all before this (2026-09-15), on
+   * any screen, because nothing in the app ever edited a floor's label.
+   */
+  async function handleRenameFloor() {
+    if (!floor) return;
+    const next = window.prompt("Floor / batch name", floor.label)?.trim();
+    if (!next || next === floor.label) return;
+    setFloor({ ...floor, label: next });
+    await updateFloor(floor.id, { label: next });
+    triggerSyncIfAvailable();
+  }
+
+  /**
+   * Delete this floor and everything under it. The confirmation names the
+   * cost in units and blinds rather than asking "are you sure": an empty
+   * floor added by mistake should go without ceremony, but a measured one is
+   * a day's work and the prompt should say so.
+   */
+  async function handleDeleteFloor() {
+    if (!floor) return;
+    const unitCount = units.filter((u) => !u.deleted).length;
+    const blinds = units.reduce(
+      (n, u) => n + (windowsByUnit.get(u.id) ?? []).reduce((m, w) => m + windowBlindCount(w), 0),
+      0
+    );
+    const what =
+      unitCount === 0
+        ? `Delete "${floor.label}"? It has nothing in it.`
+        : `Delete "${floor.label}" and its ${unitCount} unit${unitCount === 1 ? "" : "s"}` +
+          `${blinds > 0 ? ` / ${blinds} blind${blinds === 1 ? "" : "s"}` : ""}? The measurements go with it.`;
+    if (!window.confirm(what)) return;
+    await deleteFloor(floor.id);
+    triggerSyncIfAvailable();
+    router.push(`/project/${projectId}`);
+  }
+
   async function handleDeleteUnit(unitId: string) {
     const unit = units.find((u) => u.id === unitId);
     const count = windowsByUnit.get(unitId)?.length ?? 0;
@@ -463,6 +503,26 @@ export default function FloorPage() {
             </label>
           </div>
           <FloorDefaultsForm value={floor.defaults} onChange={handleDefaultsChange} />
+
+          {/* Renaming and deleting a floor live here, with its other
+              settings. Neither existed anywhere in the app before, so a floor
+              typed wrong was permanent. */}
+          <div className="flex gap-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+            <button
+              type="button"
+              onClick={() => void handleRenameFloor()}
+              className="min-h-11 flex-1 rounded-lg bg-neutral-100 text-sm font-medium dark:bg-neutral-800"
+            >
+              Rename floor
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDeleteFloor()}
+              className="min-h-11 rounded-lg bg-red-50 px-4 text-sm font-medium text-red-700 dark:bg-red-950 dark:text-red-300"
+            >
+              Delete floor
+            </button>
+          </div>
         </div>
       )}
 
