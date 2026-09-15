@@ -17,7 +17,7 @@ import {
   effectiveMeasure,
   effectiveMotorized,
   effectiveMount,
-  isTightMount,
+  measureOverrideOf,
   normalizeColorCodes,
   normalizeMount,
   windowTagLabel,
@@ -166,20 +166,12 @@ function compareWindows(a: ExportWindow, b: ExportWindow): FieldChange[] {
     const own = normalizeMount(m);
     return own ? mountLabel(own) : "floor default";
   };
-  // Resolved the same way the exporter resolves it (windowMeasure), but
-  // stopping at "floor default" instead of folding the floor in: this row
-  // reports what the window itself says. It has to read all three columns,
-  // or flipping a window from Tight to Finished would show up as "no
+  // What the window itself says, with the floor left out of it: a change from
+  // Tight to Finished has to land on this row, or it would read as "no
   // changes since the last export".
   const measureOverrideLabel = (w: ExportWindow): string => {
-    if (w.measure_override === "tight" || w.measure_override === "finished") {
-      return w.measure_override;
-    }
-    if (w.measure_override === "none") return "not noted";
-    if (w.tight_override === true) return "tight";
-    if (w.tight_override === false) return "not noted";
-    if (isTightMount(w.mount_override)) return "tight";
-    return "floor default";
+    const own = measureOverrideOf(w);
+    return own === undefined ? "floor default" : (own ?? "not noted");
   };
   push("Mount", mountOverrideLabel(a.mount_override), mountOverrideLabel(b.mount_override));
   push("Measure", measureOverrideLabel(a), measureOverrideLabel(b));

@@ -25,11 +25,16 @@ import {
   listPhotos,
 } from "@/lib/db";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
+import { WindowBadges } from "@/components/window-badges";
 import { computeTagLabels } from "@/lib/tags";
 import { floorToEighth, formatFraction } from "@/lib/fractions";
 import type { ControlOverride, Deduct, Floor, MeasureOverride, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
-import { effectiveMotorized, isTightMount, normalizeMount, panelControl } from "@/lib/export/shared";
+import {
+  measureOverrideOf as sharedMeasureOverrideOf,
+  normalizeMount,
+  panelControl,
+} from "@/lib/export/shared";
 import { syncUnitTagIndices } from "@/components/window-tags";
 import { blockedOf } from "@/components/status";
 import {
@@ -98,11 +103,14 @@ function blankDraft(): DraftWindow {
 function measureOverrideOf(
   w: Pick<WindowRecord, "measure_override" | "tight_override" | "mount_override">
 ): MeasureOverride {
-  if (w.measure_override) return w.measure_override;
-  if (isTightMount(w.mount_override)) return "tight";
-  if (w.tight_override === true) return "tight";
-  if (w.tight_override === false) return "none";
-  return null;
+  // Same ladder the exporter and the badge walk — this one only re-spells the
+  // answer in the 4-state shape the control uses (null = inherit the floor,
+  // "none" = explicitly not noted). It used to walk its own copy in a
+  // different order, so a row carrying both a legacy "inside_tight" mount and
+  // tight_override: false read as tight here and as not-noted on the sheet.
+  const own = sharedMeasureOverrideOf(w);
+  if (own === undefined) return null;
+  return own ?? "none";
 }
 
 const DEDUCT_OPTIONS: Array<[Exclude<Deduct, null>, string]> = [
@@ -1376,44 +1384,16 @@ export default function WindowEntryPage() {
                   : "border-neutral-200 dark:border-neutral-800"
             }`}
           >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1.5 font-medium">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              {/* Everything this blind does differently, as badges. They live
+                  behind "More options" when you set them, so without this row
+                  a finished, outside-mounted, left-control blind reads exactly
+                  like its neighbours (field note, 2026-09-15). Wraps rather
+                  than truncating — a bay can legitimately carry five. */}
+              <div className="flex flex-wrap items-center gap-1.5 font-medium">
                 {displayLabelFor(w)}
-                {w.deduct && (
-                  <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                    {w.deduct}
-                  </span>
-                )}
-                {w.control_override === "L" && (
-                  <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-                    LC
-                  </span>
-                )}
-                {/* Motorized, resolved the way the export resolves it: the
-                    floor default unless this window overrides it. On a floor
-                    with a mix, this is the only way to see which blinds are
-                    motorized without opening each one (field note,
-                    2026-09-15). Filled rather than tinted — it is the one
-                    badge here that changes what gets ordered and what the
-                    job is billed. */}
-                {floor && effectiveMotorized(floor.defaults, w.motorized_override) && (
-                  <span
-                    title="Motorized"
-                    className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"
-                  >
-                    M
-                  </span>
-                )}
-                {typeof w.chain_length === "number" && w.chain_length > 0 ? (
-                  <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
-                    {w.chain_length}&quot;ch
-                  </span>
-                ) : w.longer_chain ? (
-                  <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
-                    CH
-                  </span>
-                ) : null}
+                <WindowBadges window={w} defaults={floor?.defaults} />
               </div>
               <div className="text-neutral-500">
                 {w.widths.map((width) => formatFraction(floorToEighth(width))).join(" + ")} ×{" "}
@@ -1425,7 +1405,7 @@ export default function WindowEntryPage() {
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex shrink-0 gap-2">
               <button
                 type="button"
                 onClick={() => setIssueOpenId((id) => (id === w.id ? null : w.id))}

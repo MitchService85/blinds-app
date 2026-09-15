@@ -128,12 +128,34 @@ export function windowMeasure(
   tightOverride: boolean | null | undefined,
   measureOverride?: MeasureOverride
 ): MeasureType {
-  if (measureOverride === "tight" || measureOverride === "finished") return measureOverride;
-  if (measureOverride === "none") return null;
-  if (tightOverride === true) return "tight";
-  if (tightOverride === false) return null;
-  if (isTightMount(override)) return "tight";
-  return effectiveMeasure(defaults);
+  const own = measureOverrideOf({
+    measure_override: measureOverride,
+    tight_override: tightOverride,
+    mount_override: override,
+  });
+  return own === undefined ? effectiveMeasure(defaults) : own;
+}
+
+/**
+ * What a window says about its OWN measure convention, ignoring the floor:
+ * a MeasureType when it states one (null meaning "explicitly not noted"), or
+ * `undefined` when it inherits. Three callers need this exact ladder — the
+ * exporter above, the export diff, and the badge on the window row — and a
+ * third copy of it is how the export came to disagree with the screen.
+ */
+export function measureOverrideOf(w: {
+  measure_override?: MeasureOverride;
+  tight_override?: boolean | null;
+  mount_override?: StoredMountType;
+}): MeasureType | undefined {
+  if (w.measure_override === "tight" || w.measure_override === "finished") {
+    return w.measure_override;
+  }
+  if (w.measure_override === "none") return null;
+  if (w.tight_override === true) return "tight";
+  if (w.tight_override === false) return null;
+  if (isTightMount(w.mount_override)) return "tight";
+  return undefined;
 }
 
 /**
