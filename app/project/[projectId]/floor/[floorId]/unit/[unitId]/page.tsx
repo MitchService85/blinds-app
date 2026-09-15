@@ -28,7 +28,7 @@ import { computeTagLabels } from "@/lib/tags";
 import { floorToEighth, formatFraction } from "@/lib/fractions";
 import type { ControlOverride, Deduct, Floor, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
-import { isTightMount, normalizeMount, panelControl } from "@/lib/export/shared";
+import { effectiveMotorized, isTightMount, normalizeMount, panelControl } from "@/lib/export/shared";
 import { syncUnitTagIndices } from "@/components/window-tags";
 import { blockedOf } from "@/components/status";
 import {
@@ -1336,6 +1336,21 @@ export default function WindowEntryPage() {
                 {w.control_override === "L" && (
                   <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
                     LC
+                  </span>
+                )}
+                {/* Motorized, resolved the way the export resolves it: the
+                    floor default unless this window overrides it. On a floor
+                    with a mix, this is the only way to see which blinds are
+                    motorized without opening each one (field note,
+                    2026-09-15). Filled rather than tinted — it is the one
+                    badge here that changes what gets ordered and what the
+                    job is billed. */}
+                {floor && effectiveMotorized(floor.defaults, w.motorized_override) && (
+                  <span
+                    title="Motorized"
+                    className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                  >
+                    M
                   </span>
                 )}
                 {typeof w.chain_length === "number" && w.chain_length > 0 ? (
