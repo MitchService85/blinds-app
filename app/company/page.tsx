@@ -125,7 +125,7 @@ export default function CompanyPage() {
   if (!company) {
     return (
       <main className="flex flex-col gap-5 p-4">
-        <Link href="/" className="text-sm text-blue-600">
+        <Link href="/" className="inline-flex min-h-11 items-center self-start text-sm text-blue-600">
           ← Back
         </Link>
         <p className="text-sm text-neutral-500">

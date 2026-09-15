@@ -409,16 +409,13 @@ export default function FloorPage() {
     await updateFloor(floor.id, { defaults });
   }
 
-  /** Always writes BOTH job-info fields in one update: two separate
-   * read-modify-write patches issued back-to-back can interleave and clobber
-   * each other (updateFloor reads the row before writing). */
-  async function handleJobInfoChange(orderNumber: string, trips: number | null) {
+  async function handleOrderNumberChange(orderNumber: string) {
     if (!floor) return;
-    setFloor({ ...floor, order_number: orderNumber, trips });
+    setFloor({ ...floor, order_number: orderNumber });
     // The write result is deliberately not read back: it is stale by the
     // time it resolves, and setting it would revert an input mid-typing
     // (same failure handleDefaultsChange documents).
-    await updateFloor(floor.id, { order_number: orderNumber, trips });
+    await updateFloor(floor.id, { order_number: orderNumber });
   }
 
   /** Total blinds on the floor (each bay panel is one blind) — invoicing quantity. */
@@ -472,36 +469,24 @@ export default function FloorPage() {
         className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 p-3 text-left text-xs dark:border-neutral-800"
       >
         <DefaultsSummary defaults={floor.defaults} />
-        <JobInfoChips orderNumber={floor.order_number ?? ""} trips={floor.trips ?? null} blinds={blindCount} />
+        <JobInfoChips orderNumber={floor.order_number ?? ""} blinds={blindCount} />
         <span className="ml-auto shrink-0 text-blue-600">Edit</span>
       </button>
       {editingDefaults && (
         <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-          <div className="flex gap-3">
-            <label className="flex-1">
-              <span className="mb-1 block text-sm text-neutral-500">Order number</span>
-              <input
-                value={floor.order_number ?? ""}
-                onChange={(e) => handleJobInfoChange(e.target.value, floor.trips ?? null)}
-                placeholder="e.g. 48291"
-                className="min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
-              />
-            </label>
-            <label className="w-28">
-              <span className="mb-1 block text-sm text-neutral-500">Trips</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={floor.trips ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, "");
-                  handleJobInfoChange(floor.order_number ?? "", v === "" ? null : parseInt(v, 10));
-                }}
-                placeholder="0"
-                className="min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
-              />
-            </label>
-          </div>
+          {/* Trips used to be counted here per floor; they are logged per
+              project now (components/trip-log.tsx), which is what invoicing
+              reads. The field stayed on this form for three weeks after it
+              stopped meaning anything (2026-09-15 UI check). */}
+          <label>
+            <span className="mb-1 block text-sm text-neutral-500">Order number</span>
+            <input
+              value={floor.order_number ?? ""}
+              onChange={(e) => handleOrderNumberChange(e.target.value)}
+              placeholder="e.g. 48291"
+              className="min-h-12 w-full rounded-lg border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </label>
           <FloorDefaultsForm value={floor.defaults} onChange={handleDefaultsChange} />
 
           {/* Renaming and deleting a floor live here, with its other
@@ -815,19 +800,10 @@ function UnitNotePanel({
   );
 }
 
-function JobInfoChips({
-  orderNumber,
-  trips,
-  blinds,
-}: {
-  orderNumber: string;
-  trips: number | null;
-  blinds: number;
-}) {
+function JobInfoChips({ orderNumber, blinds }: { orderNumber: string; blinds: number }) {
   const chips = [
     orderNumber ? `Order #${orderNumber}` : null,
-    trips !== null ? `${trips} trip${trips === 1 ? "" : "s"}` : null,
-    `${blinds} blinds`,
+    `${blinds} blind${blinds === 1 ? "" : "s"}`,
   ].filter(Boolean) as string[];
   return (
     <>

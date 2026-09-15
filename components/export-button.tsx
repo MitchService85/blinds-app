@@ -150,26 +150,29 @@ export function ExportButton({
 
   return (
     <>
-      <div className="flex flex-col items-stretch">
+      {/* The "exported …" line takes a full row ABOVE the buttons (the bar
+          wraps; basis-full + order-first). Stacked under Export it sat in
+          a column narrower than its text and ran off the right edge of the
+          bar, and its extra height stretched Done past the Export button
+          (2026-09-15 UI check). */}
+      {history.last && (
         <button
           type="button"
-          onClick={handleExportClick}
-          disabled={busy}
-          className="min-h-12 rounded-lg bg-neutral-800 px-4 text-sm font-medium text-white active:bg-neutral-700 disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900"
+          onClick={() => setHistoryOpen(true)}
+          className="order-first min-w-0 basis-full truncate text-right text-[11px] leading-tight text-neutral-500 underline decoration-dotted underline-offset-2 dark:text-neutral-400"
         >
-          {busy ? "Exporting…" : "Export"}
+          Exported {formatExportDate(history.last.exported_at)}
+          {history.summary ? ` · ${history.summary}` : ""}
         </button>
-        {history.last && (
-          <button
-            type="button"
-            onClick={() => setHistoryOpen(true)}
-            className="mt-1 text-center text-[11px] leading-tight text-neutral-500 underline decoration-dotted underline-offset-2 dark:text-neutral-400"
-          >
-            Last {formatExportDate(history.last.exported_at)}
-            {history.summary ? `, ${history.summary}` : ""}
-          </button>
-        )}
-      </div>
+      )}
+      <button
+        type="button"
+        onClick={handleExportClick}
+        disabled={busy}
+        className="min-h-14 rounded-xl bg-neutral-800 px-5 text-base font-semibold text-white active:bg-neutral-700 disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900"
+      >
+        {busy ? "Exporting…" : "Export"}
+      </button>
 
       {historyOpen && (
         <ExportHistorySheet floorId={floor.id} onClose={() => setHistoryOpen(false)} />

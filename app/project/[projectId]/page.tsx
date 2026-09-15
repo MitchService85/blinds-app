@@ -182,7 +182,7 @@ export default function ProjectPage() {
         <button
           type="button"
           onClick={() => setEditingInfo((v) => !v)}
-          className="shrink-0 text-sm text-blue-600"
+          className="-mr-2 flex min-h-11 shrink-0 items-center px-2 text-sm text-blue-600"
         >
           {editingInfo ? "Done" : "Edit"}
         </button>

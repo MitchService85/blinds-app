@@ -214,13 +214,27 @@ export function MoneyCard({ project, onProjectChange, tripsVersion = 0 }: MoneyC
       <div className="mb-2 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-neutral-500">Money</h2>
         {stored && (
-          <button type="button" onClick={() => setEditing(true)} className="text-sm text-blue-600">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="-my-2 flex min-h-10 items-center px-2 text-sm text-blue-600"
+          >
             Edit
           </button>
         )}
       </div>
 
-      {!stored ? (
+      {/* The editor replaces whatever it is editing — the button or the
+          summary — rather than appearing further down the page under the
+          Invoices block, where a tap on "Set contract" looked like it did
+          nothing until you scrolled (2026-09-15 UI check). */}
+      {editing ? (
+        <PricingSheet
+          initial={stored ?? emptyPricing()}
+          onSave={handleSave}
+          onClose={() => setEditing(false)}
+        />
+      ) : !stored ? (
         <button
           type="button"
           onClick={() => setEditing(true)}
@@ -309,13 +323,6 @@ export function MoneyCard({ project, onProjectChange, tripsVersion = 0 }: MoneyC
         )}
       </div>
 
-      {editing && (
-        <PricingSheet
-          initial={stored ?? emptyPricing()}
-          onSave={handleSave}
-          onClose={() => setEditing(false)}
-        />
-      )}
     </section>
   );
 }

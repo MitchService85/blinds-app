@@ -116,7 +116,7 @@ export function UnitTile({
           setMenuOpen((v) => !v);
         }}
         aria-label={`Unit ${unit.number} actions`}
-        className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-neutral-900/70 text-white dark:bg-white/80 dark:text-neutral-900"
+        className="absolute -right-2 -top-2 flex h-9 w-9 items-center justify-center rounded-full bg-neutral-900/70 text-white dark:bg-white/80 dark:text-neutral-900"
       >
         <Icon name="more" size={16} />
       </button>
@@ -124,7 +124,7 @@ export function UnitTile({
       {menuOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
             {unit.status !== "done" && (
               <button
                 type="button"
