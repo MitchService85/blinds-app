@@ -9,6 +9,7 @@
 // exporter.ts re-exports everything below, so existing importers are unaffected.
 import { floorToEighth, toDecimal } from "../fractions";
 import type {
+  MeasureOverride,
   ControlOverride,
   Deduct,
   FloorDefaults,
@@ -41,7 +42,9 @@ export interface ExportWindow {
   panel_controls?: ControlOverride[] | null;
   /** Per-window mount override; null/absent inherits the floor default. */
   mount_override?: StoredMountType;
-  /** Per-window tight override; null/absent inherits the floor's tight. */
+  /** This window's own measure convention; null/absent inherits the floor's. */
+  measure_override?: MeasureOverride;
+  /** LEGACY per-window tight override, superseded by measure_override. */
   tight_override?: boolean | null;
   deduct: Deduct;
   /** Chain length in whole inches -> the template's Chain column. */
@@ -111,16 +114,22 @@ export function windowMount(
 }
 
 /**
- * Resolve a window's measure: explicit override wins, then legacy, then floor.
- * The override stays the stored boolean (a fixed column in the windows table):
- * true = tight, false = don't note this window (even on a finished floor),
- * null = inherit the floor's convention.
+ * Resolve a window's measure: its own override wins, then the legacy boolean,
+ * then a legacy tight mount, then the floor.
+ *
+ * `measureOverride` carries all four states (inherit / tight / finished /
+ * explicitly unnoted). `tightOverride` is the boolean that preceded it and
+ * could not express "finished"; it is still read for rows written before the
+ * new column, and still written alongside it so an older bundle agrees.
  */
 export function windowMeasure(
   defaults: Pick<FloorDefaults, "tight" | "mount" | "measure">,
   override: StoredMountType | undefined,
-  tightOverride: boolean | null | undefined
+  tightOverride: boolean | null | undefined,
+  measureOverride?: MeasureOverride
 ): MeasureType {
+  if (measureOverride === "tight" || measureOverride === "finished") return measureOverride;
+  if (measureOverride === "none") return null;
   if (tightOverride === true) return "tight";
   if (tightOverride === false) return null;
   if (isTightMount(override)) return "tight";
@@ -210,6 +219,7 @@ export function buildNoteString(
   opts?: {
     /** Per-window tight override. */
     tightOverride?: boolean | null;
+    measureOverride?: MeasureOverride;
     /** Per-window motorization override. */
     motorizedOverride?: boolean | null;
     /**
@@ -227,7 +237,7 @@ export function buildNoteString(
 
   // The measure convention leads, as tight has on every file the factory
   // has accepted.
-  const measure = windowMeasure(defaults, mountOverride, opts?.tightOverride);
+  const measure = windowMeasure(defaults, mountOverride, opts?.tightOverride, opts?.measureOverride);
   if (measure) append(MEASURE_TEXT[measure]);
 
   const mount = windowMount(defaults, mountOverride);

@@ -26,7 +26,7 @@ import {
 } from "@/lib/db";
 import { computeTagLabels } from "@/lib/tags";
 import { floorToEighth, formatFraction } from "@/lib/fractions";
-import type { ControlOverride, Deduct, Floor, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
+import type { ControlOverride, Deduct, Floor, MeasureOverride, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
 import { effectiveMotorized, isTightMount, normalizeMount, panelControl } from "@/lib/export/shared";
 import { syncUnitTagIndices } from "@/components/window-tags";
@@ -58,8 +58,8 @@ interface DraftWindow {
   panel_controls: ControlOverride[];
   /** "I checked this one, it's fine" — silences this window's warnings. */
   checks_ack: boolean;
-  /** null = inherit the floor's tight setting. */
-  tight_override: boolean | null;
+  /** null = inherit the floor's measure; "none" = explicitly not noted. */
+  measure_override: MeasureOverride;
   /** Chain length in whole inches; null = unspecified. */
   chain_length: number | null;
   /** null = inherit the floor's motorized setting. */
@@ -80,13 +80,28 @@ function blankDraft(): DraftWindow {
     mount_override: null,
     panel_controls: [],
     checks_ack: false,
-    tight_override: null,
+    measure_override: null,
     chain_length: null,
     motorized_override: null,
     deduct: null,
     longer_chain: false,
     note: "",
   };
+}
+
+/**
+ * A stored window's measure override, reading the new column first and
+ * falling back to the encodings that preceded it: the tight_override boolean,
+ * and older still, "inside_tight" sitting in the mount column.
+ */
+function measureOverrideOf(
+  w: Pick<WindowRecord, "measure_override" | "tight_override" | "mount_override">
+): MeasureOverride {
+  if (w.measure_override) return w.measure_override;
+  if (isTightMount(w.mount_override)) return "tight";
+  if (w.tight_override === true) return "tight";
+  if (w.tight_override === false) return "none";
+  return null;
 }
 
 const DEDUCT_OPTIONS: Array<[Exclude<Deduct, null>, string]> = [
@@ -252,7 +267,7 @@ export default function WindowEntryPage() {
         !d.longer_chain &&
         !d.control_override &&
         !d.mount_override &&
-        d.tight_override === null &&
+        d.measure_override === null &&
         d.chain_length === null &&
         d.motorized_override === null &&
         d.panel_controls.every((c) => c == null) &&
@@ -278,8 +293,9 @@ export default function WindowEntryPage() {
     else if (d.longer_chain) out.push("Longer chain");
     if (d.motorized_override === true) out.push("Motorized");
     if (d.motorized_override === false) out.push("Not motorized");
-    if (d.tight_override === true) out.push("Tight");
-    if (d.tight_override === false) out.push("Not noted");
+    if (d.measure_override === "tight") out.push("Tight");
+    if (d.measure_override === "finished") out.push("Finished");
+    if (d.measure_override === "none") out.push("Not noted");
     if (d.mount_override) out.push(d.mount_override === "inside" ? "Inside" : "Outside");
     if (d.note) out.push("Note");
     return out;
@@ -343,7 +359,7 @@ export default function WindowEntryPage() {
             mount_override: latest.mount_override,
             panel_controls: latest.panel_controls,
             checks_ack: latest.checks_ack,
-            tight_override: latest.tight_override,
+            measure_override: measureOverrideOf(latest),
             chain_length: latest.chain_length ?? null,
             motorized_override: latest.motorized_override ?? null,
             deduct: latest.deduct,
@@ -366,7 +382,7 @@ export default function WindowEntryPage() {
         mount_override: latest.mount_override,
         panel_controls: latest.panel_controls,
         checks_ack: latest.checks_ack,
-        tight_override: latest.tight_override,
+        measure_override: measureOverrideOf(latest),
         chain_length: latest.chain_length ?? null,
         motorized_override: latest.motorized_override ?? null,
         deduct: latest.deduct,
@@ -410,7 +426,9 @@ export default function WindowEntryPage() {
       quantity: draft.quantity,
       control_override: draft.control_override,
       mount_override: draft.mount_override,
-      tight_override: draft.tight_override,
+      // The legacy tight boolean is derived from this in lib/db.ts's window
+      // write funnel, so every path agrees.
+      measure_override: draft.measure_override,
       panel_controls: draft.panel_controls.length > 0 ? draft.panel_controls : null,
       checks_ack: draft.checks_ack,
       chain_length: draft.chain_length,
@@ -529,7 +547,7 @@ export default function WindowEntryPage() {
       // Legacy "inside_tight" decoding lives in lib/export/shared.ts so the
       // edit form can never disagree with what the exporter writes.
       mount_override: normalizeMount(w.mount_override),
-      tight_override: isTightMount(w.mount_override) ? true : (w.tight_override ?? null),
+      measure_override: measureOverrideOf(w),
       // Defensive slice: rows written before the removePanel fix can carry a
       // longer array than widths; extra entries belonged to removed panels.
       panel_controls: (w.panel_controls ?? []).slice(0, w.widths.length),
@@ -546,7 +564,7 @@ export default function WindowEntryPage() {
         w.chain_length != null ||
         w.longer_chain ||
         w.motorized_override != null ||
-        w.tight_override != null ||
+        measureOverrideOf(w) !== null ||
         w.mount_override != null ||
         Boolean(w.note)
     );
@@ -583,7 +601,7 @@ export default function WindowEntryPage() {
       mount_override: null,
       panel_controls: [],
       checks_ack: false,
-      tight_override: null,
+      measure_override: null,
       chain_length: null,
       motorized_override: null,
       deduct: null,
@@ -1126,24 +1144,26 @@ export default function WindowEntryPage() {
 
         <div>
           <div className="mb-1 text-xs text-neutral-500">Measure (this window only)</div>
+          {/* The factory's two conventions plus inherit and an explicit
+              "don't note this one". Finished was missing here until
+              2026-09-15: the override was a boolean, so a finished window on
+              a tight floor could not be recorded at all. */}
           <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
             {(
-              // The stored override is a fixed boolean column, so a window on
-              // a finished floor can go tight or unnoted but not the reverse
-              // — no job has yet mixed finished windows into a tight floor.
               [
-                [null, "Floor default"],
-                [true, "Tight"],
-                [false, "Not noted"],
-              ] as Array<[boolean | null, string]>
-            ).map(([t, label]) => (
+                [null, "Floor"],
+                ["tight", "Tight"],
+                ["finished", "Finished"],
+                ["none", "Not noted"],
+              ] as Array<[MeasureOverride, string]>
+            ).map(([m, label]) => (
               <button
                 key={label}
                 type="button"
-                onClick={() => patchDraft({ tight_override: t })}
-                aria-pressed={draft.tight_override === t}
+                onClick={() => patchDraft({ measure_override: m })}
+                aria-pressed={draft.measure_override === m}
                 className={`min-h-11 flex-1 text-xs font-medium ${
-                  draft.tight_override === t
+                  draft.measure_override === m
                     ? "bg-blue-600 text-white"
                     : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
                 }`}

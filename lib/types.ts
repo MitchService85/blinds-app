@@ -209,6 +209,20 @@ export type ControlOverride = null | "L" | "R";
  */
 export type IssueFault = null | "factory" | "measure";
 
+/**
+ * A window's own measure convention, independent of its floor's.
+ *
+ * Four states, which the legacy boolean could not carry: absent/null inherits
+ * the floor, "tight" and "finished" are the factory's two conventions, and
+ * "none" is an explicit "don't note this one" even on a floor that does.
+ *
+ * `tight_override` was a fixed boolean column and so could only ever say
+ * tight or not-noted — a finished window on a tight floor was unrepresentable.
+ * That was assumed never to happen; a job in September 2026 mixed them, and
+ * the crew found no Finished option on the window at all.
+ */
+export type MeasureOverride = null | "tight" | "finished" | "none";
+
 export interface WindowRecord extends TenantRow {
   unit_id: string;
   /** Room tag, e.g. "LR", "BR" */
@@ -253,8 +267,14 @@ export interface WindowRecord extends TenantRow {
    * null/absent = inherit the floor's mount.
    */
   mount_override?: StoredMountType;
-  /** Per-window tight override; null/absent inherits the floor's `tight`. */
+  /**
+   * LEGACY per-window tight override. Kept in sync by writers so a phone on
+   * an older bundle still reads tight windows correctly; readers prefer
+   * `measure_override` and fall back here.
+   */
   tight_override?: boolean | null;
+  /** This window's measure convention; absent/null inherits the floor's. */
+  measure_override?: MeasureOverride;
   deduct: Deduct;
   /**
    * Chain length in whole inches, exported to the template's Chain column.

@@ -126,6 +126,7 @@ export function buildWorkbook(input: ExportInput): ExcelJS.Workbook {
         w.mount_override,
         {
           tightOverride: w.tight_override,
+          measureOverride: w.measure_override,
           motorizedOverride: w.motorized_override,
           chainLength: w.chain_length,
         }

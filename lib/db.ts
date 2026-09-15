@@ -386,6 +386,30 @@ export async function getUnit(id: string): Promise<Unit | undefined> {
 // Windows
 // ---------------------------------------------------------------------------
 
+/**
+ * Keep the legacy tight boolean in step with measure_override.
+ *
+ * measure_override superseded tight_override in 2026-09 because a boolean
+ * could not say "finished". A phone still on an older bundle reads only the
+ * boolean, so every write derives it here — in the funnel rather than at each
+ * call site, which is how the create-with-tag path and the autosave path came
+ * to disagree the first time this was wired.
+ *
+ * "finished" has no boolean form; it leaves the legacy field null, so an old
+ * bundle shows that window as following its floor rather than as something
+ * wrong.
+ */
+function withLegacyTight<T extends Pick<WindowRecord, "measure_override" | "tight_override">>(
+  w: T
+): T {
+  if (w.measure_override === undefined) return w;
+  return {
+    ...w,
+    tight_override:
+      w.measure_override === "tight" ? true : w.measure_override === "none" ? false : null,
+  };
+}
+
 export async function createWindow(
   input: Omit<WindowRecord, "id" | "updated_at" | "deleted" | "quantity"> & {
     quantity?: number;
@@ -393,7 +417,7 @@ export async function createWindow(
 ): Promise<WindowRecord> {
   return writeRow(db.windows, "windows", {
     company_id: await parentCompanyId(db.units, input.unit_id),
-    ...input,
+    ...withLegacyTight(input),
     quantity: input.quantity ?? 1,
     panel_controls: input.panel_controls ?? null,
     checks_ack: input.checks_ack ?? false,
@@ -425,7 +449,7 @@ export async function upsertWindow(
     deleted: false,
     quantity: window.quantity ?? 1,
     company_id: await parentCompanyId(db.units, window.unit_id),
-    ...window,
+    ...withLegacyTight(window),
     updated_at: window.updated_at ?? "",
   } as WindowRecord);
 }

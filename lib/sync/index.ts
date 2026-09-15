@@ -389,6 +389,7 @@ export function normalizeForPush(table: OutboxTableName, row: SyncedRow): Synced
     r.panel_controls = r.panel_controls ?? null;
     r.checks_ack = r.checks_ack ?? false;
     r.tight_override = r.tight_override ?? null;
+    r.measure_override = r.measure_override ?? null;
     r.chain_length = r.chain_length ?? null;
     r.motorized_override = r.motorized_override ?? null;
     r.issue_note = r.issue_note ?? "";
