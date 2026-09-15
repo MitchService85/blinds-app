@@ -24,6 +24,7 @@ import {
   deletePhoto,
   listPhotos,
 } from "@/lib/db";
+import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { computeTagLabels } from "@/lib/tags";
 import { floorToEighth, formatFraction } from "@/lib/fractions";
 import type { ControlOverride, Deduct, Floor, MeasureOverride, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
@@ -655,7 +656,28 @@ export default function WindowEntryPage() {
     if (row) await upsertWindow({ ...row, ...patch });
   }
 
-  /** Billable removal count (see MoneyCard). Clamped at 0. */
+  /**
+   * Rename this unit. The number is what the factory sheet, the install grid
+   * and the PM view all key off, and nothing in the app could change it: a
+   * unit typed as "1O1" stayed that way for the life of the job
+   * (2026-09-15). Same duplicate check the add-unit box uses — two tiles with
+   * one number on a floor is the state the merge banner exists to clean up,
+   * so a rename should not be able to create it.
+   */
+  async function handleRenameUnit() {
+    if (!unit) return;
+    const next = window.prompt("Unit number / zone name", unit.number)?.trim();
+    if (!next || next === unit.number) return;
+    const siblings = await listUnits(floorId);
+    if (siblings.some((u) => u.id !== unit.id && u.number === next)) {
+      window.alert(`"${next}" already exists on this floor.`);
+      return;
+    }
+    setUnit({ ...unit, number: next });
+    await updateUnit(unit.id, { number: next });
+    triggerSyncIfAvailable();
+  }
+
   /** Clear the block from inside the unit — install mode's action sheet is
    * three taps away, and the fix usually happens right here. */
   async function handleUnblock() {
@@ -664,6 +686,7 @@ export default function WindowEntryPage() {
     await updateUnit(unit.id, { install_blocked: false });
   }
 
+  /** Billable removal count (see MoneyCard). Clamped at 0. */
   async function handleRemovedChange(removed: number) {
     if (!unit || Number.isNaN(removed)) return;
     const clamped = Math.max(0, removed);
@@ -724,8 +747,17 @@ export default function WindowEntryPage() {
         <div className="min-w-0 flex-1">
           {/* Full unit number / zone label, no truncation — the floor
               grid's tiles are where long labels ("L1- Snake Corridor")
-              get ellipsis-truncated instead. */}
-          <h1 className="text-xl font-semibold break-words">Unit {unit.number}</h1>
+              get ellipsis-truncated instead. Tapping the name renames the
+              unit: it is where anyone looks for it, and it costs no room in
+              a header that already carries the floor and the saved flag. */}
+          <button
+            type="button"
+            onClick={() => void handleRenameUnit()}
+            className="flex min-h-11 items-center gap-1.5 text-left"
+          >
+            <h1 className="text-xl font-semibold break-words">Unit {unit.number}</h1>
+            <Icon name="note" size={14} className="shrink-0 text-neutral-400" />
+          </button>
           {floor && <div className="text-sm text-neutral-500">{floor.label}</div>}
         </div>
         {draft.id && (
