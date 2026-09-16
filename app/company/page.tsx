@@ -16,6 +16,7 @@ import { AccountCard } from "@/components/account-card";
 import { emptyBilling } from "@/lib/invoice/draft";
 import { parseDollarsToCents } from "@/lib/pricing";
 import type { Company, CompanyBilling, Membership } from "@/lib/types";
+import { BackButton } from "@/components/back-button";
 
 /**
  * Company settings and the team roster.
@@ -139,9 +140,7 @@ export default function CompanyPage() {
   return (
     <main className="flex flex-1 flex-col gap-5 p-4 pb-24">
       <header className="safe-sticky-top sticky z-20 -mx-4 flex items-center gap-3 bg-white/95 px-4 pb-3 backdrop-blur dark:bg-neutral-950/95">
-        <Link href="/" className="min-h-11 min-w-11 shrink-0 text-xl leading-[2.75rem]">
-          ←
-        </Link>
+        <BackButton href="/" label="Back to all jobs" />
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold">Settings</h1>
           <div className="text-sm text-neutral-500">{company.name || "Your company"}</div>

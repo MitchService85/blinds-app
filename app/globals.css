@@ -104,3 +104,20 @@ body {
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* A <Link> still waiting on the network after a tap (components/back-button.tsx):
+   dim after a beat and breathe, so a slow navigation reads as "working". Nothing
+   changes size, and nothing shows at all if the transition lands within 120ms. */
+.nav-pending {
+  animation: nav-pending-fade 150ms ease-out 120ms forwards, nav-pending-pulse 900ms ease-in-out 270ms infinite;
+}
+@keyframes nav-pending-fade {
+  to {
+    opacity: 0.4;
+  }
+}
+@keyframes nav-pending-pulse {
+  50% {
+    opacity: 0.15;
+  }
+}

@@ -7,6 +7,7 @@ import type { BuildingType, FloorDefaults } from "@/lib/types";
 import { TagChipEditor } from "@/components/tag-chip-editor";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { BottomBar } from "@/components/bottom-bar";
+import { BackHistoryButton } from "@/components/back-button";
 
 // Mike's own designations, which the factory processes and returns labelled
 // the same way. STU covers a studio/bachelor unit.
@@ -95,9 +96,7 @@ export default function NewJobPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-0">
       <header className="flex items-center gap-3">
-        <button type="button" onClick={() => router.back()} className="min-h-11 min-w-11 text-xl">
-          ←
-        </button>
+        <BackHistoryButton />
         <h1 className="text-xl font-semibold">New job</h1>
       </header>
 

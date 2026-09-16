@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createFloor, duplicateFloor, getProject, listFloors, listUnits, updateProject } from "@/lib/db";
 import { nextFloorLabel } from "@/lib/floor-copy";
@@ -16,6 +16,7 @@ import { PmAccessCard } from "@/components/pm-access-card";
 import { DeficiencyList } from "@/components/deficiency-list";
 import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
+import { BackButton } from "@/components/back-button";
 
 function defaultFloorDefaults(): FloorDefaults {
   return {
@@ -67,7 +68,6 @@ async function loadProjectData(projectId: string): Promise<{ project: Project | 
 
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
-  const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
   const [floors, setFloors] = useState<FloorRow[]>([]);
   const [adding, setAdding] = useState(false);
@@ -172,9 +172,7 @@ export default function ProjectPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-10">
       <header className="flex items-center gap-3">
-        <button type="button" onClick={() => router.push("/")} className="min-h-11 min-w-11 text-xl">
-          ←
-        </button>
+        <BackButton href="/" label="Back to all jobs" />
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold break-words">{project.name}</h1>
           <div className="text-sm text-neutral-500">{project.address}</div>

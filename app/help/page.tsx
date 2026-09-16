@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import type { ReactNode } from "react";
+import { BackHistoryButton } from "@/components/back-button";
 
 /**
  * Contractor-facing instructions ("?" on the dashboard). Written for a
@@ -116,14 +116,11 @@ function VisualSync() {
 }
 
 export default function HelpPage() {
-  const router = useRouter();
 
   return (
     <main className="mx-auto flex max-w-md flex-1 flex-col gap-4 p-4 pb-12">
       <header className="safe-sticky-top sticky z-20 -mx-4 flex items-center gap-3 bg-white/95 px-4 pb-3 backdrop-blur dark:bg-neutral-950/95">
-        <button type="button" onClick={() => router.back()} className="min-h-11 min-w-11 shrink-0 text-xl">
-          ←
-        </button>
+        <BackHistoryButton />
         <h1 className="text-xl font-semibold">How to use Measure</h1>
       </header>
 

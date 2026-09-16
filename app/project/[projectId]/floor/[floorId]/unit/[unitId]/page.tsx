@@ -8,7 +8,7 @@ import { BottomBar } from "@/components/bottom-bar";
 import { DeficiencyList } from "@/components/deficiency-list";
 import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   createWindow,
   deleteWindow,
@@ -43,6 +43,7 @@ import {
   windowHasIssue,
   type WindowIssueFields,
 } from "@/components/window-issue";
+import { BackButton } from "@/components/back-button";
 
 interface DraftWindow {
   id: string | null;
@@ -125,7 +126,6 @@ export default function WindowEntryPage() {
     floorId: string;
     unitId: string;
   }>();
-  const router = useRouter();
 
   const [unit, setUnit] = useState<Unit | null>(null);
   const [floor, setFloor] = useState<Floor | null>(null);
@@ -745,13 +745,7 @@ export default function WindowEntryPage() {
           finishing a window mid-scroll, back is always one tap away. Full
           bleed over the page padding so content slides underneath. */}
       <header className="safe-sticky-top sticky z-20 -mx-4 flex items-center gap-3 bg-white/95 px-4 pb-3 backdrop-blur dark:bg-neutral-950/95">
-        <button
-          type="button"
-          onClick={() => router.push(`/project/${projectId}/floor/${floorId}`)}
-          className="min-h-11 min-w-11 shrink-0 text-xl"
-        >
-          ←
-        </button>
+        <BackButton href={`/project/${projectId}/floor/${floorId}`} label="Back to the floor" />
         <div className="min-w-0 flex-1">
           {/* Full unit number / zone label, no truncation — the floor
               grid's tiles are where long labels ("L1- Snake Corridor")

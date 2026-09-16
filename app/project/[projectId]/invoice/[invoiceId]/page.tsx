@@ -23,6 +23,7 @@ import {
 import { deliverFile } from "@/lib/export/deliver";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import type { Company, InvoiceLineItem, InvoiceRecord, InvoiceStatus, Project } from "@/lib/types";
+import { BackButton } from "@/components/back-button";
 
 const STATUS_STYLE: Record<InvoiceStatus, string> = {
   draft: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
@@ -168,13 +169,7 @@ export default function InvoicePage() {
   return (
     <main className="flex flex-1 flex-col gap-5 p-4 pb-28">
       <header className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => router.push(`/project/${projectId}`)}
-          className="min-h-11 min-w-11 shrink-0 text-xl"
-        >
-          ←
-        </button>
+        <BackButton href={`/project/${projectId}`} label="Back to the job" />
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold break-words">{invoice.number || "Invoice"}</h1>
           <div className="text-sm text-neutral-500">

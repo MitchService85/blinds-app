@@ -31,6 +31,7 @@ import { issueSummary, windowHasIssue } from "@/components/window-issue";
 import { DeficiencyList } from "@/components/deficiency-list";
 import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
+import { BackButton } from "@/components/back-button";
 
 type FloorMode = "measure" | "install";
 const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
@@ -392,6 +393,13 @@ export default function FloorPage() {
     await updateUnit(unitId, { note });
   }
 
+  // Done goes home via router.push(), which never prefetches — so fetch the
+  // home screen while the floor is open, and the tap is instant (the back
+  // arrow gets the same for free from being a <Link>).
+  useEffect(() => {
+    router.prefetch("/");
+  }, [router]);
+
   async function handleSaveExit() {
     await triggerSyncIfAvailable();
     router.push("/");
@@ -433,13 +441,7 @@ export default function FloorPage() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 pb-0">
       <header className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => router.push(`/project/${projectId}`)}
-          className="min-h-11 min-w-11 shrink-0 text-xl"
-        >
-          ←
-        </button>
+        <BackButton href={`/project/${projectId}`} label="Back to the job" />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-semibold">{floor.label}</h1>
           {project && <div className="text-sm text-neutral-500">{project.name}</div>}
@@ -729,7 +731,7 @@ export default function FloorPage() {
         <button
           type="button"
           onClick={handleSaveExit}
-          className="min-h-14 flex-1 rounded-xl bg-neutral-800 text-base font-semibold text-white dark:bg-neutral-100 dark:text-neutral-900"
+          className="min-h-14 flex-1 rounded-xl bg-neutral-800 text-base font-semibold text-white transition-transform duration-100 active:scale-[0.98] active:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:active:bg-neutral-300"
         >
           Done
         </button>
