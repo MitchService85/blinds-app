@@ -15,12 +15,16 @@ interface UnitTileProps {
   href: string;
   /** True when lib/checks.ts flagged a bay-symmetry warning on this unit. */
   hasWarning: boolean;
+  /** Distinct rooms measured here, in walking order — see lib/tags.ts. */
+  rooms: string[];
   onSetStatus: (status: UnitStatus) => void;
   onDelete: () => void;
   onOpenNote: () => void;
 }
 
 const LONG_PRESS_MS = 500;
+/** Rooms shown before the line collapses to "+N" — four fits a tile at 390px. */
+const MAX_ROOMS_ON_TILE = 4;
 
 /**
  * Floor-grid unit tile: color-coded by derived status, long-press (or the
@@ -35,6 +39,7 @@ export function UnitTile({
   blindCount,
   href,
   hasWarning,
+  rooms,
   onSetStatus,
   onDelete,
   onOpenNote,
@@ -78,6 +83,21 @@ export function UnitTile({
         <span className="w-full truncate text-sm font-semibold" title={unit.number}>
           {unit.number}
         </span>
+        {/* The rooms, above the count: this line is what makes an odd unit
+            visible without opening it, and it is only useful when the eye can
+            run down a column of them. Capped so one big unit cannot push the
+            whole grid taller; the full list is the title. */}
+        {state !== "na" && rooms.length > 0 && (
+          <span
+            className="flex w-full items-baseline justify-center gap-1 text-[10px] leading-tight font-medium opacity-90"
+            title={rooms.join(" · ")}
+          >
+            <span className="truncate">{rooms.slice(0, MAX_ROOMS_ON_TILE).join(" ")}</span>
+            {rooms.length > MAX_ROOMS_ON_TILE && (
+              <span className="shrink-0">+{rooms.length - MAX_ROOMS_ON_TILE}</span>
+            )}
+          </span>
+        )}
         <span className="text-[11px] opacity-80">
           {state === "na"
             ? "N/A"

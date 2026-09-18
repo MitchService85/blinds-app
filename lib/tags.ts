@@ -45,3 +45,32 @@ export function computeTagLabels(
 
   return labels;
 }
+
+
+/**
+ * The distinct rooms a unit's blinds cover, in the order they were measured.
+ *
+ * Shown on the floor-grid tile so a floor reads as a column of room lists —
+ * `LR BR K` beside `LR BR K` beside a lone `LR`. A room tag is never wrong in
+ * isolation; it is wrong because the unit next door has a BR and this one
+ * does not, and that comparison is one a person makes instantly across a grid
+ * and slowly one unit at a time (field note, 2026-09-18: a bedroom measured
+ * and left tagged LR, twice).
+ *
+ * Measured order, not alphabetical: it is walking order, so a unit whose list
+ * starts somewhere odd is itself worth a look. Untagged windows are the
+ * office/zone-run format rather than a room and are left out — those floors
+ * show nothing here, which is correct.
+ */
+export function unitRooms(
+  windows: Pick<WindowRecord, "tag_base" | "sort_order" | "deleted">[]
+): string[] {
+  const rooms: string[] = [];
+  const seen = new Set<string>();
+  for (const w of [...windows].sort((a, b) => a.sort_order - b.sort_order)) {
+    if (w.deleted || w.tag_base === "" || seen.has(w.tag_base)) continue;
+    seen.add(w.tag_base);
+    rooms.push(w.tag_base);
+  }
+  return rooms;
+}

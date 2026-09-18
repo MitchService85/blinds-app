@@ -32,6 +32,7 @@ import { DeficiencyList } from "@/components/deficiency-list";
 import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
+import { unitRooms } from "@/lib/tags";
 
 type FloorMode = "measure" | "install";
 const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
@@ -647,6 +648,7 @@ export default function FloorPage() {
                 blindCount={(windowsByUnit.get(unit.id) ?? []).reduce((n, w) => n + windowBlindCount(w), 0)}
                 href={`/project/${projectId}/floor/${floorId}/unit/${unit.id}`}
                 hasWarning={warningsByUnit.has(unit.id)}
+                rooms={unitRooms(windowsByUnit.get(unit.id) ?? [])}
                 onSetStatus={(status) => handleSetStatus(unit.id, status)}
                 onDelete={() => handleDeleteUnit(unit.id)}
                 onOpenNote={() => openNoteEditor(unit.id)}
