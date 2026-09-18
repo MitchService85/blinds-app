@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import seed from "../fixtures/seed-projects.json";
-import { checkFloor, checkUnitWindows } from "./checks";
+import { checkFloor, checkFloorTagSpread, checkUnitWindows } from "./checks";
 import type { WindowRecord } from "./types";
 
 type SeedWindow = {
@@ -232,5 +232,88 @@ describe("floor-level motorized vs chain", () => {
 
   it("keeps the old behaviour when no defaults are passed", () => {
     expect(checkUnitWindows({ number: "301" }, [win({ chain_length: 72 })])).toHaveLength(0);
+  });
+});
+
+
+describe("checkFloorTagSpread", () => {
+  /** A unit of `tags`, one blind each, on an otherwise ordinary floor. */
+  const unitOf = (number: string, tags: string[], over: Partial<WindowRecord> = {}) => ({
+    unit: { number },
+    windows: tags.map(
+      (t, i): WindowRecord => ({
+        id: `${number}-${i}`,
+        updated_at: "2026-09-18T00:00:00Z",
+        deleted: false,
+        unit_id: number,
+        tag_base: t,
+        tag_index: i + 1,
+        widths: [800],
+        height: 1392,
+        quantity: 1,
+        control_override: null,
+        deduct: null,
+        longer_chain: false,
+        note: "",
+        sort_order: i,
+        ...over,
+      }),
+    ),
+  });
+  // Two neighbours that establish this as a multi-room floor.
+  const neighbours = [unitOf("302", ["LR", "BR"]), unitOf("303", ["LR", "BR", "K"])];
+
+  it("flags a unit whose blinds all carry one room tag", () => {
+    const w = checkFloorTagSpread([unitOf("301", ["LR", "LR", "LR"]), ...neighbours]);
+    expect(w).toHaveLength(1);
+    expect(w[0].unit_number).toBe("301");
+    expect(w[0].message).toContain("all 3 blinds here are tagged LR");
+  });
+
+  it("says nothing when the unit uses more than one room", () => {
+    expect(checkFloorTagSpread([unitOf("301", ["LR", "LR", "BR"]), ...neighbours])).toEqual([]);
+  });
+
+  it("leaves two-blind units alone — a one-room unit that small is ordinary", () => {
+    expect(checkFloorTagSpread([unitOf("301", ["LR", "LR"]), ...neighbours])).toEqual([]);
+  });
+
+  it("never fires on an untagged zone-run floor", () => {
+    const zone = ["", "", "", "", ""];
+    expect(
+      checkFloorTagSpread([unitOf("A", zone), unitOf("B", zone), unitOf("C", zone)]),
+    ).toEqual([]);
+  });
+
+  it("needs the floor itself to be multi-room before judging one unit", () => {
+    // One neighbour is not a pattern: a small job of single-room units is not
+    // evidence that this unit is wrong.
+    expect(
+      checkFloorTagSpread([unitOf("301", ["LR", "LR", "LR"]), unitOf("302", ["LR", "BR"])]),
+    ).toEqual([]);
+  });
+
+  it("is dismissed by the same 'Looks right' that clears a measurement warning", () => {
+    const w = checkFloorTagSpread([
+      unitOf("301", ["LR", "LR", "LR"], { checks_ack: true }),
+      ...neighbours,
+    ]);
+    expect(w).toEqual([]);
+  });
+
+  it("rides along on checkFloor, so the export review sheet shows it", () => {
+    const w = checkFloor([unitOf("301", ["LR", "LR", "LR"]), ...neighbours]);
+    expect(w.filter((x) => /tagged LR/.test(x.message))).toHaveLength(1);
+  });
+
+  it("stays quiet across the delivered jobs it was tuned against", () => {
+    // The whole point is that it fires rarely enough to be believed. Arbour
+    // and 44 Charles as delivered trip it zero times; a regression that makes
+    // it chatty shows up here first.
+    for (const project of [arbour, charles]) {
+      for (const floor of project.floors) {
+        expect(checkFloorTagSpread(floorInput(floor))).toEqual([]);
+      }
+    }
   });
 });

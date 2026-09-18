@@ -153,6 +153,15 @@ export default function WindowEntryPage() {
   // lazily created on the first digit tap, which would remount the keypad
   // mid-entry and swallow that digit.
   const [draftSeq, setDraftSeq] = useState(0);
+  /**
+   * Whether the current draft's room tag was chosen for THIS blind, or
+   * carried over from the last one by handleSaveNext. Carrying it is what
+   * makes a run of windows in one room fast; not being able to see that it
+   * was carried is what put a bedroom on the factory sheet as "LR" twice
+   * (field note, 2026-09-18). Carried tags render amber until any chip is
+   * tapped — including the same one, which is the confirmation.
+   */
+  const [tagChosen, setTagChosen] = useState(true);
   const [unitNoteOpen, setUnitNoteOpen] = useState(false);
   /**
    * The rarely-used per-window options (quantity, chain, motorized, measure
@@ -408,6 +417,7 @@ export default function WindowEntryPage() {
 
   async function selectTag(tag: string) {
     setError(null);
+    setTagChosen(true);
     if (draft.id) {
       const id = draft.id;
       const current = windows.find((w) => w.id === id);
@@ -546,6 +556,7 @@ export default function WindowEntryPage() {
 
   function loadForEdit(w: WindowRecord) {
     setEntryOpen(true);
+    setTagChosen(true);
     setDraft({
       id: w.id,
       tag_base: w.tag_base,
@@ -620,6 +631,7 @@ export default function WindowEntryPage() {
     setActiveField(0);
     setNoteOpen(false);
     setMoreOpen(false);
+    setTagChosen(false);
     setDraftSeq((n) => n + 1);
     // Brief visual confirmation on the button itself — the data is already
     // durable (autosave writes on every tap), this just closes the loop for
@@ -701,6 +713,14 @@ export default function WindowEntryPage() {
     setUnit((u) => (u ? { ...u, removed: clamped } : u));
     await updateUnit(unit.id, { removed: clamped });
   }
+
+  /**
+   * This blind's room came from the last one rather than from a tap. "No tag"
+   * is excluded: on a zone-run floor it is the format, defaulted on purpose,
+   * and flagging it on all 183 windows would be noise that teaches the eye to
+   * skip amber.
+   */
+  const tagCarried = !tagChosen && draft.tag_base !== null && draft.tag_base !== "";
 
   /** Preview of the tag suffix for a real (non-empty) draft.tag_base only —
    * untagged ("No tag") windows never go through computeTagLabels; see
@@ -986,7 +1006,9 @@ export default function WindowEntryPage() {
             onClick={() => selectTag(tag)}
             className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium ${
               draft.tag_base === tag
-                ? "border-blue-600 bg-blue-600 text-white"
+                ? tagCarried
+                  ? "border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200"
+                  : "border-blue-600 bg-blue-600 text-white"
                 : "border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
             }`}
           >
@@ -994,14 +1016,32 @@ export default function WindowEntryPage() {
           </button>
         ))}
       </div>
-      {draft.tag_base !== null && (
-        <div className="text-sm text-neutral-500">
-          Will save as{" "}
-          <span className="font-mono font-semibold text-neutral-900 dark:text-neutral-100">
-            {draft.tag_base === "" ? unit.number : `${unit.number}-${previewLabel()}`}
-          </span>
-        </div>
-      )}
+      {draft.tag_base !== null &&
+        (tagCarried ? (
+          /* The room is the one thing here that no measurement can catch
+             later: a wrong width looks wrong, a bedroom labelled LR looks
+             like a living room. So it gets the loud treatment until it is
+             confirmed, while a width tap or Save leaves it exactly as fast
+             as before. */
+          <div className="flex items-start gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+            <Icon name="alert" size={16} className="mt-0.5 shrink-0" />
+            <span className="flex-1">
+              Still <b>{draft.tag_base}</b>, carried from the last blind — tap the room above if
+              this one is different. Saves as{" "}
+              <span className="font-mono font-semibold">
+                {`${unit.number}-${previewLabel()}`}
+              </span>
+              .
+            </span>
+          </div>
+        ) : (
+          <div className="text-sm text-neutral-500">
+            Will save as{" "}
+            <span className="font-mono font-semibold text-neutral-900 dark:text-neutral-100">
+              {draft.tag_base === "" ? unit.number : `${unit.number}-${previewLabel()}`}
+            </span>
+          </div>
+        ))}
 
 
       <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">

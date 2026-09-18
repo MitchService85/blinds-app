@@ -15,7 +15,7 @@ import {
   updateFloor,
   updateUnit,
 } from "@/lib/db";
-import { checkUnitWindows, type MeasurementWarning } from "@/lib/checks";
+import { checkFloorTagSpread, checkUnitWindows, type MeasurementWarning } from "@/lib/checks";
 import type { Floor, FloorDefaults, InstallStatus, Project, Unit, UnitStatus, WindowRecord } from "@/lib/types";
 import { UnitTile } from "@/components/unit-tile";
 import { InstallTile } from "@/components/install-tile";
@@ -113,8 +113,17 @@ export default function FloorPage() {
 
   const warningsByUnit = useMemo(() => {
     const map = new Map<string, MeasurementWarning[]>();
+    // The room-tag check needs the whole floor to judge one unit (see
+    // checkFloorTagSpread), so it is computed once here and filed under the
+    // unit it belongs to, beside that unit's own measurement warnings.
+    const perUnit = units.map((u) => ({ unit: u, windows: windowsByUnit.get(u.id) ?? [] }));
+    const tagSpread = new Map(
+      checkFloorTagSpread(perUnit).map((w) => [w.unit_number, w] as const)
+    );
     for (const unit of units) {
       const warnings = checkUnitWindows(unit, windowsByUnit.get(unit.id) ?? [], floor?.defaults);
+      const spread = tagSpread.get(unit.number);
+      if (spread) warnings.push(spread);
       if (warnings.length > 0) map.set(unit.id, warnings);
     }
     return map;
@@ -256,8 +265,8 @@ export default function FloorPage() {
   async function handleSetStatus(unitId: string, status: UnitStatus) {
     await updateUnit(unitId, { status });
     if (status === "done") {
-      const unit = units.find((u) => u.id === unitId);
-      const warnings = unit ? checkUnitWindows(unit, windowsByUnit.get(unitId) ?? [], floor?.defaults) : [];
+      // Whatever the tile is already flagging, including the room-tag check.
+      const warnings = warningsByUnit.get(unitId) ?? [];
       setDoneWarnings(warnings.length > 0 ? warnings : null);
     }
     await refresh();

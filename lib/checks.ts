@@ -120,10 +120,69 @@ export function checkUnitWindows(
   return warnings;
 }
 
+/**
+ * A unit whose blinds ALL carry one room tag, on a floor where the other
+ * units use several.
+ *
+ * The entry form carries the last saved tag forward, which is what makes a
+ * zone run fast — and what silently tags a bedroom "LR" when you walk into
+ * the next room and start measuring (field note, 2026-09-18: twice). This is
+ * the backstop: it cannot know which blind is wrong, but it knows a unit
+ * whose every blind claims the same room on a floor of multi-room units is
+ * worth a second look before it reaches the factory.
+ *
+ * Deliberately a FLOOR-level rule. The floor is what says whether single-tag
+ * units are the exception or the format: an office/zone-run floor enters
+ * everything untagged, and a genuine one-room unit on a mixed floor is rare
+ * enough to be worth confirming. Run over every unit of all three delivered
+ * jobs plus Daniel's it fires three times in ~200 units — see
+ * checks.test.ts, which pins that count.
+ */
+const MIN_BLINDS_FOR_TAG_SPREAD = 3;
+/** Other units that must show 2+ tags before this floor counts as multi-room. */
+const MIN_MULTI_TAG_UNITS = 2;
+
+export function checkFloorTagSpread(
+  units: { unit: Pick<Unit, "number">; windows: WindowRecord[] }[],
+): MeasurementWarning[] {
+  // Untagged windows are the office/zone-run format, not a room — a floor of
+  // them has nothing to compare and never trips this.
+  const tagged = units.map(({ unit, windows }) => ({
+    unit,
+    windows: windows.filter((w) => !w.deleted && w.tag_base !== ""),
+  }));
+  const distinctTags = (ws: WindowRecord[]) => new Set(ws.map((w) => w.tag_base));
+  const multiTagUnits = tagged.filter((u) => distinctTags(u.windows).size >= 2).length;
+  if (multiTagUnits < MIN_MULTI_TAG_UNITS) return [];
+
+  const warnings: MeasurementWarning[] = [];
+  for (const { unit, windows } of tagged) {
+    if (windows.length < MIN_BLINDS_FOR_TAG_SPREAD) continue;
+    const tags = distinctTags(windows);
+    if (tags.size !== 1) continue;
+    // Anchored to the unit's first blind so the existing per-window "Looks
+    // right" is what dismisses it — a corner unit really can be all LR.
+    const anchor = windows[0];
+    if (anchor.checks_ack) continue;
+    warnings.push({
+      window_id: anchor.id,
+      unit_number: unit.number,
+      tag: tagLabel(anchor),
+      message:
+        `all ${windows.length} blinds here are tagged ${anchor.tag_base}` +
+        ` — check the room tags, the last one carries over`,
+    });
+  }
+  return warnings;
+}
+
 /** Convenience for export: run every unit on a floor. */
 export function checkFloor(
   units: { unit: Pick<Unit, "number">; windows: WindowRecord[] }[],
   defaults?: Pick<FloorDefaults, "motorized">,
 ): MeasurementWarning[] {
-  return units.flatMap(({ unit, windows }) => checkUnitWindows(unit, windows, defaults));
+  return [
+    ...units.flatMap(({ unit, windows }) => checkUnitWindows(unit, windows, defaults)),
+    ...checkFloorTagSpread(units),
+  ];
 }
