@@ -177,7 +177,7 @@ export default function HelpPage() {
           Export → “Lakeside Towers - Level 4.xlsx”
         </div>
       }>
-        <p>When a floor is measured, tap <b>Export</b>. You get the exact spreadsheet the factory expects, and your phone&apos;s share sheet sends it — Google Drive, email, AirDrop.</p>
+        <p>When a floor is measured, tap <b>Export</b>. The export screen offers two files. The <b>factory measure sheet</b> is the exact spreadsheet the factory expects. The <b>deficiency list</b> is every blind you flagged with an issue, one row per panel with a column for the PM to approve, and you can tick several floors to put a whole walk-through in one file. Your phone&apos;s share sheet sends either one — Google Drive, email, AirDrop.</p>
         <p>Export works with no signal too. The file is made right on the phone.</p>
       </Section>
 

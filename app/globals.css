@@ -25,7 +25,23 @@ body {
   /* Geist is loaded in layout.tsx; this rule used to override it with Arial. */
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
+  /* Native tap highlight is off, so every control needs its own press
+     reaction instead (Mitch, 2026-10-03: "I can't tell if the press worked").
+     One rule covers them all; it fires on touch-down, before any handler. */
   -webkit-tap-highlight-color: transparent;
+}
+button,
+a,
+label:has(input[type="file"]),
+summary {
+  transition: transform 80ms ease-out, opacity 80ms ease-out;
+}
+button:active:not(:disabled),
+a:active,
+label:has(input[type="file"]):active,
+summary:active {
+  transform: scale(0.96);
+  opacity: 0.8;
 }
 
 /* Controls inherit the page face instead of the platform's; checkboxes and

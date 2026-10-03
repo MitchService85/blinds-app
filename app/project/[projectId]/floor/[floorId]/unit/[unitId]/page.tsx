@@ -913,28 +913,14 @@ export default function WindowEntryPage() {
               with the Camera app, or of a blind on another floor) had no way
               to be attached at all (2026-09-10). The second button is the
               same input without `capture`, which is the library picker. */}
+          {/* One button. Without `capture`, iOS offers Take Photo / Photo
+              Library / Choose File itself, so a second camera-only button
+              was a duplicate (Mitch, 2026-10-03). */}
           <label
-            aria-label="Take a photo"
+            aria-label="Add a photo"
             className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-500 dark:border-neutral-700"
           >
             {photoBusy ? "…" : <Icon name="camera" size={24} />}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              disabled={photoBusy}
-              onChange={(e) => {
-                void handleAddPhoto(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-          </label>
-          <label
-            aria-label="Choose a photo from the library"
-            className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-dashed border-neutral-300 text-2xl text-neutral-500 dark:border-neutral-700"
-          >
-            <Icon name="image" size={24} />
             <input
               type="file"
               accept="image/*"
