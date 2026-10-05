@@ -1392,7 +1392,18 @@ export default function WindowEntryPage() {
           ⚠ and Edit unreachable (field report, 2026-10-05, a unit whose LR3
           could not be opened). The padding is the bar's own height, so what
           the bar covers at rest is empty space rather than a window. */}
-      <div className="flex flex-col gap-2 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+      {/* Clearance for the floating Save bar, which is fixed to the bottom of
+          the screen and deliberately rides over this list while you scroll.
+          Only while the entry form is open: that bar's own spacer sits ABOVE
+          the list, so without this the last blind ends up under the button
+          with its ⚠ and Edit unreachable (field report, 2026-10-05). With the
+          form closed, the "+ Add window" bar below the list brings its own
+          spacer and this would just be dead space. */}
+      <div
+        className={`flex flex-col gap-2 ${
+          entryOpen ? "pb-[calc(6rem+env(safe-area-inset-bottom))]" : ""
+        }`}
+      >
         <h2 className="text-sm font-semibold text-neutral-500">This unit&apos;s windows</h2>
         {windowWarnings.size > 0 && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
