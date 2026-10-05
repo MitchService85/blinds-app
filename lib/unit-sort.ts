@@ -1,25 +1,39 @@
 import type { Unit } from "./types";
 
+const isNumeric = (u: Pick<Unit, "number">) => /^\d+$/.test(u.number.trim());
+
 /**
  * Display/export ordering for a floor's units.
  *
  * Residential floors are measured in whatever order the crew walks (502
  * before 501), but the grid and the factory spreadsheet should read in unit
- * order — so when EVERY unit number on the floor is purely numeric, sort
- * numerically.
+ * order — so a floor of numbered units sorts numerically.
  *
  * Office/commercial zone labels ("Level 1 - FE", "L1- Snake Corridor") keep
  * their entry order: that's the walking order of the building and
  * alphabetizing it would scramble something intentional.
+ *
+ * It used to take EVERY unit being numeric to sort numerically, which made
+ * one odd label contagious: a placeholder unit typed "70?" on a floor of
+ * 701-724 flipped all twenty-four back to walking order, and the floor
+ * looked scrambled for no visible reason (Arbour Level 7, 2026-10-05).
+ * A floor is numbered if MOST of it is, and the few that aren't go last in
+ * the order they were added rather than dragging the rest with them.
  */
 export function sortUnitsForDisplay(units: Unit[]): Unit[] {
   const sorted = [...units];
-  const allNumeric = units.length > 0 && units.every((u) => /^\d+$/.test(u.number.trim()));
-  if (allNumeric) {
-    sorted.sort(
-      (a, b) =>
-        parseInt(a.number, 10) - parseInt(b.number, 10) || a.sort_order - b.sort_order,
-    );
+  const numericCount = units.filter(isNumeric).length;
+  const mostlyNumbered = numericCount * 2 > units.length;
+  if (mostlyNumbered) {
+    sorted.sort((a, b) => {
+      const an = isNumeric(a);
+      const bn = isNumeric(b);
+      // Anything that is not a plain number sits after the numbered units,
+      // where it is obvious rather than lost in the middle of the grid.
+      if (an !== bn) return an ? -1 : 1;
+      if (!an) return a.sort_order - b.sort_order;
+      return parseInt(a.number, 10) - parseInt(b.number, 10) || a.sort_order - b.sort_order;
+    });
   } else {
     sorted.sort((a, b) => a.sort_order - b.sort_order);
   }

@@ -29,6 +29,59 @@ describe("sortUnitsForDisplay", () => {
     ]);
   });
 
+  it("one odd label does not scramble a numbered floor", () => {
+    // Arbour Level 7: a placeholder "70?" among 701-724 used to send the
+    // whole floor back to walking order.
+    const units = [
+      unit("703", 0),
+      unit("701", 1),
+      unit("70?", 2),
+      unit("702", 3),
+      unit("704", 4),
+    ];
+    expect(sortUnitsForDisplay(units).map((u) => u.number)).toEqual([
+      "701",
+      "702",
+      "703",
+      "704",
+      "70?",
+    ]);
+  });
+
+  it("puts several odd labels last, in the order they were added", () => {
+    const units = [
+      unit("TBD", 0),
+      unit("502", 1),
+      unit("501", 2),
+      unit("Lobby", 3),
+      unit("503", 4),
+    ];
+    expect(sortUnitsForDisplay(units).map((u) => u.number)).toEqual([
+      "501",
+      "502",
+      "503",
+      "TBD",
+      "Lobby",
+    ]);
+  });
+
+  it("still keeps walking order when the floor is mostly zone labels", () => {
+    // A commercial floor that happens to contain one numbered zone must not
+    // flip to numeric sorting and scatter the walk.
+    const units = [
+      unit("Level 1 - FE", 0),
+      unit("L1- Snake Corridor", 1),
+      unit("2000", 2),
+      unit("Level 2 - Rear", 3),
+    ];
+    expect(sortUnitsForDisplay(units).map((u) => u.number)).toEqual([
+      "Level 1 - FE",
+      "L1- Snake Corridor",
+      "2000",
+      "Level 2 - Rear",
+    ]);
+  });
+
   it("keeps entry (walking) order when any unit is a zone label", () => {
     const units = [
       unit("Level 1 - FE", 0),
