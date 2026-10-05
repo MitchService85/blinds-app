@@ -4,6 +4,7 @@ import { sortUnitsForDisplay, suggestUnitNumber } from "@/lib/unit-sort";
 import { Icon } from "@/components/icon";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   createUnit,
   deleteFloor,
@@ -22,7 +23,6 @@ import { InstallTile } from "@/components/install-tile";
 import { InstallActionSheet, type InstallAction } from "@/components/install-action-sheet";
 import { blockedOf, installOf, lockedOf } from "@/components/status";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
-import { ExportButton } from "@/components/export-button";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { effectiveMeasure, effectiveMount, windowBlindCount, windowTagLabel } from "@/lib/export/shared";
 import { findDuplicateUnitNumbers, mergeUnits } from "@/lib/merge-units";
@@ -746,14 +746,12 @@ export default function FloorPage() {
         >
           Done
         </button>
-        {project && (
-          <ExportButton
-            projectName={project.name}
-            floor={floor}
-            units={units}
-            windowsByUnit={windowsByUnit}
-          />
-        )}
+        <Link
+          href={`/project/${projectId}/floor/${floorId}/export`}
+          className="flex min-h-14 items-center rounded-xl bg-neutral-800 px-5 text-base font-semibold text-white active:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900"
+        >
+          Export
+        </Link>
       </BottomBar>
 
       {installSheetUnitId && (
