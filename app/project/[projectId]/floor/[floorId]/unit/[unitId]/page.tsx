@@ -1398,7 +1398,15 @@ export default function WindowEntryPage() {
         </>
       )}
 
-      <div className="flex flex-col gap-2">
+      {/* Clearance for the floating bar below (Save, or + Add window). That bar
+          is sticky and deliberately rides over this list — but at the very end
+          of the scroll the last row cleared it by only 29px on a 390x844
+          screen, and by nothing at all on a phone whose home-indicator inset
+          makes the bar taller: the last blind sat under the button, with its
+          ⚠ and Edit unreachable (field report, 2026-10-05, a unit whose LR3
+          could not be opened). The padding is the bar's own height, so what
+          the bar covers at rest is empty space rather than a window. */}
+      <div className="flex flex-col gap-2 pb-[calc(6rem+env(safe-area-inset-bottom))]">
         <h2 className="text-sm font-semibold text-neutral-500">This unit&apos;s windows</h2>
         {windowWarnings.size > 0 && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
