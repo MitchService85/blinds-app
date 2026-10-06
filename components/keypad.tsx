@@ -1,14 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatFraction, floorToEighth } from "@/lib/fractions";
+import {
+  floorToEighth,
+  formatFraction,
+  formatThirtySeconds,
+  thirtySecondsToStoredSixteenths,
+} from "@/lib/fractions";
 
-export type Precision = 8 | 16;
+export type Precision = 8 | 16 | 32;
 
 const PRECISION_STORAGE_KEY = "measure:precision";
 const MAX_WHOLE_DIGITS = 3;
 
-/** Precision switch (⅛ / ¹⁄₁₆), persisted per device (see spec: Window entry). */
+/**
+ * Precision switch (⅛ / ¹⁄₁₆ / ¹⁄₃₂), persisted per device (see spec: Window
+ * entry). Per device because it follows the laser in that person's hand —
+ * Mike's reads 32nds.
+ */
 export function usePrecision(): [Precision, (p: Precision) => void] {
   const [precision, setPrecisionState] = useState<Precision>(8);
 
@@ -18,7 +27,7 @@ export function usePrecision(): [Precision, (p: Precision) => void] {
     // to client-only so the server-rendered/hydration-time default (8) never
     // mismatches — not a props/state mirroring anti-pattern.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (stored === "16") setPrecisionState(16);
+    if (stored === "16" || stored === "32") setPrecisionState(Number(stored) as Precision);
   }, []);
 
   const setPrecision = (p: Precision) => {
@@ -29,12 +38,27 @@ export function usePrecision(): [Precision, (p: Precision) => void] {
   return [precision, setPrecision];
 }
 
-const EIGHTHS = [0, 2, 4, 6, 8, 10, 12, 14]; // as sixteenths
-const SIXTEENTHS = Array.from({ length: 16 }, (_, i) => i);
+// Every option is held in THIRTY-SECONDS, the finest the pad offers, so one
+// number means the same thing whichever switch is on.
+const EIGHTHS = [0, 4, 8, 12, 16, 20, 24, 28];
+const SIXTEENTHS = Array.from({ length: 16 }, (_, i) => i * 2);
+const THIRTY_SECONDS = Array.from({ length: 32 }, (_, i) => i);
 
-function fractionLabel(sixteenths: number): string {
-  if (sixteenths === 0) return "0";
-  return formatFraction(sixteenths);
+const FRACTION_OPTIONS: Record<Precision, number[]> = {
+  8: EIGHTHS,
+  16: SIXTEENTHS,
+  32: THIRTY_SECONDS,
+};
+
+const PRECISION_LABEL: Record<Precision, string> = {
+  8: "⅛",
+  16: "¹⁄₁₆",
+  32: "¹⁄₃₂",
+};
+
+function fractionLabel(thirtySeconds: number): string {
+  if (thirtySeconds === 0) return "0";
+  return formatThirtySeconds(thirtySeconds);
 }
 
 interface KeypadProps {
@@ -56,7 +80,8 @@ interface KeypadProps {
  */
 export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange }: KeypadProps) {
   const [whole, setWhole] = useState(() => String(Math.floor(valueSixteenths / 16)));
-  const [frac, setFrac] = useState(() => valueSixteenths % 16);
+  // In thirty-seconds; a stored sixteenth is two of them.
+  const [frac, setFrac] = useState(() => (valueSixteenths % 16) * 2);
   // True until the first digit is tapped. The buffer still holds the seeded
   // value (e.g. the sticky height prefill of 87) — the first digit should
   // REPLACE that, not append to it, or "87" + tap 6 + tap 3 yields 876.
@@ -64,7 +89,10 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
 
   const commit = (nextWhole: string, nextFrac: number) => {
     const wholeNum = nextWhole === "" ? 0 : parseInt(nextWhole, 10);
-    onChange(wholeNum * 16 + nextFrac);
+    // Stored in sixteenths, so an odd 32nd floors to the sixteenth below.
+    // The eighth the factory receives is identical either way — see
+    // thirtySecondsToStoredSixteenths.
+    onChange(wholeNum * 16 + thirtySecondsToStoredSixteenths(nextFrac));
   };
 
   const tapDigit = (d: string) => {
@@ -103,10 +131,12 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
     commit(whole, sixteenths);
   };
 
-  const raw = (whole === "" ? 0 : parseInt(whole, 10)) * 16 + frac;
-  const displaySixteenths = floorToEighth(raw);
-  const hasHint = precision === 16 && displaySixteenths !== raw;
-  const fractionOptions = precision === 16 ? SIXTEENTHS : EIGHTHS;
+  const wholeNum = whole === "" ? 0 : parseInt(whole, 10);
+  // What was tapped, in 32nds, and the eighth it becomes on the sheet.
+  const tapped = wholeNum * 32 + frac;
+  const displaySixteenths = floorToEighth(wholeNum * 16 + thirtySecondsToStoredSixteenths(frac));
+  const hasHint = tapped !== displaySixteenths * 2;
+  const fractionOptions = FRACTION_OPTIONS[precision];
 
   return (
     <div className="flex flex-col gap-3">
@@ -118,24 +148,25 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
           </div>
           {hasHint && (
             <div className="text-sm text-neutral-500 dark:text-neutral-400">
-              from {formatFraction(raw)}
+              from {formatThirtySeconds(tapped)}
             </div>
           )}
         </div>
         <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
-          {([8, 16] as Precision[]).map((p) => (
+          {([8, 16, 32] as Precision[]).map((p) => (
             <button
               key={p}
               type="button"
               onClick={() => onPrecisionChange(p)}
-              className={`min-h-11 min-w-11 px-3 text-sm font-medium ${
+              className={`min-h-11 min-w-11 px-2.5 text-sm font-medium ${
                 precision === p
                   ? "bg-blue-600 text-white"
                   : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
               }`}
               aria-pressed={precision === p}
+              aria-label={`Measure to ${p === 8 ? "an eighth" : `a ${p}nd`}`}
             >
-              {p === 8 ? "⅛" : "¹⁄₁₆"}
+              {PRECISION_LABEL[p]}
             </button>
           ))}
         </div>
@@ -176,7 +207,10 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
         </button>
       </div>
 
-      <div className={`grid gap-2 ${precision === 16 ? "grid-cols-4" : "grid-cols-4"}`}>
+      {/* Four across at every precision: a 32nd pad runs eight rows rather
+          than shrinking the targets of a glove-width tap, and the Save bar is
+          fixed to the screen so the extra rows never push it out of reach. */}
+      <div className="grid grid-cols-4 gap-2">
         {fractionOptions.map((sixteenths) => (
           <button
             key={sixteenths}

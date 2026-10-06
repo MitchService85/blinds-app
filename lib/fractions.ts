@@ -51,6 +51,49 @@ export function formatFraction(sixteenths: number): string {
   return whole === 0 ? `${sign}${num}/${den}` : `${sign}${whole} ${num}/${den}`;
 }
 
+/**
+ * Format a value in integer THIRTY-SECONDS, e.g. 2247 -> "70 7/32".
+ *
+ * Only for showing a laser reading back as it was entered (Mike's laser
+ * reads 32nds). Nothing is stored in this unit — see
+ * thirtySecondsToStoredSixteenths.
+ */
+export function formatThirtySeconds(thirtySeconds: number): string {
+  const sign = thirtySeconds < 0 ? "-" : "";
+  const abs = Math.abs(thirtySeconds);
+  const whole = Math.floor(abs / 32);
+  const remainder = abs % 32;
+
+  if (remainder === 0) {
+    return `${sign}${whole}`;
+  }
+
+  const divisor = gcd(remainder, 32);
+  return whole === 0
+    ? `${sign}${remainder / divisor}/${32 / divisor}`
+    : `${sign}${whole} ${remainder / divisor}/${32 / divisor}`;
+}
+
+/**
+ * A 1/32 reading as the integer sixteenths everything is stored in, rounded
+ * DOWN to the sixteenth.
+ *
+ * Storage stays in sixteenths on purpose: every width and height already
+ * recorded on every job and every phone is in that unit, and changing the
+ * base would double or halve a measurement on any device still running an
+ * older bundle — a whole floor of wrong blinds.
+ *
+ * Nothing is lost at the factory, because the eighth that reaches the sheet
+ * is the same either way: 8, 16 and 32 are nested grids, so flooring to a
+ * sixteenth and then to an eighth lands exactly where flooring the 32nd
+ * straight to an eighth would (every multiple of 1/8 is a multiple of 1/16,
+ * so no eighth can hide between x and its sixteenth). The odd 1/32 only
+ * ever lived between two values the factory cannot cut to.
+ */
+export function thirtySecondsToStoredSixteenths(thirtySeconds: number): number {
+  return Math.floor(thirtySeconds / 2);
+}
+
 /** Convert integer sixteenths to a decimal number, e.g. 1198 -> 74.875. */
 export function toDecimal(sixteenths: number): number {
   return sixteenths / 16;

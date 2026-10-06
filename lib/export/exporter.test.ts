@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { thirtySecondsToStoredSixteenths } from "../fractions";
 import type ExcelJS from "exceljs";
 import {
   buildNoteString,
@@ -355,5 +356,56 @@ describe("MBED falls back to BED", () => {
     const sheet = build({ bed: "YUNOWH" });
     expect(sheet.getCell("G4").value).toBeNull(); // LIV
     expect(sheet.getCell("G7").value).toBeNull(); // STU
+  });
+});
+
+describe("a 1/32 laser reading on the factory sheet", () => {
+  // Mike's laser reads 32nds. The pad offers them; storage stays in
+  // sixteenths; the sheet must still carry the eighth below the reading.
+  const sheetFor = async (thirtySeconds: { w: number; h: number }) => {
+    const wb = buildWorkbook({
+      project_name: "Laser",
+      floor_label: "L1",
+      export_date: "2026-10-06",
+      defaults: {
+        roll: false, drive: "R", tight: true, d_value: "0.5", extra_note: "",
+        color_codes: { mbed: "", liv: "", bed: "", kit: "", stu: "" },
+      },
+      units: [{
+        number: "101", status: "active",
+        windows: [{
+          tag_base: "LR", tag_index: 0,
+          widths: [thirtySecondsToStoredSixteenths(thirtySeconds.w)],
+          height: thirtySecondsToStoredSixteenths(thirtySeconds.h),
+          quantity: 1, control_override: null, deduct: null,
+          longer_chain: false, note: "",
+        }],
+      }],
+    });
+    const sheet = wb.getWorksheet("Window Shades")!;
+    return { width: sheet.getCell(10, 5).value, height: sheet.getCell(10, 6).value };
+  };
+
+  it("writes 70 7/32 as 70.125 and 87 15/32 as 87.375", async () => {
+    expect(await sheetFor({ w: 70 * 32 + 7, h: 87 * 32 + 15 })).toEqual({
+      width: 70.125,
+      height: 87.375,
+    });
+  });
+
+  it("gives the same cell an exact eighth would, when the reading is one", async () => {
+    expect(await sheetFor({ w: 70 * 32 + 4, h: 87 * 32 + 12 })).toEqual({
+      width: 70.125,
+      height: 87.375,
+    });
+  });
+
+  it("never rounds a blind UP past what was measured", async () => {
+    // 31/32 is the worst case: a hair under the full inch, and the sheet
+    // must still say 7/8, never the next whole number.
+    expect(await sheetFor({ w: 70 * 32 + 31, h: 87 * 32 + 31 })).toEqual({
+      width: 70.875,
+      height: 87.875,
+    });
   });
 });

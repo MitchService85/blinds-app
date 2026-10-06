@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { floorToEighth, formatFraction, toDecimal, toSixteenths } from "./fractions";
+import { floorToEighth, formatFraction, formatThirtySeconds, thirtySecondsToStoredSixteenths, toDecimal, toSixteenths } from "./fractions";
 
 describe("toSixteenths", () => {
   it("converts a whole number with no fraction", () => {
@@ -83,5 +83,36 @@ describe("toDecimal", () => {
     expect(toDecimal(1198)).toBeCloseTo(74.875);
     expect(toDecimal(1184)).toBe(74);
     expect(toDecimal(0)).toBe(0);
+  });
+});
+
+describe("thirty-seconds (Mike's laser)", () => {
+  it("formats a 32nd the way it reads on the laser", () => {
+    expect(formatThirtySeconds(70 * 32 + 7)).toBe("70 7/32");
+    expect(formatThirtySeconds(32 * 4)).toBe("4");
+    expect(formatThirtySeconds(7)).toBe("7/32");
+  });
+
+  it("reduces to lowest terms, so an even 32nd reads as the eighth it is", () => {
+    expect(formatThirtySeconds(32 + 16)).toBe("1 1/2");
+    expect(formatThirtySeconds(32 + 4)).toBe("1 1/8");
+    expect(formatThirtySeconds(32 + 2)).toBe("1 1/16");
+  });
+
+  it("stores a 32nd as the sixteenth below it", () => {
+    expect(thirtySecondsToStoredSixteenths(7)).toBe(3); // 7/32 -> 3/16
+    expect(thirtySecondsToStoredSixteenths(6)).toBe(3); // 3/16 exactly
+    expect(thirtySecondsToStoredSixteenths(0)).toBe(0);
+  });
+
+  it("reaches the factory at exactly the eighth a direct 1/32 floor would", () => {
+    // The guarantee that makes storing sixteenths safe: 8, 16 and 32 are
+    // nested, so flooring twice lands where flooring once does. Checked over
+    // every 32nd of a four-inch span rather than argued.
+    const floorToEighthOf32 = (t: number) => Math.floor(t / 4) * 4;
+    for (let t = 0; t <= 32 * 4; t++) {
+      const viaStorage = floorToEighth(thirtySecondsToStoredSixteenths(t)) * 2;
+      expect(viaStorage).toBe(floorToEighthOf32(t));
+    }
   });
 });
