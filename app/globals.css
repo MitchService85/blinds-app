@@ -87,6 +87,31 @@ body {
         the app uses pull-to-refresh, so the bounce bought nothing. */
   overscroll-behavior-y: none;
 }
+/* NOTE on the clip above: it has to stay on BOTH html and body. Moving it
+   to the root alone (the usual advice, since the root's overflow propagates
+   to the viewport) was tried on 2026-10-06 and measured — the page slid
+   sideways again the moment a stray wide element appeared. Only the pair
+   blocks it. Worth knowing because a non-visible `overflow` makes an element
+   a containing block for positioned descendants, so a clipped <body> is a
+   suspect whenever `position: fixed` misbehaves; components/bottom-bar.tsx
+   checks for exactly that at runtime rather than trusting either way. */
+
+/* Every page's <main> is the body column's growing item (Tailwind `flex-1`,
+   i.e. `flex: 1 1 0%`). A flex-basis of 0 means <main>'s CONTENT HEIGHT never
+   contributes to <body>'s height: the item is grown to fill one viewport and
+   a long page overflows it. Chromium papers over this with a flex item's
+   automatic minimum size; WebKit does not, so on the crew's iPhones <main>
+   stayed exactly one screen tall with the unit tiles spilling out of it —
+   which is how a bottom bar anchored to the end of the page ended up
+   mid-screen with tiles both behind and below it.
+
+   `flex-basis: auto` makes <main> as tall as its content, so <body> grows
+   with the page on every engine. `flex-grow: 1` still comes from `flex-1`,
+   so a short page's main still fills the screen. */
+main {
+  flex-basis: auto;
+  flex-shrink: 0;
+}
 
 /* 4. Every control is tap-only: no double-tap-to-zoom, and no waiting to
       see whether a touch is the start of a gesture before firing it. */
