@@ -30,6 +30,20 @@ interface JobCardProps {
   money?: JobMoney | null;
   /** Open PM deficiencies on this job. */
   deficiencies?: number;
+  /** Whether this job's floor chips are showing. */
+  expanded?: boolean;
+  onToggle?: () => void;
+}
+
+/** "3 floors · 42/58 · 96 blinds" — the card's whole story in one line. */
+function summarise(floors: FloorProgress[]): string {
+  const units = floors.reduce((n, f) => n + f.total, 0);
+  const done = floors.reduce((n, f) => n + f.done, 0);
+  const blinds = floors.reduce((n, f) => n + f.blinds, 0);
+  const parts = [`${floors.length} floor${floors.length === 1 ? "" : "s"}`];
+  if (units > 0) parts.push(done === units ? "all measured ✓" : `${done}/${units}`);
+  if (blinds > 0) parts.push(`${blinds} blind${blinds === 1 ? "" : "s"}`);
+  return parts.join(" · ");
 }
 
 /**
@@ -38,7 +52,18 @@ interface JobCardProps {
  * header links to the project hub instead) so a single tap from the
  * dashboard reaches the floor you want to work on.
  */
-export function JobCard({ project, floors, money = null, deficiencies = 0 }: JobCardProps) {
+export function JobCard({
+  project,
+  floors,
+  money = null,
+  deficiencies = 0,
+  expanded = true,
+  onToggle,
+}: JobCardProps) {
+  // Collapsible only when there is something to collapse and a handler to do
+  // it — a card with no floors stays exactly as it was.
+  const collapsible = Boolean(onToggle) && floors.length > 0;
+  const showFloors = floors.length > 0 && (!collapsible || expanded);
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
       <Link href={`/project/${project.id}`} className="block">
@@ -71,8 +96,26 @@ export function JobCard({ project, floors, money = null, deficiencies = 0 }: Job
         </div>
       )}
 
-      {floors.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-2">
+      {/* Collapsed, a job is its name and the one line that says where it
+          stands — several jobs then fit on a screen instead of one scrolling
+          past three. Deficiencies and money stay visible either way: they are
+          the reason you would open a job, not detail inside it. */}
+      {collapsible && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="mt-2 flex min-h-11 w-full items-center justify-between gap-2 text-left text-xs text-neutral-500 dark:text-neutral-400"
+        >
+          <span>{summarise(floors)}</span>
+          <span aria-hidden className="shrink-0 text-[10px]">
+            {expanded ? "▲" : "▼"}
+          </span>
+        </button>
+      )}
+
+      {showFloors && (
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-2">
           {floors.map((f) => (
             <div key={f.id} className="flex flex-col gap-0.5">
               <Link

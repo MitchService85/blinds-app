@@ -51,9 +51,37 @@ function moneyFor(invoices: InvoiceRecord[]): JobMoney | null {
   return { invoiced_cents: invoiced, outstanding_cents: outstanding, drafts };
 }
 
+const EXPANDED_STORAGE_KEY = "measure:dashboard:expanded";
+
 export default function Home() {
   const [rows, setRows] = useState<ProjectRow[] | null>(null);
   const { signedIn } = useSyncStatus();
+  // Jobs start collapsed so a dashboard of several fits on one screen; the
+  // ones you open stay open, per device, because the job you are working
+  // this week is the one you want to land on every morning.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(EXPANDED_STORAGE_KEY);
+    if (!stored) return;
+    try {
+      const ids: unknown = JSON.parse(stored);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (Array.isArray(ids)) setExpanded(new Set(ids.filter((id) => typeof id === "string")));
+    } catch {
+      // A corrupt entry just means everything starts collapsed.
+    }
+  }, []);
+
+  function toggleExpanded(id: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      window.localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -247,6 +275,8 @@ export default function Home() {
             floors={row.floors}
             money={row.money}
             deficiencies={row.deficiencies}
+            expanded={expanded.has(row.project.id)}
+            onToggle={() => toggleExpanded(row.project.id)}
           />
         ))}
       </div>
