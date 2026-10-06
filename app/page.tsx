@@ -11,6 +11,7 @@ import type { InvoiceRecord, Project } from "@/lib/types";
 import { formatCents } from "@/lib/pricing";
 import { compareFloorLabels } from "@/lib/floor-copy";
 import { JobCard, type FloorProgress, type JobMoney } from "@/components/job-card";
+import { ViewportPinned } from "@/components/viewport-layer";
 import { SyncStatus } from "@/components/sync-status";
 import { blockedOf, installOf } from "@/components/status";
 
@@ -281,13 +282,22 @@ export default function Home() {
         ))}
       </div>
 
-      <Link
-        href="/new"
-        className="fixed bottom-5 right-5 flex h-14 items-center gap-2 rounded-full bg-blue-600 px-5 text-white shadow-lg active:bg-blue-700"
+      {/* Pinned through the viewport layer rather than a bare `fixed`, which
+          is what left it hovering over the middle of the job list on an
+          iPhone (2026-10-06). components/viewport-layer.tsx explains why,
+          and drops it back into the flow if it is mis-anchored anyway. */}
+      <ViewportPinned
+        pinnedClassName="fixed bottom-5 right-5 z-30"
+        flowClassName="mt-auto self-end pt-2"
       >
-        <span className="text-xl leading-none">+</span>
-        <span className="text-sm font-medium">New</span>
-      </Link>
+        <Link
+          href="/new"
+          className="flex h-14 items-center gap-2 rounded-full bg-blue-600 px-5 text-white shadow-lg active:bg-blue-700"
+        >
+          <span className="text-xl leading-none">+</span>
+          <span className="text-sm font-medium">New</span>
+        </Link>
+      </ViewportPinned>
     </main>
   );
 }

@@ -79,7 +79,6 @@ select {
 html,
 body {
   max-width: 100%;
-  overflow-x: clip;
   /* 3. No rubber-band bounce. Done sits at the bottom edge and ← at the
         top, and iOS swallows any tap that lands while the page is still
         bouncing there — it reads as "the button didn't work", and a crew
@@ -87,15 +86,6 @@ body {
         the app uses pull-to-refresh, so the bounce bought nothing. */
   overscroll-behavior-y: none;
 }
-/* NOTE on the clip above: it has to stay on BOTH html and body. Moving it
-   to the root alone (the usual advice, since the root's overflow propagates
-   to the viewport) was tried on 2026-10-06 and measured — the page slid
-   sideways again the moment a stray wide element appeared. Only the pair
-   blocks it. Worth knowing because a non-visible `overflow` makes an element
-   a containing block for positioned descendants, so a clipped <body> is a
-   suspect whenever `position: fixed` misbehaves; components/bottom-bar.tsx
-   checks for exactly that at runtime rather than trusting either way. */
-
 /* Every page's <main> is the body column's growing item (Tailwind `flex-1`,
    i.e. `flex: 1 1 0%`). A flex-basis of 0 means <main>'s CONTENT HEIGHT never
    contributes to <body>'s height: the item is grown to fill one viewport and
@@ -111,6 +101,18 @@ body {
 main {
   flex-basis: auto;
   flex-shrink: 0;
+  /* Guard 1 above lives HERE, not on <html>/<body>, and must stay here.
+     A non-visible `overflow` makes an element a containing block for fixed
+     positioned descendants, and a clipped <body> captured the bottom bar
+     and the + New button: `bottom: 0` then means the bottom of <body>'s
+     box, which is somewhere in the middle of a long page. That is the
+     overlay-stranded-mid-screen report, three times over, and it never
+     reproduced on a desktop browser because Chromium does not capture them.
+     <main> clips just as well (measured: the page stops sliding sideways
+     either way) and the overlays are portalled out of <main> entirely —
+     see components/viewport-layer.tsx. Clipping only the x axis leaves
+     overflow-y visible, so nothing is cut off vertically. */
+  overflow-x: clip;
 }
 
 /* 4. Every control is tap-only: no double-tap-to-zoom, and no waiting to
