@@ -165,13 +165,21 @@ export function ExportButton({
           {history.summary ? ` · ${history.summary}` : ""}
         </button>
       )}
+      {/* The loudest button on the Export screen, and it has to stay that
+          way. It was a small dark button in the corner while the deficiency
+          list below it had a full-width blue bar, so the eye went straight
+          past the factory sheet to the wrong file — and the wrong file went
+          out (2026-10-06: "Export is white and the deficiency export is blue
+          and more obvious, so I clicked that one"). This is the export that
+          builds the blinds; everything else on the screen is secondary to
+          it. Named, not just "Export", so the two are never a coin toss. */}
       <button
         type="button"
         onClick={handleExportClick}
         disabled={busy}
-        className="min-h-14 rounded-xl bg-neutral-800 px-5 text-base font-semibold text-white active:bg-neutral-700 disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900"
+        className="min-h-14 w-full rounded-xl bg-blue-600 px-5 text-base font-semibold text-white active:bg-blue-700 disabled:opacity-60"
       >
-        {busy ? "Exporting…" : "Export"}
+        {busy ? "Exporting…" : "Export measure sheet (.xlsx)"}
       </button>
 
       {historyOpen && (

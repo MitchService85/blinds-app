@@ -161,9 +161,10 @@ export default function ExportPage() {
       <section className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
         <h2 className="font-semibold">Factory measure sheet</h2>
         <p className="mt-1 mb-3 text-sm text-neutral-500">
-          Every window on {current.floor.label} in the factory&apos;s own format, one row per panel.
+          <b>This is the file the factory builds from.</b> Every window on {current.floor.label} in
+          their own format, one row per panel.
         </p>
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-y-2">
           <ExportButton
             projectName={project.name}
             floor={current.floor}
@@ -218,9 +219,11 @@ export default function ExportPage() {
           type="button"
           onClick={() => void exportDeficiencies()}
           disabled={busy || rows.length === 0}
-          className="mt-3 min-h-14 w-full rounded-xl bg-blue-600 text-base font-semibold text-white disabled:opacity-50"
+          /* Secondary on purpose — see components/export-button.tsx. A blue
+             bar here outshouted the factory sheet and got exported instead. */
+          className="mt-3 min-h-14 w-full rounded-xl border border-neutral-300 text-base font-semibold text-neutral-700 active:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:active:bg-neutral-900"
         >
-          {busy ? "Building…" : rows.length === 0 ? "No deficiencies to export" : `Export ${rows.length} row${rows.length === 1 ? "" : "s"} (.xlsx)`}
+          {busy ? "Building…" : rows.length === 0 ? "No deficiencies to export" : `Export deficiency list — ${rows.length} row${rows.length === 1 ? "" : "s"} (.xlsx)`}
         </button>
       </section>
     </main>
