@@ -8,6 +8,7 @@ import { ExportButton } from "@/components/export-button";
 import { Icon } from "@/components/icon";
 import { deliverFile } from "@/lib/export/deliver";
 import { localDateISO } from "@/lib/export/build-input";
+import { windowBlindCount } from "@/lib/export/shared";
 import {
   buildDeficiencyRows,
   hasIssue,
@@ -92,6 +93,18 @@ export default function ExportPage() {
   );
   const assumed = rows.filter((r) => r.assumed).length;
 
+  /** Every blind on a floor — the denominator for "29 of 74 flagged". */
+  function blindCount(f: Floor): number {
+    const d = data.get(f.id);
+    if (!d) return 0;
+    let n = 0;
+    for (const u of d.units) {
+      if (u.status === "na") continue;
+      for (const w of d.windowsByUnit.get(u.id) ?? []) n += windowBlindCount(w);
+    }
+    return n;
+  }
+
   function issueCount(f: Floor): number {
     const d = data.get(f.id);
     if (!d) return 0;
@@ -107,7 +120,22 @@ export default function ExportPage() {
       const mod = await import("@/lib/export/deficiencies-xlsx");
       const labels = floors.filter((f) => selected.has(f.id)).map((f) => f.label);
       const date = localDateISO();
-      const blob = await mod.deficienciesToBlob(rows, `${project.name} — deficiencies — ${labels.join(", ")} — ${date}`);
+      // Says on the file what the file is. Flagged blinds only means a room
+      // measured BR1/BR2/BR3 with notes on the outer two shows BR1 and BR3
+      // and no BR2 — which reads as an export that dropped blinds, and was
+      // reported as one (44 Charles Batch 5, 2026-10-06).
+      const picked = floors.filter((f) => selected.has(f.id));
+      const flagged = picked.reduce((n, f) => n + issueCount(f), 0);
+      const total = picked.reduce((n, f) => n + blindCount(f), 0);
+      const scope =
+        `Flagged blinds only — ${flagged} of ${total} on ${labels.join(", ")}. ` +
+        `Blinds with nothing wrong are left out, so tag numbers skip. ` +
+        `This is not the factory measure sheet.`;
+      const blob = await mod.deficienciesToBlob(
+        rows,
+        `${project.name} — deficiencies — ${labels.join(", ")} — ${date}`,
+        scope
+      );
       await deliverFile(blob, suggestedDeficiencyFilename(project.name, labels, date));
     } finally {
       setBusy(false);
@@ -148,8 +176,10 @@ export default function ExportPage() {
       <section className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
         <h2 className="font-semibold">Deficiency list</h2>
         <p className="mt-1 mb-3 text-sm text-neutral-500">
-          Every blind flagged with an issue, one row per panel, with a column for the PM to
-          approve and one for the factory. Bay notes that say left or right land on that panel.
+          <b>Flagged blinds only</b> — not a measure sheet. A blind with nothing wrong is left
+          out, so the tags skip (BR1 and BR3 with no BR2). One row per panel, with a column for
+          the PM to approve and one for the factory. Bay notes that say left or right land on
+          that panel.
         </p>
         <div className="flex flex-col gap-1">
           {floors.map((f) => {

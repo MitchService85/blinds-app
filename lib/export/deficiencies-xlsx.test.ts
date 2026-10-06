@@ -29,4 +29,17 @@ describe("deficienciesToBlob", () => {
     expect(ws.getRow(5).getCell(8).value).toBe("Shim, 1/4 deduct");
     expect(ws.rowCount).toBe(5);
   });
+
+  it("carries a scope line that says what the file leaves out", async () => {
+    // Without it the file is indistinguishable from a measure sheet that
+    // dropped blinds — which is how it was read on 44 Charles Batch 5.
+    const blob = await deficienciesToBlob([], "Test", "Only blinds flagged: 29 of 74.");
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await blob.arrayBuffer());
+    const ws = wb.getWorksheet("Deficiencies")!;
+    expect(ws.getRow(2).getCell(1).value).toBe("Only blinds flagged: 29 of 74.");
+    // The headers move down with it, and the freeze follows them.
+    expect(ws.getRow(4).values).toEqual([undefined, ...DEFICIENCY_HEADERS]);
+    expect(ws.views[0]).toMatchObject({ ySplit: 4 });
+  });
 });
