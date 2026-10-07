@@ -1,6 +1,6 @@
 "use client";
 
-import { checkUnitWindows } from "@/lib/checks";
+import { checkFloorTagSpread, checkUnitWindows } from "@/lib/checks";
 import { Icon } from "@/components/icon";
 import { compressImage } from "@/lib/photos";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -132,6 +132,19 @@ export default function WindowEntryPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [windows, setWindows] = useState<WindowRecord[]>([]);
   const [floorWindows, setFloorWindows] = useState<WindowRecord[]>([]);
+  /**
+   * The OTHER units on this floor, with their windows — only so the
+   * room-tag check can run here. It is a floor-level rule (it needs to know
+   * whether single-tag units are the exception or the format), and this
+   * screen used to compute warnings from checkUnitWindows alone. So the
+   * floor grid put an amber ⚠ on unit 801, and opening 801 showed nothing
+   * at all: no warning, no "Looks right", nothing to clear. The flag could
+   * be seen and never answered (reported 2026-10-07 with a screenshot of
+   * exactly that screen).
+   */
+  const [siblingGroups, setSiblingGroups] = useState<
+    { unit: Unit; windows: WindowRecord[] }[]
+  >([]);
   const [draft, setDraft] = useState<DraftWindow>(blankDraft());
   /**
    * Whether the entry form is showing. Opening a unit that already has
@@ -251,12 +264,21 @@ export default function WindowEntryPage() {
       void (async () => {
         const allUnits = await listUnits(floorId);
         const all: WindowRecord[] = [];
+        const groups: { unit: Unit; windows: WindowRecord[] }[] = [];
         await Promise.all(
           allUnits.map(async (unitRow) => {
-            all.push(...(await listWindows(unitRow.id)));
+            const ws = await listWindows(unitRow.id);
+            all.push(...ws);
+            // This unit's own row is left out and spliced back in from live
+            // state below, so acknowledging a warning clears it immediately
+            // instead of waiting for the next sweep.
+            if (unitRow.id !== unitId) groups.push({ unit: unitRow, windows: ws });
           })
         );
-        if (!cancelled) setFloorWindows(all);
+        if (!cancelled) {
+          setFloorWindows(all);
+          setSiblingGroups(groups);
+        }
       })();
     }
 
@@ -755,8 +777,19 @@ export default function WindowEntryPage() {
   }
   const activeIsHeight = activeField === "height";
 
+  // The per-window checks plus this floor's room-tag check, narrowed to the
+  // blind it anchors on here — so whatever put the ⚠ on this unit's tile is
+  // visible on the row that can answer it, next to "Looks right".
   const windowWarnings = new Map(
-    unit ? checkUnitWindows(unit, windows, floor?.defaults).map((w) => [w.window_id, w.message]) : []
+    (unit
+      ? [
+          ...checkUnitWindows(unit, windows, floor?.defaults),
+          ...checkFloorTagSpread([...siblingGroups, { unit, windows }]).filter((w) =>
+            windows.some((own) => own.id === w.window_id)
+          ),
+        ]
+      : []
+    ).map((w) => [w.window_id, w.message])
   );
 
   return (
