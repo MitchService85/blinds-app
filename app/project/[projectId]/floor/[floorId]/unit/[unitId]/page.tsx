@@ -780,13 +780,25 @@ export default function WindowEntryPage() {
   // The per-window checks plus this floor's room-tag check, narrowed to the
   // blind it anchors on here — so whatever put the ⚠ on this unit's tile is
   // visible on the row that can answer it, next to "Looks right".
+  //
+  // The room-tag check waits until you are reviewing, not measuring. A unit
+  // is measured one room at a time: three LR blinds in, the bedroom is still
+  // ahead of you, and "all 3 blinds here are tagged LR" at that moment is
+  // noise — the kind that teaches a thumb to hit "Looks right" without
+  // reading, which then silences the check on this unit for good. While the
+  // entry form is up, the carried-tag amber state on the tag chips is the
+  // in-the-moment guard; this one is for coming back to the unit, which is
+  // exactly where the floor tile's ⚠ sends you.
+  const reviewing = entryOpen === false;
   const windowWarnings = new Map(
     (unit
       ? [
           ...checkUnitWindows(unit, windows, floor?.defaults),
-          ...checkFloorTagSpread([...siblingGroups, { unit, windows }]).filter((w) =>
-            windows.some((own) => own.id === w.window_id)
-          ),
+          ...(reviewing
+            ? checkFloorTagSpread([...siblingGroups, { unit, windows }]).filter((w) =>
+                windows.some((own) => own.id === w.window_id)
+              )
+            : []),
         ]
       : []
     ).map((w) => [w.window_id, w.message])

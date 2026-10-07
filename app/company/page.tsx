@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getCompany,
@@ -126,9 +125,10 @@ export default function CompanyPage() {
   if (!company) {
     return (
       <main className="flex flex-col gap-5 p-4">
-        <Link href="/" className="inline-flex min-h-11 items-center self-start text-sm text-blue-600">
-          ← Back
-        </Link>
+        <header className="flex items-center gap-3">
+          <BackButton href="/" label="Back to all jobs" />
+          <h1 className="text-xl font-semibold">Settings</h1>
+        </header>
         <p className="text-sm text-neutral-500">
           No company on this device yet. Sign in to sync and it will appear here.
         </p>

@@ -14,6 +14,7 @@ import { JobCard, type FloorProgress, type JobMoney } from "@/components/job-car
 import { ViewportPinned } from "@/components/viewport-layer";
 import { SyncStatus } from "@/components/sync-status";
 import { blockedOf, installOf } from "@/components/status";
+import { readPref, writePref } from "@/lib/local-pref";
 
 interface ProjectRow {
   project: Project;
@@ -63,7 +64,7 @@ export default function Home() {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(EXPANDED_STORAGE_KEY);
+    const stored = readPref(EXPANDED_STORAGE_KEY);
     if (!stored) return;
     try {
       const ids: unknown = JSON.parse(stored);
@@ -79,7 +80,7 @@ export default function Home() {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      window.localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify([...next]));
+      writePref(EXPANDED_STORAGE_KEY, JSON.stringify([...next]));
       return next;
     });
   }

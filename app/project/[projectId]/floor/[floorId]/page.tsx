@@ -33,6 +33,7 @@ import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
 import { unitRooms } from "@/lib/tags";
+import { readPref, writePref } from "@/lib/local-pref";
 
 type FloorMode = "measure" | "install";
 const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
@@ -109,7 +110,7 @@ export default function FloorPage() {
   }
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(`${FLOOR_MODE_KEY_PREFIX}${floorId}`);
+    const stored = readPref(`${FLOOR_MODE_KEY_PREFIX}${floorId}`);
     // One-time sync from an external store (localStorage) on mount, guarded
     // to client-only so the server-rendered/hydration-time default
     // ("measure") never mismatches — not a props/state mirroring anti-pattern.
@@ -119,7 +120,7 @@ export default function FloorPage() {
 
   function selectMode(next: FloorMode) {
     setMode(next);
-    window.localStorage.setItem(`${FLOOR_MODE_KEY_PREFIX}${floorId}`, next);
+    writePref(`${FLOOR_MODE_KEY_PREFIX}${floorId}`, next);
   }
 
   const warningsByUnit = useMemo(() => {

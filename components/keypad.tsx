@@ -7,6 +7,7 @@ import {
   formatThirtySeconds,
   thirtySecondsToStoredSixteenths,
 } from "@/lib/fractions";
+import { readPref, writePref } from "@/lib/local-pref";
 
 export type Precision = 8 | 16 | 32;
 
@@ -22,7 +23,7 @@ export function usePrecision(): [Precision, (p: Precision) => void] {
   const [precision, setPrecisionState] = useState<Precision>(8);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(PRECISION_STORAGE_KEY);
+    const stored = readPref(PRECISION_STORAGE_KEY);
     // One-time sync from an external store (localStorage) on mount, guarded
     // to client-only so the server-rendered/hydration-time default (8) never
     // mismatches — not a props/state mirroring anti-pattern.
@@ -32,7 +33,7 @@ export function usePrecision(): [Precision, (p: Precision) => void] {
 
   const setPrecision = (p: Precision) => {
     setPrecisionState(p);
-    window.localStorage.setItem(PRECISION_STORAGE_KEY, String(p));
+    writePref(PRECISION_STORAGE_KEY, String(p));
   };
 
   return [precision, setPrecision];
@@ -48,6 +49,12 @@ const FRACTION_OPTIONS: Record<Precision, number[]> = {
   8: EIGHTHS,
   16: SIXTEENTHS,
   32: THIRTY_SECONDS,
+};
+
+const PRECISION_WORDS: Record<Precision, string> = {
+  8: "an eighth",
+  16: "a sixteenth",
+  32: "a thirty-second",
 };
 
 const PRECISION_LABEL: Record<Precision, string> = {
@@ -164,7 +171,7 @@ export function Keypad({ valueSixteenths, onChange, precision, onPrecisionChange
                   : "bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
               }`}
               aria-pressed={precision === p}
-              aria-label={`Measure to ${p === 8 ? "an eighth" : `a ${p}nd`}`}
+              aria-label={`Measure to ${PRECISION_WORDS[p]}`}
             >
               {PRECISION_LABEL[p]}
             </button>

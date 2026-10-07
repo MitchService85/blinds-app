@@ -103,7 +103,11 @@ export function splitNoteByPanel(
     byPanel.set(last, c);
     return { byPanel, assumed: false };
   }
-  const clauses = lower.split(/,|;|\band\b(?=\s*(left|right))/).filter((c) => c && c.trim());
+  // Non-capturing on purpose: String.split splices captured groups into its
+  // result, so a capturing (left|right) here turned every "… and right …"
+  // into an extra clause that was just the word "right". It happened to be
+  // overwritten by the real clause straight after it — a trap, not a bug.
+  const clauses = lower.split(/,|;|\band\b(?=\s*(?:left|right))/).filter((c) => c.trim());
   let named = false;
   for (const c of clauses) {
     if (/\bleft\b/.test(c)) {

@@ -27,6 +27,12 @@ interface UnitTileProps {
 const LONG_PRESS_MS = 500;
 /** Rooms shown before the line collapses to "+N" — four fits a tile at 390px. */
 const MAX_ROOMS_ON_TILE = 4;
+/**
+ * Room the action menu needs below a tile. Measured at 206px in the browser
+ * (four rows, the Delete label running long on a unit with windows); the
+ * margin above that only means it flips upward a little sooner.
+ */
+const MENU_HEIGHT_PX = 230;
 
 /**
  * Floor-grid unit tile: color-coded by derived status, long-press (or the
@@ -48,10 +54,28 @@ export function UnitTile({
   onOpenNote,
 }: UnitTileProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuUp, setMenuUp] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * Opens the menu below the tile, or above it when there is no room below.
+   * It only ever opened downward, so on the last row or two of a floor it
+   * dropped behind the Done/Export bar — and on the very last row, Delete
+   * landed below the bottom of the screen with no more page to scroll. The
+   * usable bottom is the pinned bar's top edge, read off the bar itself
+   * rather than guessed, since its height changes with the safe area.
+   */
+  function openMenu() {
+    const tile = rootRef.current?.getBoundingClientRect();
+    const bar = document.querySelector('[data-pinned="true"]')?.getBoundingClientRect();
+    const usableBottom = bar ? bar.top : window.innerHeight;
+    setMenuUp(!!tile && tile.bottom + MENU_HEIGHT_PX > usableBottom && tile.top > MENU_HEIGHT_PX);
+    setMenuOpen(true);
+  }
+
   function startPress() {
-    timerRef.current = setTimeout(() => setMenuOpen(true), LONG_PRESS_MS);
+    timerRef.current = setTimeout(openMenu, LONG_PRESS_MS);
   }
   function cancelPress() {
     if (timerRef.current) {
@@ -68,7 +92,7 @@ export function UnitTile({
   }
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <Link
         href={href}
         onPointerDown={startPress}
@@ -151,7 +175,8 @@ export function UnitTile({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setMenuOpen((v) => !v);
+          if (menuOpen) setMenuOpen(false);
+          else openMenu();
         }}
         aria-label={`Unit ${unit.number} actions`}
         className="absolute -right-2 -top-2 flex h-9 w-9 items-center justify-center rounded-full bg-neutral-900/70 text-white dark:bg-white/80 dark:text-neutral-900"
@@ -161,8 +186,15 @@ export function UnitTile({
 
       {menuOpen && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-          <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+          {/* Above the pinned bottom bar (z-30), and below the sheets (z-50).
+              The backdrop covers the bar too, so a tap there closes the menu
+              rather than firing Done underneath it. */}
+          <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+          <div
+            className={`absolute left-0 right-0 z-40 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900 ${
+              menuUp ? "bottom-full mb-1" : "top-full mt-1"
+            }`}
+          >
             {unit.status !== "done" && (
               <button
                 type="button"

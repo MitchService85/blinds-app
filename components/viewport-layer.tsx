@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -13,6 +13,11 @@ const PIN_TOLERANCE_PX = 24;
 
 /** Readings needed before giving up on floating. See `pinned` below. */
 const PIN_STRIKES = 2;
+
+/** <body> never changes identity, so there is nothing to subscribe to. */
+const subscribeNever = () => () => {};
+const getBody = () => document.body;
+const getNoBody = () => null;
 
 interface ViewportPinnedProps {
   /** Classes while the element really is pinned to the viewport. */
@@ -62,7 +67,10 @@ export function ViewportPinned({
   children,
 }: ViewportPinnedProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [host, setHost] = useState<HTMLElement | null>(null);
+  // <body> on the client, null during the server render (there is no
+  // document there). Read through useSyncExternalStore rather than set from
+  // an effect: no extra render pass, and nothing to get out of step.
+  const host = useSyncExternalStore(subscribeNever, getBody, getNoBody);
   /**
    * Latches false and stays there for the life of the screen. Flipping back
    * and forth as the page scrolls would be worse than either state, and an
@@ -70,12 +78,12 @@ export function ViewportPinned({
    */
   const [pinned, setPinned] = useState(true);
 
-  // Portalled only after mount: document.body does not exist while the page
-  // is being rendered on the server.
-  useEffect(() => setHost(document.body), []);
-
-  const layoutRef = useRef(onLayout);
-  layoutRef.current = onLayout;
+  // The caller's latest callback, without making it an effect dependency:
+  // BottomBar passes a fresh arrow every render, and re-subscribing the
+  // ResizeObserver on each one would measure in a loop.
+  const emitLayout = useEffectEvent((height: number, isPinned: boolean) => {
+    onLayout?.(height, isPinned);
+  });
 
   // Measured, not hard-coded: these bars differ (one button, two, plus the
   // export status line) and the safe-area inset differs per device and per
@@ -83,7 +91,7 @@ export function ViewportPinned({
   useEffect(() => {
     const el = ref.current;
     if (!el || hidden) return;
-    const measure = () => layoutRef.current?.(el.getBoundingClientRect().height, pinned);
+    const measure = () => emitLayout(el.getBoundingClientRect().height, pinned);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);

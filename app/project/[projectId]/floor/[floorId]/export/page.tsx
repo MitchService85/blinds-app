@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { getFloor, getProject, listFloors, listUnits, listWindows } from "@/lib/db";
 import type { Floor, Project, Unit, WindowRecord } from "@/lib/types";
+import { BackButton } from "@/components/back-button";
 import { ExportButton } from "@/components/export-button";
 import { Icon } from "@/components/icon";
 import { deliverFile } from "@/lib/export/deliver";
@@ -59,7 +60,6 @@ function toDeficiencyFloor(d: FloorData): DeficiencyFloor {
  */
 export default function ExportPage() {
   const { projectId, floorId } = useParams<{ projectId: string; floorId: string }>();
-  const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [data, setData] = useState<Map<string, FloorData>>(new Map());
@@ -147,9 +147,11 @@ export default function ExportPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-12">
       <header className="flex items-center gap-3">
-        <button type="button" onClick={() => router.back()} className="min-h-11 min-w-11 shrink-0 text-xl">
-          ←
-        </button>
+        {/* The shared back arrow, like every other screen: press state on
+            iOS, and a fixed destination. router.back() did nothing at all
+            after a reload in the home-screen app, where there is no history
+            to go back through. */}
+        <BackButton href={`/project/${projectId}/floor/${floorId}`} label="Back to the floor" />
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold">Export</h1>
           <div className="text-sm text-neutral-500">
