@@ -76,7 +76,17 @@ export default function FloorPage() {
   // the building isn't measured in order (field note, 44 Charles batch 4).
   const [unitInputPristine, setUnitInputPristine] = useState(true);
   const [addError, setAddError] = useState<string | null>(null);
-  const [doneWarnings, setDoneWarnings] = useState<MeasurementWarning[] | null>(null);
+  /**
+   * The amber "worth a second look" panel. Opened either by marking a unit
+   * done or by tapping a tile's ⚠ — the badge used to be the end of the
+   * road, a hard-coded `title="Check measurements"` that iOS never shows
+   * anywhere ("801 has the warning symbol but no note as to why",
+   * 2026-10-06). A flag you cannot read is a flag you cannot act on.
+   */
+  const [shownWarnings, setShownWarnings] = useState<
+    { title: string; items: MeasurementWarning[] } | null
+  >(null);
+  const warningPanelRef = useRef<HTMLDivElement>(null);
   const [noteUnitId, setNoteUnitId] = useState<string | null>(null);
   const [mode, setMode] = useState<FloorMode>("measure");
   const [installSheetUnitId, setInstallSheetUnitId] = useState<string | null>(null);
@@ -268,7 +278,9 @@ export default function FloorPage() {
     if (status === "done") {
       // Whatever the tile is already flagging, including the room-tag check.
       const warnings = warningsByUnit.get(unitId) ?? [];
-      setDoneWarnings(warnings.length > 0 ? warnings : null);
+      setShownWarnings(
+        warnings.length > 0 ? { title: "Marked done — worth a second look", items: warnings } : null
+      );
     }
     await refresh();
   }
@@ -398,6 +410,13 @@ export default function FloorPage() {
     el.querySelector("textarea")?.focus();
   }, [noteUnitId]);
 
+  // The panel renders above the unit grid; a ⚠ tapped on the twentieth tile
+  // would otherwise open it out of sight and look like nothing happened.
+  useEffect(() => {
+    if (!shownWarnings) return;
+    warningPanelRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [shownWarnings]);
+
   async function handleNoteChange(unitId: string, note: string) {
     setUnits((us) => us.map((u) => (u.id === unitId ? { ...u, note } : u)));
     await updateUnit(unitId, { note });
@@ -523,13 +542,16 @@ export default function FloorPage() {
         </div>
       )}
 
-      {mode === "measure" && doneWarnings && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+      {mode === "measure" && shownWarnings && (
+        <div
+          ref={warningPanelRef}
+          className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+        >
           <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="font-semibold">Marked done — worth a second look</span>
+            <span className="font-semibold">{shownWarnings.title}</span>
             <button
               type="button"
-              onClick={() => setDoneWarnings(null)}
+              onClick={() => setShownWarnings(null)}
               aria-label="Dismiss"
               className="flex min-h-8 min-w-8 shrink-0 items-center justify-center"
             >
@@ -537,12 +559,15 @@ export default function FloorPage() {
             </button>
           </div>
           <ul className="flex flex-col gap-1">
-            {doneWarnings.map((w) => (
+            {shownWarnings.items.map((w) => (
               <li key={w.window_id}>
                 <Icon name="alert" size={14} /> {w.unit_number}-{w.tag}: {w.message}
               </li>
             ))}
           </ul>
+          <div className="mt-2 text-xs text-amber-800/80 dark:text-amber-300/80">
+            Open the blind named above and tap “Looks right” to clear it.
+          </div>
         </div>
       )}
 
@@ -648,6 +673,12 @@ export default function FloorPage() {
                 blindCount={(windowsByUnit.get(unit.id) ?? []).reduce((n, w) => n + windowBlindCount(w), 0)}
                 href={`/project/${projectId}/floor/${floorId}/unit/${unit.id}`}
                 hasWarning={warningsByUnit.has(unit.id)}
+                onShowWarnings={() =>
+                  setShownWarnings({
+                    title: `Unit ${unit.number} — worth a second look`,
+                    items: warningsByUnit.get(unit.id) ?? [],
+                  })
+                }
                 rooms={unitRooms(windowsByUnit.get(unit.id) ?? [])}
                 onSetStatus={(status) => handleSetStatus(unit.id, status)}
                 onDelete={() => handleDeleteUnit(unit.id)}

@@ -13,8 +13,10 @@ interface UnitTileProps {
   /** Blinds ordered: panels x quantity. Cleveland's L12 is 1 opening, 13 blinds. */
   blindCount: number;
   href: string;
-  /** True when lib/checks.ts flagged a bay-symmetry warning on this unit. */
+  /** True when lib/checks.ts flagged anything on this unit. */
   hasWarning: boolean;
+  /** Show the reasons. The badge is the only place the flag is visible. */
+  onShowWarnings: () => void;
   /** Distinct rooms measured here, in walking order — see lib/tags.ts. */
   rooms: string[];
   onSetStatus: (status: UnitStatus) => void;
@@ -39,6 +41,7 @@ export function UnitTile({
   blindCount,
   href,
   hasWarning,
+  onShowWarnings,
   rooms,
   onSetStatus,
   onDelete,
@@ -109,13 +112,28 @@ export function UnitTile({
 
       {(hasWarning || unit.note) && (
         <div className="pointer-events-none absolute -left-1.5 -top-1.5 flex gap-0.5">
+          {/* Tappable, because `title` is the one thing iOS never surfaces:
+              there is no hover and no long-press tooltip, so the badge was a
+              dead end — an amber dot that said a unit was wrong and offered
+              no way to find out how ("801 has the warning symbol but no note
+              as to why", 2026-10-06). The checks already carry a sentence
+              each; this is what reaches it. */}
           {hasWarning && (
-            <span
-              title="Check measurements"
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white"
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onShowWarnings();
+              }}
+              aria-label={`Why unit ${unit.number} is flagged`}
+              title="Why this is flagged"
+              // The dot stays 20px; the pseudo-element gives it a finger-sized
+              // target, since a 20px badge on a glove is a miss.
+              className="pointer-events-auto relative flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white after:absolute after:-inset-2 after:content-['']"
             >
               <Icon name="alert" size={12} />
-            </span>
+            </button>
           )}
           {unit.note && (
             <span
