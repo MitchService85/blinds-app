@@ -120,7 +120,7 @@ export default function HelpPage() {
         <Topic id="bays" title="Bay windows and deducts">
           <p>One frame holding two or three blinds is <b>one window</b>: enter the first width, tap <b>+ panel</b>, enter the next. Each panel is one blind.</p>
           <p>A deduct of <b>Both</b> trims only the outer edges — the left of the left blind (Dl) and the right of the right blind (Dr). Middle blinds are never trimmed.</p>
-          <p>On a bay, tap a panel&apos;s control side to switch it between the floor&apos;s default, L and R.</p>
+          <p>On a bay, each panel&apos;s drive side can differ: under <b>Control per panel</b>, tap a panel to switch it between the floor&apos;s default, L and R.</p>
         </Topic>
         <Topic id="window-options" title="One window that's different">
           <p>Open <b>More options</b> on that window to change just it: Measure (Tight / Finished), Mount (Inside / Outside), Motorized, Chain length, Quantity, or a Note.</p>
@@ -136,7 +136,7 @@ export default function HelpPage() {
         <Topic id="floor-settings" title="What do Drive R, Tight and D=½ mean?">
           <p>The chips at the top of a floor are its settings, used for every window on it. Tap <b>Edit</b> to change them.</p>
           <ul className="flex list-disc flex-col gap-1 pl-5">
-            <li><b>Drive L / R</b> — which side the control goes on.</li>
+            <li><b>Drive L / R</b> — which end the drive sits on: the gear, or the spring clutch on models that have one. Not every blind has a control chain, but every one has a drive end.</li>
             <li><b>Tight / Finished</b> — how you measured: tight to the opening (the factory takes its deduction) or the finished blind size.</li>
             <li><b>Inside / Outside</b> — where the blind sits.</li>
             <li><b>D=½</b> — the deduct amount printed on the sheet.</li>
