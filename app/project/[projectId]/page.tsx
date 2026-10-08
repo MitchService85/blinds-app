@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createFloor, duplicateFloor, getProject, listFloors, listUnits, updateProject } from "@/lib/db";
@@ -17,6 +17,7 @@ import { DeficiencyList } from "@/components/deficiency-list";
 import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
+import { readPref, writePref } from "@/lib/local-pref";
 
 function defaultFloorDefaults(): FloorDefaults {
   return {
@@ -66,6 +67,12 @@ async function loadProjectData(projectId: string): Promise<{ project: Project | 
   return { project: p, floors: rows };
 }
 
+/** Whether the Business section is open — per phone, across every job. */
+const BUSINESS_OPEN_KEY = "measure:job:business-open";
+const subscribeNever = () => () => {};
+const readBusinessOpen = () => readPref(BUSINESS_OPEN_KEY);
+const businessUnknown = () => null;
+
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
@@ -78,6 +85,17 @@ export default function ProjectPage() {
   const [deficiencies, setDeficiencies] = useState<Deficiency[]>([]);
   const [unitNumbers, setUnitNumbers] = useState<Map<string, string>>(new Map());
   const [tripsVersion, setTripsVersion] = useState(0);
+  const [editingTags, setEditingTags] = useState(false);
+  // Stored choice, overridden by a tap this visit (the store isn't watched).
+  const storedBusiness = useSyncExternalStore(subscribeNever, readBusinessOpen, businessUnknown);
+  const [businessTapped, setBusinessTapped] = useState<boolean | null>(null);
+  const businessOpen = businessTapped ?? storedBusiness === "1";
+
+  function toggleBusiness() {
+    const next = !businessOpen;
+    setBusinessTapped(next);
+    writePref(BUSINESS_OPEN_KEY, next ? "1" : "0");
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -319,15 +337,58 @@ export default function ProjectPage() {
         </section>
       )}
 
-      <MoneyCard project={project} onProjectChange={setProject} tripsVersion={tripsVersion} />
+      {/* Contract, invoices, trips and PM access, folded under one heading.
+          A crew member who only measures scrolled past all four to reach
+          anything else (2026-10-08, "overwhelming for a new user"); the
+          person who runs the money opens it once and this phone keeps it
+          open on every job. */}
+      <section className="rounded-xl border border-neutral-200 dark:border-neutral-800">
+        <button
+          type="button"
+          onClick={toggleBusiness}
+          aria-expanded={businessOpen}
+          className="flex min-h-14 w-full items-center justify-between gap-3 px-4 text-left"
+        >
+          <span>
+            <span className="block font-semibold">Business</span>
+            <span className="block text-xs text-neutral-500">Contract · invoices · site trips · PM access</span>
+          </span>
+          <span aria-hidden className={`shrink-0 text-xs text-neutral-400 transition-transform ${businessOpen ? "rotate-180" : ""}`}>
+            ▾
+          </span>
+        </button>
+        {businessOpen && (
+          <div className="flex flex-col gap-6 border-t border-neutral-200 p-4 dark:border-neutral-800">
+            <MoneyCard project={project} onProjectChange={setProject} tripsVersion={tripsVersion} />
+            <TripLog projectId={projectId} onChange={() => setTripsVersion((v) => v + 1)} />
+            <PmAccessCard projectId={projectId} />
+          </div>
+        )}
+      </section>
 
-      <TripLog projectId={projectId} onChange={() => setTripsVersion((v) => v + 1)} />
-
-      <PmAccessCard projectId={projectId} />
-
+      {/* Set once per job, read often: one line until it's being changed. */}
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-neutral-500">Room tags</h2>
-        <TagChipEditor chips={project.tag_chips} onChange={handleChipsChange} />
+        {editingTags ? (
+          <>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-neutral-500">Room tags</h2>
+              <button type="button" onClick={() => setEditingTags(false)} className="min-h-11 px-2 text-sm text-blue-600">
+                Done
+              </button>
+            </div>
+            <TagChipEditor chips={project.tag_chips} onChange={handleChipsChange} />
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingTags(true)}
+            className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-neutral-200 px-4 text-left text-sm dark:border-neutral-800"
+          >
+            <span className="shrink-0 font-semibold text-neutral-500">Room tags</span>
+            <span className="min-w-0 flex-1 truncate">{project.tag_chips.join("  ") || "none"}</span>
+            <span className="shrink-0 text-blue-600">Edit</span>
+          </button>
+        )}
       </section>
     </main>
   );

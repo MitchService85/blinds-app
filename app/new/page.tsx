@@ -8,6 +8,7 @@ import { TagChipEditor } from "@/components/tag-chip-editor";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { BottomBar } from "@/components/bottom-bar";
 import { BackHistoryButton } from "@/components/back-button";
+import { floorSettingParts } from "@/lib/floor-summary";
 
 // Mike's own designations, which the factory processes and returns labelled
 // the same way. STU covers a studio/bachelor unit.
@@ -43,6 +44,18 @@ export default function NewJobPage() {
     { key: crypto.randomUUID(), label: "", defaults: defaultFloorDefaults() },
   ]);
   const [saving, setSaving] = useState(false);
+  const [editingTags, setEditingTags] = useState(false);
+  /** Floors whose settings are unfolded, by draft key. */
+  const [settingsOpen, setSettingsOpen] = useState<Set<string>>(() => new Set());
+
+  function toggleSettings(key: string) {
+    setSettingsOpen((open) => {
+      const next = new Set(open);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   function selectBuildingType(type: BuildingType) {
     setBuildingType(type);
@@ -141,16 +154,35 @@ export default function NewJobPage() {
           </div>
         </div>
 
-        <div>
-          <div className="mb-1 text-sm text-neutral-500">Room tags</div>
-          <TagChipEditor
-            chips={chips}
-            onChange={(c) => {
-              setChips(c);
-              setChipsTouched(true);
-            }}
-          />
-        </div>
+        {/* Folded: the building type already picks a sensible set, so most
+            jobs never touch this. Open it to add Den, Bath and the like. */}
+        {editingTags ? (
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-sm text-neutral-500">Room tags</span>
+              <button type="button" onClick={() => setEditingTags(false)} className="min-h-9 px-2 text-sm text-blue-600">
+                Done
+              </button>
+            </div>
+            <TagChipEditor
+              chips={chips}
+              onChange={(c) => {
+                setChips(c);
+                setChipsTouched(true);
+              }}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingTags(true)}
+            className="flex min-h-12 w-full items-center gap-3 rounded-lg border border-neutral-300 px-3 text-left text-sm dark:border-neutral-700"
+          >
+            <span className="shrink-0 text-neutral-500">Room tags</span>
+            <span className="min-w-0 flex-1 truncate">{chips.join("  ") || "none"}</span>
+            <span className="shrink-0 text-blue-600">Change</span>
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-4">
@@ -184,7 +216,36 @@ export default function NewJobPage() {
                 </button>
               )}
             </div>
-            <FloorDefaultsForm value={f.defaults} onChange={(defaults) => updateFloor(f.key, { defaults })} />
+            {/* A dozen settings, folded to the one line that says what they
+                are. The form used to open with all of them, before anyone
+                had measured anything (2026-10-08). Measure and mount say
+                "not noted" out loud while folded — they're the two that cost
+                money when nobody picks them. */}
+            {settingsOpen.has(f.key) ? (
+              <>
+                <FloorDefaultsForm value={f.defaults} onChange={(defaults) => updateFloor(f.key, { defaults })} />
+                <button
+                  type="button"
+                  onClick={() => toggleSettings(f.key)}
+                  className="mt-3 min-h-11 w-full rounded-lg bg-neutral-100 text-sm font-medium dark:bg-neutral-800"
+                >
+                  Done with floor settings
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => toggleSettings(f.key)}
+                aria-expanded={false}
+                className="flex w-full items-start gap-3 rounded-lg bg-neutral-50 p-3 text-left text-sm dark:bg-neutral-900"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-neutral-500">Floor settings</span>
+                  <span className="mt-0.5 block">{floorSettingParts(f.defaults, { showUnset: true }).join(" · ")}</span>
+                </span>
+                <span className="shrink-0 pt-3 text-blue-600">Change ▾</span>
+              </button>
+            )}
           </div>
         ))}
       </div>

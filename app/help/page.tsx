@@ -133,13 +133,13 @@ export default function HelpPage() {
       </Group>
 
       <Group title="Floors">
-        <Topic id="floor-settings" title="What do Drive R, Tight and D=½ mean?">
+        <Topic id="floor-settings" title="What do Drive R, Tight and Deduct ½ mean?">
           <p>The chips at the top of a floor are its settings, used for every window on it. Tap <b>Edit</b> to change them.</p>
           <ul className="flex list-disc flex-col gap-1 pl-5">
             <li><b>Drive L / R</b> — which end the drive sits on: the gear, or the spring clutch on models that have one. Not every blind has a control chain, but every one has a drive end.</li>
             <li><b>Tight / Finished</b> — how you measured: tight to the opening (the factory takes its deduction) or the finished blind size.</li>
             <li><b>Inside / Outside</b> — where the blind sits.</li>
-            <li><b>D=½</b> — the deduct amount printed on the sheet.</li>
+            <li><b>Deduct ½</b> — the deduct amount. The factory sheet prints it as &ldquo;D = ½&rdquo;.</li>
             <li><b>Rev</b> — reverse roll. <b>Motorized</b> — the whole floor is motorized.</li>
             <li><b>Fabric color codes</b> — one per room type, printed in the sheet&apos;s header.</li>
           </ul>
@@ -176,7 +176,7 @@ export default function HelpPage() {
           <p>A single blind wrong? Open the unit and tap <b>⚠</b> on that window: say what&apos;s wrong, whose error it was (Factory or Measure), and whether it needs a recut.</p>
         </Topic>
         <Topic id="pm" title="Sharing with a project manager">
-          <p>On a job&apos;s page, <b>Give a PM access</b> makes a link. They see which units are installed, locked out or need a revisit, and can flag a deficiency. They never see sizes, notes, reasons or prices.</p>
+          <p>On a job&apos;s page, under <b>Business</b>, <b>Give a PM access</b> makes a link. They see which units are installed, locked out or need a revisit, and can flag a deficiency. They never see sizes, notes, reasons or prices.</p>
         </Topic>
       </Group>
 
@@ -186,7 +186,7 @@ export default function HelpPage() {
           <p>No signal is fine. The status at the top of the home screen shows <b>offline</b>, a number of changes <b>pending</b>, or <b>✓ synced</b>. It catches up by itself; tap it for <b>Sync now</b>.</p>
         </Topic>
         <Topic id="money" title="Contract, invoices and site trips">
-          <p>On a job&apos;s page: record the contract, log each site trip, and make an invoice from the blinds actually measured and installed. Your standard rates live in <b>Settings</b>.</p>
+          <p>On a job&apos;s page, under <b>Business</b>: record the contract, log each site trip, and make an invoice from the blinds actually measured and installed. Your standard rates live in <b>Settings</b>.</p>
         </Topic>
         <Topic id="version" title="Which version am I on?">
           <p>At the bottom of <b>Settings</b>: &ldquo;Version v1.4 · Up to date&rdquo;. If it says a newer version is available, tap <b>Reload</b>. Mention the version when you report a problem.</p>

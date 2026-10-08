@@ -24,7 +24,8 @@ import { InstallActionSheet, type InstallAction } from "@/components/install-act
 import { blockedOf, installOf, lockedOf } from "@/components/status";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
-import { effectiveMeasure, effectiveMount, windowBlindCount, windowTagLabel } from "@/lib/export/shared";
+import { windowBlindCount, windowTagLabel } from "@/lib/export/shared";
+import { floorSettingParts } from "@/lib/floor-summary";
 import { findDuplicateUnitNumbers, mergeUnits } from "@/lib/merge-units";
 import { BottomBar } from "@/components/bottom-bar";
 import { issueSummary, windowHasIssue } from "@/components/window-issue";
@@ -868,24 +869,10 @@ function JobInfoChips({ orderNumber, blinds }: { orderNumber: string; blinds: nu
 }
 
 function DefaultsSummary({ defaults }: { defaults: FloorDefaults }) {
-  const parts = [
-    defaults.roll ? "Rev" : null,
-    `Drive ${defaults.drive}`,
-    // Measure and mount are separate chips: they answer different questions
-    // (how it was measured vs where it sits) and a floor can be both.
-    (() => {
-      const measure = effectiveMeasure(defaults);
-      return measure === "tight" ? "Tight" : measure === "finished" ? "Finished" : null;
-    })(),
-    (() => {
-      const mount = effectiveMount(defaults);
-      return mount === "inside" ? "Inside" : mount === "outside" ? "Outside" : null;
-    })(),
-    defaults.motorized ? "Motorized" : null,
-    defaults.chain_type ? `${defaults.chain_type} chain` : null,
-    `D=${defaults.d_value}`,
-    defaults.extra_note || null,
-  ].filter((p): p is string => Boolean(p));
+  // Shared with the New job form's folded settings line (lib/floor-summary.ts).
+  // Measure and mount are separate chips: they answer different questions
+  // (how it was measured vs where it sits) and a floor can be both.
+  const parts = floorSettingParts(defaults);
 
   return (
     <>
