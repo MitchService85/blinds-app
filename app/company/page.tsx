@@ -16,6 +16,7 @@ import { emptyBilling } from "@/lib/invoice/draft";
 import { parseDollarsToCents } from "@/lib/pricing";
 import type { Company, CompanyBilling, Membership } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
+import { BuildStamp } from "@/components/build-stamp";
 
 /**
  * Company settings and the team roster.
@@ -133,6 +134,7 @@ export default function CompanyPage() {
           No company on this device yet. Sign in to sync and it will appear here.
         </p>
         <AccountCard />
+        <BuildStamp />
       </main>
     );
   }
@@ -294,6 +296,7 @@ export default function CompanyPage() {
       <BillingSection billing={company.billing ?? emptyBilling()} onChange={patchBilling} />
 
       <AccountCard />
+      <BuildStamp />
     </main>
   );
 }
