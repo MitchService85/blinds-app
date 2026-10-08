@@ -9,3 +9,7 @@ crew reads back when reporting a problem, so a release that skips the bump
 leaves two different builds wearing the same label. The up-to-date check
 compares commits, so a missed bump can't make a phone look current — but the
 label is still wrong, so don't skip it.
+
+The major number (v2.0, v3.0) is Mitch's call, for a release he considers an
+overhaul: `npm version major --no-git-tag-version`, which resets the minor to
+0. v2.0 (2026-10-08) was the welcome, the interactive tour and the new guide.
