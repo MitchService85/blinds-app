@@ -1,4 +1,4 @@
-import { buildSha } from "@/lib/build-id";
+import { appVersion, buildSha } from "@/lib/build-id";
 
 /**
  * The build the SERVER is on right now, for Settings to compare against the
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<Response> {
   return Response.json(
-    { sha: buildSha() },
+    { sha: buildSha(), version: appVersion() },
     { headers: { "Cache-Control": "no-store, must-revalidate" } }
   );
 }

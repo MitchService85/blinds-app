@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { ViewportGuard } from "@/components/keyboard";
-import { buildSha } from "@/lib/build-id";
+import { appVersion, buildSha } from "@/lib/build-id";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -55,6 +55,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       // Settings (components/build-stamp.tsx). See lib/build-id.ts for why it
       // is read here at render time rather than baked into the bundle.
       data-build={buildSha()}
+      data-version={appVersion()}
     >
       <body className="min-h-full flex flex-col">
         <ServiceWorkerRegister />
