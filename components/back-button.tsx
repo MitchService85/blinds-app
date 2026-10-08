@@ -50,12 +50,23 @@ export function BackButton({ href, label = "Back" }: { href: string; label?: str
  * right destination is wherever you came from. History navigation is served
  * from the browser's own cache, so it has none of the delay above.
  */
-export function BackHistoryButton({ label = "Back" }: { label?: string }) {
+export function BackHistoryButton({
+  label = "Back",
+  fallbackHref = "/",
+}: {
+  label?: string;
+  /**
+   * Where to go when there is no history to go back through — the screen
+   * was opened fresh (a reload in the home-screen app, a link). router.back()
+   * alone does nothing at all then, and the arrow looks dead.
+   */
+  fallbackHref?: string;
+}) {
   const router = useRouter();
   return (
     <button
       type="button"
-      onClick={() => router.back()}
+      onClick={() => (window.history.length > 1 ? router.back() : router.push(fallbackHref))}
       aria-label={label}
       className={CLASS}
       onTouchStart={noop}

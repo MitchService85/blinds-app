@@ -1,191 +1,200 @@
 "use client";
 
-import { Icon } from "@/components/icon";
-import type { ReactNode } from "react";
+import Link from "next/link";
+import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { BackHistoryButton } from "@/components/back-button";
+import { Icon } from "@/components/icon";
+import { TOUR_PROGRESS_KEY, TOUR_STEPS } from "@/lib/guide";
+import { readPref } from "@/lib/local-pref";
 
 /**
- * Contractor-facing instructions ("?" on the dashboard). Written for a
- * first-day user on a job site: short sentences, every section anchored by a
- * small visual. The visuals are drawn with the app's own styles instead of
- * screenshots so they always match the real UI and both color modes.
+ * The guide: the tour up top for a first day, then short answers to look up.
+ *
+ * It replaced one long page (2026-10-08, "it feels overwhelming for a new
+ * user") whose measuring section ran nine paragraphs and mixed day-one basics
+ * with fabric codes and duplicate-unit merges — and had drifted: it still
+ * described a width-to-height auto-flip the app no longer does. The basics
+ * now live in the tour, where they can be tried; this page is reference, one
+ * closed topic per question, each a few lines long. Screens link straight to
+ * a topic with /help#id, which opens it.
  */
 
-function Section({ title, visual, children }: { title: string; visual: ReactNode; children: ReactNode }) {
+const subscribeNever = () => () => {};
+const readProgress = () => readPref(TOUR_PROGRESS_KEY);
+const noProgress = () => null;
+
+function countDone(raw: string | null): number {
+  try {
+    const parsed: unknown = JSON.parse(raw ?? "[]");
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function Topic({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-      <h2 className="mb-3 text-base font-semibold">{title}</h2>
-      <div className="mb-3">{visual}</div>
-      <div className="flex flex-col gap-2 text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+    <details id={id} className="group scroll-mt-24 rounded-xl border border-neutral-200 dark:border-neutral-800">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 text-base font-medium [&::-webkit-details-marker]:hidden">
+        {title}
+        <span aria-hidden className="shrink-0 text-xs text-neutral-400 transition-transform group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <div className="flex flex-col gap-2 px-4 pb-4 text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
         {children}
       </div>
+    </details>
+  );
+}
+
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="mt-2 text-sm font-semibold text-neutral-500">{title}</h2>
+      {children}
     </section>
   );
 }
 
-/* --- tiny visuals, mimicking the real UI --- */
-
-function VisualTiles() {
-  return (
-    <div className="grid grid-cols-4 gap-2">
-      <div className="rounded-lg border border-emerald-600 bg-emerald-50 p-2 text-center text-sm font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-        401<div className="text-[10px] font-normal">done</div>
-      </div>
-      <div className="rounded-lg border border-amber-500 bg-amber-50 p-2 text-center text-sm font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-        402<div className="text-[10px] font-normal">started</div>
-      </div>
-      <div className="rounded-lg border border-neutral-300 p-2 text-center text-sm font-semibold text-neutral-500 dark:border-neutral-700">
-        403<div className="text-[10px] font-normal">to do</div>
-      </div>
-      <div className="rounded-lg border border-neutral-300 p-2 text-center text-sm font-semibold text-neutral-500 line-through dark:border-neutral-700">
-        404<div className="text-[10px] font-normal no-underline">skip</div>
-      </div>
-    </div>
-  );
-}
-
-function VisualKeypad() {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-end justify-between">
-        <div className="font-mono text-3xl font-semibold tabular-nums">
-          74 3/4<span className="ml-1 text-sm font-normal text-neutral-500">in</span>
-        </div>
-        <div className="flex overflow-hidden rounded-lg border border-neutral-300 text-sm dark:border-neutral-700">
-          <span className="bg-white px-3 py-1.5 text-neutral-500 dark:bg-neutral-900">⅛</span>
-          <span className="bg-blue-600 px-3 py-1.5 text-white">¹⁄₁₆</span>
-        </div>
-      </div>
-      <div className="text-xs text-neutral-500">from 74 13/16</div>
-      <div className="grid grid-cols-4 gap-1.5 text-center text-xs">
-        {["1/4", "5/16", "3/8", "7/16"].map((f) => (
-          <span key={f} className="rounded-lg bg-neutral-100 py-2 tabular-nums dark:bg-neutral-800">{f}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function VisualBay() {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex gap-1">
-        <div className="flex-1 rounded border-2 border-neutral-400 p-2 text-center text-xs dark:border-neutral-600">
-          34 5/8<div className="mt-1 font-semibold text-blue-600 dark:text-blue-400">Dl</div>
-        </div>
-        <div className="flex-[1.6] rounded border-2 border-neutral-400 p-2 text-center text-xs dark:border-neutral-600">
-          53<div className="mt-1 text-neutral-500">—</div>
-        </div>
-        <div className="flex-1 rounded border-2 border-neutral-400 p-2 text-center text-xs dark:border-neutral-600">
-          34 1/2<div className="mt-1 font-semibold text-blue-600 dark:text-blue-400">Dr</div>
-        </div>
-      </div>
-      <div className="text-center text-xs text-neutral-500">one window frame · three blinds · “Both” trims the outer edges</div>
-    </div>
-  );
-}
-
-function VisualInstall() {
-  return (
-    <div className="flex items-center justify-around text-center text-xs">
-      <div><div className="mb-1 flex justify-center text-emerald-600"><Icon name="circle-dot" size={28} /></div>staged / my half done</div>
-      <div><div className="mb-1 flex justify-center text-emerald-600"><Icon name="check-circle" size={28} /></div>installed</div>
-      <div><div className="mb-1 flex justify-center text-amber-600"><Icon name="alert" size={28} /></div>blocked — read the note</div>
-    </div>
-  );
-}
-
-function VisualWarning() {
-  return (
-    <div className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-200">
-      <Icon name="alert" size={14} /> side panels differ: 29 vs 34 7/8 — bay sides are usually near-equal, double-check this one
-    </div>
-  );
-}
-
-function VisualSync() {
-  return (
-    <div className="flex items-center justify-around text-center text-xs text-neutral-600 dark:text-neutral-300">
-      <div><div className="text-lg">📴</div>no signal?<br />keep working</div>
-      <div className="text-neutral-500">→</div>
-      <div><div className="text-lg">☁️</div>syncs itself<br />when signal returns</div>
-      <div className="text-neutral-500">→</div>
-      <div><div className="text-lg">📱</div>whole crew<br />sees it</div>
-    </div>
-  );
-}
-
 export default function HelpPage() {
+  const done = countDone(useSyncExternalStore(subscribeNever, readProgress, noProgress));
+  const total = TOUR_STEPS.length;
+
+  // /help#export opens that topic and brings it into view — the "?" links on
+  // busy screens land on the answer, not at the top of a list.
+  useEffect(() => {
+    const open = () => {
+      const el = document.getElementById(window.location.hash.slice(1));
+      if (el instanceof HTMLDetailsElement) {
+        el.open = true;
+        el.scrollIntoView({ block: "start" });
+      }
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []);
 
   return (
-    <main className="mx-auto flex max-w-md flex-1 flex-col gap-4 p-4 pb-12">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 p-4 pb-12">
       <header className="safe-sticky-top sticky z-20 -mx-4 flex items-center gap-3 bg-white/95 px-4 pb-3 backdrop-blur dark:bg-neutral-950/95">
         <BackHistoryButton />
-        <h1 className="text-xl font-semibold">How to use Measure</h1>
+        <h1 className="text-xl font-semibold">Guide</h1>
       </header>
 
-      <Section title="The unit grid" visual={<VisualTiles />}>
-        <p>Every box is a unit (or a zone, on office jobs). Tap one to measure its windows.</p>
-        <p>Green means finished, orange means started, plain means not touched yet. Struck-through means skip it (nobody home, no blinds needed).</p>
-        <p>Tap the <b>⋯</b> on a tile to mark it done, skip it, or leave a note.</p>
-      </Section>
+      <Link
+        href="/help/tour"
+        className="flex items-center gap-4 rounded-2xl bg-blue-600 p-4 text-white active:bg-blue-700"
+      >
+        <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/20 text-2xl">
+          {done >= total ? <Icon name="check" size={24} /> : "▶"}
+        </span>
+        <span className="flex-1">
+          <span className="block text-lg font-semibold">
+            {done === 0 ? "New here? Take the tour" : done >= total ? "Take the tour again" : "Continue the tour"}
+          </span>
+          <span className="block text-sm text-white/85">
+            {done === 0
+              ? `${total} short steps, about 5 minutes. You try each thing as you go.`
+              : done >= total
+                ? "All steps done."
+                : `${done} of ${total} steps done.`}
+          </span>
+        </span>
+      </Link>
 
-      <Section title="Entering a measurement" visual={<VisualKeypad />}>
-        <p>Pick the room (LR = living room, BR = bedroom, MBR = master). Tap the numbers, then the fraction. Width first, then Height — it flips automatically.</p>
-        <p>Using a laser that reads 1/16ths? Tap the <b>¹⁄₁₆</b> switch and punch in exactly what the laser says. The app rounds it down to the eighth the factory wants and remembers the raw number.</p>
-        <p>Everything saves by itself the moment you tap it. <b>Save · next window</b> just moves you to the next one.</p>
-        <p><b>Measure</b> and <b>Mount</b> are two separate questions. Measure (Tight / Finished) is how you measured — tight to the opening so the factory takes its deduction, or the finished blind size as-is; Mount (Inside / Outside) is where the blind sits. A floor can set both. Pick them once in the floor&apos;s Edit bar and every exported row says so (&quot;TIGHT MEASURES&quot; / &quot;FINISHED MEASURES&quot;). One odd window? Override either one right on that window.</p>
-        <p><b>Sample Building (demo)</b> is a made-up job for trying things out. It only shows when you&apos;re signed out, it never syncs anywhere, and it disappears once you sign in and your real jobs load. Real work is only ever visible to someone signed in to your company.</p>
-        <p>If two people create the same unit while apart, the floor shows a warning after sync with a one-tap <b>Merge</b>. Nothing is lost: every window and photo from both copies ends up on one unit, notes are joined, and repeated room tags renumber themselves (their LR becomes LR3 next to your LR1/LR2).</p>
-        <p>Opening a unit that already has windows shows them first, with <b>+ Add window</b> underneath, so you can see what exists without scrolling. An empty unit goes straight to entry, and <b>Save · next window</b> keeps you entering, so a long run is never interrupted.</p>
-        <p><b>Control per panel</b> shows up on residential bay windows: tap a panel to move it between the floor&apos;s default side, L and R. At 15 Neighborhood the left panel takes left control while the other two stay default. It stays hidden on office jobs, where left hand is rarely used.</p>
-        <p><b>Fabric codes</b> live in the floor&apos;s Edit bar under &ldquo;Fabric color codes&rdquo;, and go in the sheet&apos;s header so the factory knows which fabric each room takes. There are five: <b>MBED</b> (master bedroom), <b>LIV</b>, <b>BED</b>, <b>KIT</b> and <b>STU</b>. Leave MBED blank and it uses the BED code, since a master usually takes the same treatment. <b>STU</b> is for a studio or bachelor, where the whole place doubles as the bedroom and normally wants blackout even though nothing in it is tagged as a bedroom.</p>
-        <p>If a warning is wrong, tap <b>Looks right</b> on it. Side panels genuinely differ on plenty of real bays, so that closes the loop for that window on both phones. You can turn it back on from the same spot.</p>
-        <p><b>Motorized</b> works the same way: set it for the whole floor, override the odd window. <b>Chain</b> takes a length in inches and goes straight into the factory sheet&apos;s Chain column, which is what that column is actually for. Enter a length and you can skip the old &quot;longer chain&quot; note — the number says it better. A motorized blind has no chain, so the app warns if you set both.</p>
-      </Section>
+      <Group title="Measuring">
+        <Topic id="measuring" title="Measuring tips">
+          <p>Pick the room, tap the whole inches, then the fraction. Tap <b>Height</b> when the width&apos;s in. Everything saves as you tap; <b>Save · next window</b> just moves you on.</p>
+          <p><b>Height fills in for you</b> from the last window of the same room on that floor. Check it before you move on.</p>
+          <p>Laser reads 1/16 or 1/32? Flip the <b>⅛ · ¹⁄₁₆ · ¹⁄₃₂</b> switch and type exactly what it says. The factory gets it rounded down to the eighth.</p>
+          <p>Several identical blinds in one room? Enter one and set <b>Quantity</b> under <b>More options</b>.</p>
+        </Topic>
+        <Topic id="tags" title="Room tags (LR, BR, MBR, STU…)">
+          <p>LR living room, BR bedroom, MBR master, K kitchen, <b>STU</b> studio or bachelor (one room that&apos;s also the bedroom).</p>
+          <p>Two windows in the same room number themselves: LR1, LR2. Delete one and the rest renumber.</p>
+          <p>The room carries over from the window before — handy along one wall, risky when you walk into the next room. A carried-over room shows in <b>amber</b> until you tap a room to confirm it.</p>
+          <p>Need another room type? Add it on the job&apos;s page under <b>Room tags</b>.</p>
+        </Topic>
+        <Topic id="bays" title="Bay windows and deducts">
+          <p>One frame holding two or three blinds is <b>one window</b>: enter the first width, tap <b>+ panel</b>, enter the next. Each panel is one blind.</p>
+          <p>A deduct of <b>Both</b> trims only the outer edges — the left of the left blind (Dl) and the right of the right blind (Dr). Middle blinds are never trimmed.</p>
+          <p>On a bay, tap a panel&apos;s control side to switch it between the floor&apos;s default, L and R.</p>
+        </Topic>
+        <Topic id="window-options" title="One window that's different">
+          <p>Open <b>More options</b> on that window to change just it: Measure (Tight / Finished), Mount (Inside / Outside), Motorized, Chain length, Quantity, or a Note.</p>
+          <p>Each change shows as a small badge on the window in the list — <b>Fin</b>, <b>Out</b>, <b>M</b>, <b>LC</b> — so you can see what&apos;s different without opening it.</p>
+        </Topic>
+        <Topic id="notes" title="Notes and photos">
+          <p>Every unit has a note at the top of its screen — shims, missing hardware, PRIORITY. Add a photo right there. The whole crew sees both.</p>
+          <p>A unit with a note gets a blue badge on its tile. A floor&apos;s extra note — set in the floor&apos;s <b>Edit</b>, printed on every window — shows the same badge on that floor on the job&apos;s page.</p>
+        </Topic>
+      </Group>
 
-      <Section title="Bay windows: use + panel" visual={<VisualBay />}>
-        <p>One window frame holding two or three blinds side by side? That&apos;s ONE window here. Enter the first width, tap <b>+ panel</b>, enter the next.</p>
-        <p>Fabric deducts on a bay go where fabric can actually come off: <b>Both</b> trims the left edge of the left blind and the right edge of the right blind. Middle blinds are never touched.</p>
-        <p>Several separate identical blinds instead (same size, same room)? Enter it once and set <b>Quantity</b>.</p>
-      </Section>
+      <Group title="Floors">
+        <Topic id="floor-settings" title="What do Drive R, Tight and D=½ mean?">
+          <p>The chips at the top of a floor are its settings, used for every window on it. Tap <b>Edit</b> to change them.</p>
+          <ul className="flex list-disc flex-col gap-1 pl-5">
+            <li><b>Drive L / R</b> — which side the control goes on.</li>
+            <li><b>Tight / Finished</b> — how you measured: tight to the opening (the factory takes its deduction) or the finished blind size.</li>
+            <li><b>Inside / Outside</b> — where the blind sits.</li>
+            <li><b>D=½</b> — the deduct amount printed on the sheet.</li>
+            <li><b>Rev</b> — reverse roll. <b>Motorized</b> — the whole floor is motorized.</li>
+            <li><b>Fabric color codes</b> — one per room type, printed in the sheet&apos;s header.</li>
+          </ul>
+          <p>Any one window can override these — see &ldquo;One window that&apos;s different&rdquo;.</p>
+        </Topic>
+        <Topic id="grid" title="Tile colours and the ⋯ menu">
+          <p><b>Green</b> done, <b>amber</b> started, <b>plain</b> not started, <b>struck through</b> skipped (N/A). The line under the number lists the rooms measured there.</p>
+          <p>Tap a tile to measure it. Tap its <b>⋯</b> (or press and hold) to mark it done or N/A, add a note, or delete it.</p>
+        </Topic>
+        <Topic id="warnings" title="Orange warnings and “Looks right”">
+          <p>An orange <b>⚠</b> means something looks unusual: a size way off, bay sides that don&apos;t match, or every blind in a unit tagged the same room.</p>
+          <p>Tap the ⚠ on a tile to see why. Open the unit and the warning sits on the blind it&apos;s about.</p>
+          <p>It never blocks you. If it&apos;s actually right, tap <b>Looks right</b> — that clears it on every phone. You can turn it back on from the same spot.</p>
+        </Topic>
+        <Topic id="duplicates" title="Two phones made the same unit">
+          <p>If two people add the same unit while apart, the floor shows a warning after syncing with a one-tap <b>Merge</b>. Nothing is lost: windows and photos from both end up on one unit, and repeated room tags renumber themselves.</p>
+        </Topic>
+      </Group>
 
-      <Section title="Orange warnings" visual={<VisualWarning />}>
-        <p>If a number looks off — way too small, way too big, or a bay with very different sides — the app flags it in orange and says why.</p>
-        <p>It never blocks you. If the window really is like that, ignore the flag. But a flag has caught a wrongly-cut blind before, so give it a second look.</p>
-      </Section>
+      <Group title="Sending and installing">
+        <Topic id="export" title="Exporting to the factory">
+          <p>On a floor, tap <b>Export</b>. The blue <b>Export measure sheet</b> is the file the factory builds from. The <b>deficiency list</b> below it is only the blinds flagged with a problem, for the PM — not for the factory.</p>
+          <p>If anything changed since the last export, you&apos;ll see what before it builds. Tap &ldquo;Exported …&rdquo; to see past exports and download any of them again.</p>
+          <p>It works with no signal — the file is made on the phone. Send it with your phone&apos;s share sheet.</p>
+        </Topic>
+        <Topic id="install" title="Install mode">
+          <p>Flip a floor from <b>Measure</b> to <b>Install</b>, then tap a unit to mark it.</p>
+          <ul className="flex list-disc flex-col gap-1 pl-5">
+            <li><b>Staged</b> — blinds and hardware dropped off, ready to go.</li>
+            <li><b>Installed</b> — done.</li>
+            <li><b>Locked out</b> — couldn&apos;t get in. A PM with a share link sees it and arranges access.</li>
+            <li><b>Blocked</b> — something is stopping the install. It opens the unit so you can say what.</li>
+          </ul>
+          <p>A single blind wrong? Open the unit and tap <b>⚠</b> on that window: say what&apos;s wrong, whose error it was (Factory or Measure), and whether it needs a recut.</p>
+        </Topic>
+        <Topic id="pm" title="Sharing with a project manager">
+          <p>On a job&apos;s page, <b>Give a PM access</b> makes a link. They see which units are installed, locked out or need a revisit, and can flag a deficiency. They never see sizes, notes, reasons or prices.</p>
+        </Topic>
+      </Group>
 
-      <Section title="Notes and photos" visual={
-        <div className="flex items-center gap-2">
-          <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-xl dark:border-neutral-700"><Icon name="camera" /></div>
-          <div className="rounded-lg border border-neutral-200 p-2 text-xs text-neutral-500 dark:border-neutral-800">“needs fascia — see photo”</div>
-        </div>
-      }>
-        <p>Every unit has a note (<Icon name="note" size={14} /> at the top of its screen): shims, missing hardware, PRIORITY, whatever the next person needs to know.</p>
-        <p>Add a photo right in the note — point the camera at the problem. The whole crew sees it on their own phones.</p>
-      </Section>
-
-      <Section title="Install mode" visual={<VisualInstall />}>
-        <p>On a floor, flip the switch at the top from <b>Measure</b> to <b>Install</b>. Tap a unit and mark it.</p>
-        <p><Icon name="circle-dot" size={14} className="text-emerald-600" /> <b>Staged</b> means the blinds and hardware are dropped off and ready — or your half of the work is done and it&apos;s ready for your partner. <Icon name="check-circle" size={14} className="text-emerald-600" /> means installed. <Icon name="lock" size={14} className="text-violet-600" /> <b>Locked out</b> means you couldn&apos;t get into the unit; a project manager with a share link sees it so they can arrange access. They also see that a blocked unit needs a revisit, but never why. <Icon name="alert" size={14} className="text-amber-600" /> <b>Blocked</b> means something is stopping the install. Tapping <b>Blocked</b> opens the unit so you can say why: a note at the top for the whole unit, or <b>⚠</b> on the individual blinds that are wrong. <b>Unblock</b> is right there when it&apos;s sorted.</p>
-        <p>Each tile also shows how many blinds the unit takes, so you can count brackets and hardware before you start it. Tap one and the sheet spells it out — a three-panel bay is one opening but three blinds.</p>
-        <p>A specific blind wrong? Open the unit and tap <b>⚠</b> on that window: say what&apos;s wrong, whose error it is (<b>Factory</b> or <b>Measure</b>), and whether it needs a recut. Install mode shows every flagged blind on the floor and counts the recuts that are on the factory — their error, they pay. None of this goes on the measure sheet you send them.</p>
-      </Section>
-
-      <Section title="Sending to the factory" visual={
-        <div className="rounded-lg bg-neutral-800 p-3 text-center text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900">
-          Export → “Lakeside Towers - Level 4.xlsx”
-        </div>
-      }>
-        <p>When a floor is measured, tap <b>Export</b>. The export screen offers two files. The <b>factory measure sheet</b> is the exact spreadsheet the factory expects. The <b>deficiency list</b> is every blind you flagged with an issue, one row per panel with a column for the PM to approve, and you can tick several floors to put a whole walk-through in one file. Your phone&apos;s share sheet sends either one — Google Drive, email, AirDrop.</p>
-        <p>Export works with no signal too. The file is made right on the phone.</p>
-      </Section>
-
-      <Section title="No signal? No problem" visual={<VisualSync />}>
-        <p>The app works completely offline — basements, elevators, parking garages. Nothing is ever lost.</p>
-        <p>The status in the top-right corner tells you where things stand: a number means changes waiting to upload, <b>✓ synced</b> means everyone has everything. Tap it for a <b>Sync now</b> button.</p>
-        <p>Sign in once (it emails you a code) so your work shares with the rest of the crew.</p>
-      </Section>
+      <Group title="Your account and the app">
+        <Topic id="sync" title="Signing in and syncing">
+          <p>Sign in once — it emails you a code — and your work shares with the rest of the crew.</p>
+          <p>No signal is fine. The status at the top of the home screen shows <b>offline</b>, a number of changes <b>pending</b>, or <b>✓ synced</b>. It catches up by itself; tap it for <b>Sync now</b>.</p>
+        </Topic>
+        <Topic id="money" title="Contract, invoices and site trips">
+          <p>On a job&apos;s page: record the contract, log each site trip, and make an invoice from the blinds actually measured and installed. Your standard rates live in <b>Settings</b>.</p>
+        </Topic>
+        <Topic id="version" title="Which version am I on?">
+          <p>At the bottom of <b>Settings</b>: &ldquo;Version v1.4 · Up to date&rdquo;. If it says a newer version is available, tap <b>Reload</b>. Mention the version when you report a problem.</p>
+        </Topic>
+        <Topic id="demo" title="The sample job">
+          <p><b>Sample Building (demo)</b> is made up, for trying things. It only shows while you&apos;re signed out and never syncs anywhere.</p>
+        </Topic>
+      </Group>
     </main>
   );
 }

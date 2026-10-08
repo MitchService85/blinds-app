@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icon";
 import Link from "next/link";
 import { isDemoRow, seedDemoIfNeeded } from "@/lib/demo";
@@ -12,6 +12,8 @@ import { formatCents } from "@/lib/pricing";
 import { compareFloorLabels } from "@/lib/floor-copy";
 import { JobCard, type FloorProgress, type JobMoney } from "@/components/job-card";
 import { ViewportPinned } from "@/components/viewport-layer";
+import { WelcomeSheet } from "@/components/welcome-sheet";
+import { WELCOME_DISMISSED_KEY } from "@/lib/guide";
 import { SyncStatus } from "@/components/sync-status";
 import { blockedOf, installOf } from "@/components/status";
 import { readPref, writePref } from "@/lib/local-pref";
@@ -55,6 +57,10 @@ function moneyFor(invoices: InvoiceRecord[]): JobMoney | null {
 
 const EXPANDED_STORAGE_KEY = "measure:dashboard:expanded";
 
+/** Whether the first-run welcome was answered on this phone ("server" pre-hydration). */
+const subscribeNever = () => () => {};
+const readWelcome = () => readPref(WELCOME_DISMISSED_KEY);
+
 export default function Home() {
   const [rows, setRows] = useState<ProjectRow[] | null>(null);
   const { signedIn } = useSyncStatus();
@@ -62,6 +68,16 @@ export default function Home() {
   // ones you open stay open, per device, because the job you are working
   // this week is the one you want to land on every morning.
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  /**
+   * True on a phone holding nothing but the sample job — a new user. Read
+   * from the jobs actually on the device, NOT from "signed out": the sign-in
+   * state starts false on every launch until the session loads, so keying
+   * the welcome on it would flash it at a signed-in crew on startup.
+   */
+  const [onlySample, setOnlySample] = useState(false);
+  const welcomeAnswered = useSyncExternalStore(subscribeNever, readWelcome, () => "server");
+  const [welcomeClosed, setWelcomeClosed] = useState(false);
+  const showWelcome = onlySample && welcomeAnswered === null && !welcomeClosed;
 
   useEffect(() => {
     const stored = readPref(EXPANDED_STORAGE_KEY);
@@ -170,7 +186,10 @@ export default function Home() {
         };
       });
 
-      if (!cancelled) setRows(nextRows);
+      if (!cancelled) {
+        setRows(nextRows);
+        setOnlySample(!projects.some((p) => !isDemoRow(p)));
+      }
     }
 
     load();
@@ -219,12 +238,14 @@ export default function Home() {
             <Icon name="settings" size={18} />
             Settings
           </Link>
+          {/* Labelled, not a bare "?": a new user doesn't know a circle with a
+              question mark is where the help lives. */}
           <Link
             href="/help"
-            aria-label="How to use Measure"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-neutral-300 text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"
+            className="flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full border border-neutral-300 px-3 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300"
           >
-            <Icon name="help" />
+            <Icon name="help" size={18} />
+            Guide
           </Link>
         </div>
       </header>
@@ -299,6 +320,7 @@ export default function Home() {
           <span className="text-sm font-medium">New</span>
         </Link>
       </ViewportPinned>
+      {showWelcome && <WelcomeSheet onClose={() => setWelcomeClosed(true)} />}
     </main>
   );
 }

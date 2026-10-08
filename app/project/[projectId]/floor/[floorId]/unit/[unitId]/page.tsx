@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { checkFloorTagSpread, checkUnitWindows } from "@/lib/checks";
 import { Icon } from "@/components/icon";
 import { compressImage } from "@/lib/photos";
@@ -830,6 +831,15 @@ export default function WindowEntryPage() {
         {draft.id && (
           <span className="shrink-0 text-xs text-emerald-600 dark:text-emerald-400">✓ saved</span>
         )}
+        {/* The busiest screen in the app gets a way in to the guide, at the
+            point of need. Quiet on purpose: it is for the first week. */}
+        <Link
+          href="/help#measuring"
+          aria-label="How to measure"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-400 active:bg-neutral-200 dark:active:bg-neutral-800"
+        >
+          <Icon name="help" size={20} />
+        </Link>
       </header>
 
       {/* Confirms the block for someone who just tapped Blocked in install

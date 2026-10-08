@@ -506,6 +506,11 @@ export default function FloorPage() {
       </button>
       {editingDefaults && (
         <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+          {/* "D=1/2", "Rev", "Tight" mean nothing to someone new. Explained
+              where they are being changed, not on the always-visible row. */}
+          <Link href="/help#floor-settings" className="flex items-center gap-1.5 self-start text-sm text-blue-600 dark:text-blue-400">
+            <Icon name="help" size={16} /> What do these settings mean?
+          </Link>
           {/* Trips used to be counted here per floor; they are logged per
               project now (components/trip-log.tsx), which is what invoicing
               reads. The field stayed on this form for three weeks after it
