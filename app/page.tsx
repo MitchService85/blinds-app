@@ -15,7 +15,7 @@ import { ViewportPinned } from "@/components/viewport-layer";
 import { WelcomeSheet } from "@/components/welcome-sheet";
 import { WELCOME_DISMISSED_KEY } from "@/lib/guide";
 import { SyncStatus } from "@/components/sync-status";
-import { blockedOf, installOf } from "@/components/status";
+import { installOf, isBlocked, unitsWithOutstanding } from "@/components/status";
 import { readPref, writePref } from "@/lib/local-pref";
 
 interface ProjectRow {
@@ -140,6 +140,7 @@ export default function Home() {
         list.push(u);
         unitsByFloor.set(u.floor_id, list);
       }
+      const outstanding = unitsWithOutstanding(allWindows, openDeficiencies);
       const blindsByUnit = new Map<string, number>();
       for (const w of allWindows) {
         blindsByUnit.set(w.unit_id, (blindsByUnit.get(w.unit_id) ?? 0) + windowBlindCount(w));
@@ -161,7 +162,7 @@ export default function Home() {
             let installBlocked = 0;
             for (const unit of relevant) {
               blinds += blindsByUnit.get(unit.id) ?? 0;
-              if (blockedOf(unit)) installBlocked++;
+              if (isBlocked(unit, outstanding.has(unit.id))) installBlocked++;
               else if (installOf(unit) === "staged") installStaged++;
               else if (installOf(unit) === "done") installDone++;
             }

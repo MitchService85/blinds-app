@@ -1,4 +1,4 @@
-import type { InstallStatus, Unit, UnitStatus } from "@/lib/types";
+import type { Deficiency, InstallStatus, Unit, UnitStatus, WindowRecord } from "@/lib/types";
 
 /**
  * The stored UnitStatus enum only has three values (active | na | done).
@@ -52,15 +52,52 @@ export function lockedOf(unit: Pick<Unit, "locked">): boolean {
   return unit.locked ?? false;
 }
 
+/**
+ * Units with something still wrong in them: a blind flagged ⚠ that nobody has
+ * cleared, or a PM deficiency still open.
+ */
+export function unitsWithOutstanding(
+  windows: Pick<WindowRecord, "unit_id" | "deleted" | "issue_note" | "issue_fault" | "issue_recut">[],
+  deficiencies: Pick<Deficiency, "unit_id" | "status" | "deleted">[] = []
+): Set<string> {
+  const out = new Set<string>();
+  for (const w of windows) {
+    if (w.deleted) continue;
+    if ((w.issue_note ?? "").trim() || (w.issue_fault ?? null) !== null || w.issue_recut === true) out.add(w.unit_id);
+  }
+  for (const d of deficiencies) {
+    if (!d.deleted && d.status === "open") out.add(d.unit_id);
+  }
+  return out;
+}
+
+/**
+ * Blocked as the grid shows it: set by hand, or installed with a deficiency
+ * still outstanding (Mitch, 2026-10-16: "the unit is not complete if there is
+ * still an outstanding deficiency"). Derived rather than stored, so fixing
+ * the last flag turns the unit back green with nothing to remember to undo.
+ *
+ * Only once install has started: a unit not yet installed is not complete
+ * anyway, and a ⚠ on a blind still to be installed is often the reorder note
+ * for it (44 Charles Batch 5) rather than a fault in place.
+ */
+export function isBlocked(
+  unit: Pick<Unit, "install" | "install_blocked">,
+  outstanding = false
+): boolean {
+  return blockedOf(unit) || (outstanding && installOf(unit) !== null);
+}
+
 export type InstallTileState = "na" | "locked" | "blocked" | "done" | "staged" | "not_started";
 
 /** N/A wins, then locked (we never got in), then blocked, then install state. */
 export function deriveInstallState(
-  unit: Pick<Unit, "status" | "install" | "install_blocked" | "locked">
+  unit: Pick<Unit, "status" | "install" | "install_blocked" | "locked">,
+  outstanding = false
 ): InstallTileState {
   if (unit.status === "na") return "na";
   if (lockedOf(unit)) return "locked";
-  if (blockedOf(unit)) return "blocked";
+  if (isBlocked(unit, outstanding)) return "blocked";
   const install = installOf(unit);
   if (install === "done") return "done";
   if (install === "staged") return "staged";

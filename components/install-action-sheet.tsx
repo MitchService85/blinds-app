@@ -77,6 +77,7 @@ export function InstallActionSheet({
                 <Icon name="alert" size={14} /> {windowTagLabel(w)} — {issueSummary(w)}
               </div>
             ))}
+            <div className="mt-0.5 opacity-80">Shows yellow once installed until these are fixed.</div>
           </div>
         )}
         {blocked && issues.length === 0 && !unit.note && (

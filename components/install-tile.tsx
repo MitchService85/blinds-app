@@ -2,7 +2,7 @@
 
 import type { Unit } from "@/lib/types";
 import { Icon } from "@/components/icon";
-import { blockedOf, deriveInstallState, INSTALL_STATE_TILE_CLASSES, installOf, lockedOf } from "./status";
+import { deriveInstallState, INSTALL_STATE_TILE_CLASSES, installOf, isBlocked, lockedOf } from "./status";
 
 interface InstallTileProps {
   unit: Unit;
@@ -12,6 +12,8 @@ interface InstallTileProps {
    * starting a unit, without opening it (field request).
    */
   blindCount: number;
+  /** A ⚠ blind or open PM deficiency in this unit — blocks it once installed. */
+  outstanding?: boolean;
   /** Tap anywhere on the tile opens the action sheet (see floor page) — no
    * long-press, no direct navigation; unlike Measure mode's UnitTile, this
    * is a plain button, not a Link. */
@@ -21,10 +23,10 @@ interface InstallTileProps {
 /** Install-mode floor-grid tile — see spec: Install mode. Deliberately a
  * separate component from UnitTile (Measure mode) rather than a shared
  * component with a mode switch, so Measure mode stays exactly untouched. */
-export function InstallTile({ unit, blindCount, onTap }: InstallTileProps) {
-  const state = deriveInstallState(unit);
+export function InstallTile({ unit, blindCount, outstanding = false, onTap }: InstallTileProps) {
+  const state = deriveInstallState(unit, outstanding);
   const install = installOf(unit);
-  const blocked = blockedOf(unit);
+  const blocked = isBlocked(unit, outstanding);
 
   let subline: React.ReactNode = "—";
   if (state === "na") subline = "N/A";

@@ -21,7 +21,7 @@ import type { Floor, FloorDefaults, InstallStatus, Project, Unit, UnitStatus, Wi
 import { UnitTile } from "@/components/unit-tile";
 import { InstallTile } from "@/components/install-tile";
 import { InstallActionSheet, type InstallAction } from "@/components/install-action-sheet";
-import { blockedOf, installOf, lockedOf } from "@/components/status";
+import { installOf, isBlocked, lockedOf, unitsWithOutstanding } from "@/components/status";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { windowBlindCount, windowTagLabel } from "@/lib/export/shared";
@@ -160,6 +160,12 @@ export default function FloorPage() {
     await refresh();
   }
 
+  // Units with a ⚠ blind or an open PM deficiency: yellow once installed.
+  const outstanding = useMemo(
+    () => unitsWithOutstanding([...windowsByUnit.values()].flat(), deficiencies),
+    [windowsByUnit, deficiencies]
+  );
+
   const installSummary = useMemo(() => {
     let staged = 0;
     let done = 0;
@@ -169,10 +175,10 @@ export default function FloorPage() {
     const blockedUnits: Unit[] = [];
     for (const u of units) {
       if (u.status === "na") continue;
-      const isBlocked = blockedOf(u);
+      const blockedNow = isBlocked(u, outstanding.has(u.id));
       const install = installOf(u);
       if (lockedOf(u)) locked++;
-      if (isBlocked) {
+      if (blockedNow) {
         blocked++;
         blockedUnits.push(u);
       } else if (install === "staged") {
@@ -180,10 +186,10 @@ export default function FloorPage() {
       } else if (install === "done") {
         done++;
       }
-      if (!isBlocked && install !== "done") toGo++;
+      if (!blockedNow && install !== "done") toGo++;
     }
     return { staged, done, blocked, locked, toGo, blockedUnits };
-  }, [units]);
+  }, [units, outstanding]);
 
   /** Every flagged blind on the floor — the install-mode issues panel, and
    * the running count of recuts the factory owes (their error, they pay). */
@@ -697,6 +703,7 @@ export default function FloorPage() {
                 key={unit.id}
                 unit={unit}
                 blindCount={(windowsByUnit.get(unit.id) ?? []).reduce((n, w) => n + windowBlindCount(w), 0)}
+                outstanding={outstanding.has(unit.id)}
                 onTap={() => setInstallSheetUnitId(unit.id)}
               />
             ))}

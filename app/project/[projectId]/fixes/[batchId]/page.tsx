@@ -28,6 +28,7 @@ import {
   hasQuickNote,
   isInvoiced,
   readyToBill,
+  suggestedFixNote,
   toggleQuickNote,
   type FixItemSeed,
 } from "@/lib/fixes";
@@ -169,7 +170,11 @@ export default function FixBatchPage() {
   async function changeStatus(id: string, status: FixItem["status"]) {
     const current = latest.current.get(id);
     if (!current) return;
-    const saved = await setFixStatus(current, status);
+    // Fixed with nothing written: fill in the likely note so the record says
+    // what was done without any typing. It stays editable.
+    const note =
+      status === "fixed" && !current.fix_note.trim() ? suggestedFixNote(current.problem) : current.fix_note;
+    const saved = await setFixStatus({ ...current, fix_note: note }, status);
     replace(saved);
     if (status !== "open") setJustDone((prev) => new Set(prev).add(id));
     triggerSyncIfAvailable();

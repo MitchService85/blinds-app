@@ -10,18 +10,31 @@ import { sortUnitsForDisplay } from "./unit-sort";
 import type { FixItem, InvoiceLineItem, Unit, WindowRecord } from "./types";
 
 /**
- * One-tap notes for what was done. Written from what the crew actually flags
- * at 44 Charles (shims and deducts on bay side panels, missing pull tabs) so
- * most fixes are a tap or two and no typing.
+ * One-tap notes for what was done. Written from how 44 Charles Batch 4 is
+ * actually being fixed (2026-10-16): the factory remade every blind whose
+ * deduct was wrong, and the crew shims the rest on site.
  */
 export const QUICK_NOTES = [
   "Shimmed",
-  "Trimmed 1/4",
+  "New blind installed",
   "Re-hung",
   "Adjusted",
   "Pull tabs added",
-  "Replaced",
 ] as const;
+
+/**
+ * What was most likely done, read off the problem, so ✓ Fixed on a blind
+ * with no note fills one in: a wrong deduct was fixed by the factory's new
+ * blind, a shim by shimming. "" when the problem says neither.
+ */
+export function suggestedFixNote(problem: string): string {
+  const p = problem.toLowerCase();
+  const parts: string[] = [];
+  if (/shim/.test(p)) parts.push("Shimmed");
+  if (/deduct|reduction/.test(p)) parts.push("New blind installed");
+  if (/pull tab/.test(p)) parts.push("Pull tabs added");
+  return parts.join(", ");
+}
 
 /** Whether a note already carries this quick note as one of its parts. */
 export function hasQuickNote(note: string, chip: string): boolean {

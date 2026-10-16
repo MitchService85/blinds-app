@@ -6,6 +6,7 @@ import {
   fixQtyFor,
   gatherFixItems,
   readyToBill,
+  suggestedFixNote,
   toggleQuickNote,
 } from "./fixes";
 import type { FixItem, Unit, WindowRecord } from "./types";
@@ -42,8 +43,8 @@ describe("fixQtyFor", () => {
 describe("toggleQuickNote", () => {
   it("adds, appends and removes", () => {
     expect(toggleQuickNote("", "Shimmed")).toBe("Shimmed");
-    expect(toggleQuickNote("Shimmed", "Trimmed 1/4")).toBe("Shimmed, Trimmed 1/4");
-    expect(toggleQuickNote("Shimmed, Trimmed 1/4", "shimmed")).toBe("Trimmed 1/4");
+    expect(toggleQuickNote("Shimmed", "New blind installed")).toBe("Shimmed, New blind installed");
+    expect(toggleQuickNote("Shimmed, New blind installed", "shimmed")).toBe("New blind installed");
   });
 });
 
@@ -110,5 +111,16 @@ describe("billing", () => {
     expect(line).toMatchObject({ qty: 2, unit_cents: 2500, amount_cents: 5000 });
     expect(line.label).toBe("Fix 1206 LR1 — Right side no deduction. Done: Shimmed");
     expect(fixLineLabel({ ...base, problem: "", fix_note: "" })).toBe("Fix 1206 LR1");
+  });
+});
+
+describe("suggestedFixNote", () => {
+  // Real Batch 4 notes: the factory remade the wrong-deduct blinds, the crew shims.
+  it("reads the likely fix off the problem", () => {
+    expect(suggestedFixNote("Right side no deduction")).toBe("New blind installed");
+    expect(suggestedFixNote("Left side no deduction, right side shim and 1/4 deduction")).toBe("Shimmed, New blind installed");
+    expect(suggestedFixNote("Left side shim no deduction, Right side shim no deduction")).toBe("Shimmed, New blind installed");
+    expect(suggestedFixNote("Missing pull tabs")).toBe("Pull tabs added");
+    expect(suggestedFixNote("Bedroom blind rubbing")).toBe("");
   });
 });
