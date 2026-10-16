@@ -552,3 +552,61 @@ export interface Trip extends TenantRow {
   billable: boolean;
   note: string;
 }
+
+/**
+ * A deficiency fix run: the flagged blinds on chosen floors, gathered into one
+ * list the crew works down on site and then bills from (44 Charles Batch 4,
+ * 2026-10-16: "we need to bill for all the fixes").
+ *
+ * A batch is its own record rather than a state on the windows because a fix
+ * has to outlive the flag it fixed: marking a blind fixed clears its ⚠, and
+ * the invoice still needs to say what was wrong and what was done.
+ */
+export interface FixBatch extends TenantRow {
+  project_id: string;
+  name: string;
+  /** The floors the batch was gathered from, so new flags can be pulled in. */
+  floor_ids: string[];
+  /** Charge per fix (one panel), integer cents. null = not set yet. */
+  rate_cents: number | null;
+  created_at: string;
+}
+
+/** open = still to do; fixed = done on site; cant = could not be fixed here. */
+export type FixStatus = "open" | "fixed" | "cant";
+
+/**
+ * One flagged blind in a fix batch. One row per blind, not per batch, so two
+ * installers ticking off fixes on two phones never overwrite each other.
+ *
+ * The problem, fault and labels are SNAPSHOTS taken when the batch was made:
+ * fixing a blind clears its flag on the window, and the record of what was
+ * wrong must not go with it.
+ */
+export interface FixItem extends TenantRow {
+  batch_id: string;
+  project_id: string;
+  floor_id: string;
+  unit_id: string;
+  window_id: string;
+  unit_number: string;
+  /** "LR1", as exported. */
+  blind_label: string;
+  panels: number;
+  problem: string;
+  fault: IssueFault;
+  recut: boolean;
+  /** Whether the unit was ⚠ blocked when gathered, so an undo can restore it. */
+  unit_was_blocked: boolean;
+  status: FixStatus;
+  /** What was done, e.g. "Shimmed, cut down 1/4". */
+  fix_note: string;
+  /** How many fixes this blind bills as — one per panel worked on. */
+  qty: number;
+  /** Off for our own measure errors: logged, not charged. */
+  billable: boolean;
+  fixed_at: string | null;
+  /** The invoice this fix was billed on; null until then. */
+  invoice_id: string | null;
+  sort_order: number;
+}

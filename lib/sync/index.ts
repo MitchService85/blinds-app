@@ -152,6 +152,8 @@ const TABLES: OutboxTableName[] = [
   "project_shares",
   "deficiencies",
   "trips",
+  "fix_batches",
+  "fix_items",
 ];
 
 function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
@@ -180,6 +182,10 @@ function getLocalTable(table: OutboxTableName): Table<SyncedRow, string> {
       return db.deficiencies as unknown as Table<SyncedRow, string>;
     case "trips":
       return db.trips as unknown as Table<SyncedRow, string>;
+    case "fix_batches":
+      return db.fix_batches as unknown as Table<SyncedRow, string>;
+    case "fix_items":
+      return db.fix_items as unknown as Table<SyncedRow, string>;
   }
 }
 
@@ -426,6 +432,20 @@ export function normalizeForPush(table: OutboxTableName, row: SyncedRow): Synced
     r.billable = r.billable ?? true;
     r.note = r.note ?? "";
     r.purpose = r.purpose ?? "other";
+  } else if (table === "fix_batches") {
+    r.name = r.name ?? "";
+    r.floor_ids = r.floor_ids ?? [];
+    r.rate_cents = r.rate_cents ?? null;
+  } else if (table === "fix_items") {
+    r.fault = r.fault ?? null;
+    r.recut = r.recut ?? false;
+    r.unit_was_blocked = r.unit_was_blocked ?? false;
+    r.status = r.status ?? "open";
+    r.fix_note = r.fix_note ?? "";
+    r.qty = r.qty ?? 1;
+    r.billable = r.billable ?? true;
+    r.fixed_at = r.fixed_at ?? null;
+    r.invoice_id = r.invoice_id ?? null;
   } else if (table === "deficiencies") {
     r.window_id = r.window_id ?? null;
     r.share_id = r.share_id ?? null;

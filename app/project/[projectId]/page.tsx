@@ -14,6 +14,7 @@ import { MoneyCard } from "@/components/money-card";
 import { TripLog } from "@/components/trip-log";
 import { PmAccessCard } from "@/components/pm-access-card";
 import { DeficiencyList } from "@/components/deficiency-list";
+import { FixBatchesCard } from "@/components/fix-batches-card";
 import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
@@ -336,6 +337,8 @@ export default function ProjectPage() {
           />
         </section>
       )}
+
+      <FixBatchesCard projectId={projectId} />
 
       {/* Contract, invoices, trips and PM access, folded under one heading.
           A crew member who only measures scrolled past all four to reach

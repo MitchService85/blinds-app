@@ -175,6 +175,11 @@ export default function HelpPage() {
           </ul>
           <p>A single blind wrong? Open the unit and tap <b>⚠</b> on that window: say what&apos;s wrong, whose error it was (Factory or Measure), and whether it needs a recut.</p>
         </Topic>
+        <Topic id="fixes" title="Going back to fix deficiencies">
+          <p>On the job&apos;s page, under <b>Deficiency fixes</b>, tap <b>Start a fix batch</b> and tick the floor you&apos;re fixing. Every blind with a <b>⚠</b> on it goes in the list.</p>
+          <p>Work down the list: tap <b>✓ Fixed</b>, then a quick note (<b>Shimmed</b>, <b>Trimmed 1/4</b>…) or type your own. Fixing a blind clears its ⚠; <b>Undo</b> puts it back. <b>Can&apos;t fix</b> keeps the ⚠ for the ones that need the factory.</p>
+          <p>Each blind bills as one fix per panel worked on — a bay fixed on both sides is 2. Set the <b>charge per fix</b> once, then <b>Make invoice</b> bills everything fixed that hasn&apos;t been billed yet. Untick <b>Charge for it</b> on our own measure errors.</p>
+        </Topic>
         <Topic id="pm" title="Sharing with a project manager">
           <p>On a job&apos;s page, under <b>Business</b>, <b>Give a PM access</b> makes a link. They see which units are installed, locked out or need a revisit, and can flag a deficiency. They never see sizes, notes, reasons or prices.</p>
         </Topic>

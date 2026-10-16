@@ -3,6 +3,8 @@ import type {
   Company,
   Deficiency,
   ExportRecord,
+  FixBatch,
+  FixItem,
   Floor,
   InvoiceRecord,
   Membership,
@@ -36,7 +38,9 @@ export type OutboxTableName =
   | "invoices"
   | "project_shares"
   | "deficiencies"
-  | "trips";
+  | "trips"
+  | "fix_batches"
+  | "fix_items";
 export type OutboxOp = "put" | "delete";
 
 export interface OutboxEntry {
@@ -64,6 +68,8 @@ class MeasureDB extends Dexie {
   project_shares!: Table<ProjectShare, string>;
   deficiencies!: Table<Deficiency, string>;
   trips!: Table<Trip, string>;
+  fix_batches!: Table<FixBatch, string>;
+  fix_items!: Table<FixItem, string>;
   companies!: Table<Company, string>;
   memberships!: Table<Membership, string>;
   outbox!: Table<OutboxEntry, number>;
@@ -113,6 +119,11 @@ class MeasureDB extends Dexie {
     // trips) and by date (they read newest first).
     this.version(8).stores({
       trips: "id, project_id, date, updated_at, deleted",
+    });
+    // v9: deficiency fix batches and the blinds in them.
+    this.version(9).stores({
+      fix_batches: "id, project_id, updated_at, deleted",
+      fix_items: "id, batch_id, project_id, updated_at, deleted",
     });
   }
 }
@@ -783,6 +794,127 @@ export async function listTrips(projectId: string): Promise<Trip[]> {
   return rows
     .filter((r) => !r.deleted)
     .sort((a, b) => b.date.localeCompare(a.date) || b.updated_at.localeCompare(a.updated_at));
+}
+
+// ---------------------------------------------------------------------------
+// Deficiency fix batches
+// ---------------------------------------------------------------------------
+
+export async function createFixBatch(
+  input: Pick<FixBatch, "project_id" | "name" | "floor_ids" | "rate_cents">,
+  items: Array<Omit<FixItem, "id" | "updated_at" | "deleted" | "batch_id" | "project_id">>
+): Promise<FixBatch> {
+  const companyId = await parentCompanyId(db.projects, input.project_id);
+  const batch = await writeRow(db.fix_batches, "fix_batches", {
+    ...input,
+    id: newId(),
+    created_at: new Date().toISOString(),
+    company_id: companyId,
+    updated_at: "",
+    deleted: false,
+  });
+  await addFixItems(batch, items);
+  return batch;
+}
+
+export async function addFixItems(
+  batch: FixBatch,
+  items: Array<Omit<FixItem, "id" | "updated_at" | "deleted" | "batch_id" | "project_id">>
+): Promise<void> {
+  for (const item of items) {
+    await writeRow(db.fix_items, "fix_items", {
+      ...item,
+      id: newId(),
+      batch_id: batch.id,
+      project_id: batch.project_id,
+      company_id: batch.company_id,
+      updated_at: "",
+      deleted: false,
+    });
+  }
+}
+
+export async function updateFixBatch(id: string, patch: Partial<Omit<FixBatch, "id">>): Promise<FixBatch | undefined> {
+  const existing = await db.fix_batches.get(id);
+  if (!existing) return undefined;
+  return writeRow(db.fix_batches, "fix_batches", { ...existing, ...patch });
+}
+
+export async function deleteFixBatch(id: string): Promise<void> {
+  const existing = await db.fix_batches.get(id);
+  if (!existing) return;
+  for (const item of await listFixItems(id)) {
+    await writeRow(db.fix_items, "fix_items", { ...item, deleted: true }, "delete");
+  }
+  await writeRow(db.fix_batches, "fix_batches", { ...existing, deleted: true }, "delete");
+}
+
+export async function getFixBatch(id: string): Promise<FixBatch | undefined> {
+  const row = await db.fix_batches.get(id);
+  return row && !row.deleted ? row : undefined;
+}
+
+/** A project's fix batches, newest first. */
+export async function listFixBatches(projectId: string): Promise<FixBatch[]> {
+  const rows = await db.fix_batches.where("project_id").equals(projectId).toArray();
+  return rows.filter((r) => !r.deleted).sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Every item in a batch, in the order it was gathered (floor, unit, blind). */
+export async function listFixItems(batchId: string): Promise<FixItem[]> {
+  const rows = await db.fix_items.where("batch_id").equals(batchId).toArray();
+  return rows.filter((r) => !r.deleted).sort((a, b) => a.sort_order - b.sort_order);
+}
+
+export async function listProjectFixItems(projectId: string): Promise<FixItem[]> {
+  const rows = await db.fix_items.where("project_id").equals(projectId).toArray();
+  return rows.filter((r) => !r.deleted);
+}
+
+/**
+ * Move a fix between to-do, fixed and can't-fix, keeping the blind's own ⚠
+ * in step: a fixed blind is no longer a deficiency, so its flag clears (and
+ * its unit unblocks once nothing in it is still flagged); undoing a fix puts
+ * the flag back from the batch's snapshot. A flag someone has written since
+ * is never overwritten.
+ */
+export async function setFixStatus(item: FixItem, status: FixItem["status"]): Promise<FixItem> {
+  const saved = await writeRow(db.fix_items, "fix_items", {
+    ...item,
+    status,
+    fixed_at: status === "fixed" ? item.fixed_at ?? new Date().toISOString() : null,
+  });
+  const w = await db.windows.get(item.window_id);
+  const unit = await db.units.get(item.unit_id);
+  if (!w || w.deleted || !unit || unit.deleted) return saved;
+  const flagged = Boolean((w.issue_note ?? "").trim()) || (w.issue_fault ?? null) !== null || w.issue_recut === true;
+  if (status === "fixed") {
+    if (flagged) {
+      await upsertWindow({ ...w, issue_note: "", issue_fault: null, issue_recut: false });
+    }
+    if (unit.install_blocked) {
+      const others = await listWindows(unit.id);
+      const stillFlagged = others.some(
+        (o) =>
+          o.id !== w.id &&
+          (Boolean((o.issue_note ?? "").trim()) || (o.issue_fault ?? null) !== null || o.issue_recut === true)
+      );
+      if (!stillFlagged) await updateUnit(unit.id, { install_blocked: false });
+    }
+  } else if (item.status === "fixed") {
+    if (!flagged) {
+      await upsertWindow({ ...w, issue_note: item.problem, issue_fault: item.fault, issue_recut: item.recut });
+    }
+    if (item.unit_was_blocked && !unit.install_blocked) {
+      await updateUnit(unit.id, { install_blocked: true });
+    }
+  }
+  return saved;
+}
+
+/** Write the whole item as the screen holds it (see saveInvoice for why). */
+export async function saveFixItem(item: FixItem): Promise<FixItem> {
+  return writeRow(db.fix_items, "fix_items", item);
 }
 
 // ---------------------------------------------------------------------------
