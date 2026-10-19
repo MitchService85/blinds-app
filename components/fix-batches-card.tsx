@@ -14,6 +14,9 @@ import {
 import { fixCounts, gatherFixItems, type GatherFloor } from "@/lib/fixes";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import type { FixBatch, FixItem, Floor } from "@/lib/types";
+import { useRemoteVersion } from "@/lib/sync-events";
+
+const REMOTE_TABLES = ["fix_batches", "fix_items", "floors", "units", "windows"] as const;
 
 interface FloorOption {
   floor: Floor;
@@ -50,6 +53,7 @@ export function FixBatchesCard({ projectId }: { projectId: string }) {
   const [name, setName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
   const [creating, setCreating] = useState(false);
+  const remote = useRemoteVersion(REMOTE_TABLES);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +71,7 @@ export function FixBatchesCard({ projectId }: { projectId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, remote]);
 
   if (!floors) return null;
   // A blind still waiting in a batch is not gathered twice. A fixed one has

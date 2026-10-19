@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyRemoteChange, onLocalWrite } from "../sync-events";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import {
   createClient,
@@ -566,8 +567,15 @@ export async function pullSince(): Promise<void> {
     const session = await getSession();
     if (!session) return;
 
-    for (const table of TABLES) {
-      await pullTable(client, table);
+    const changed: string[] = [];
+    try {
+      for (const table of TABLES) {
+        if (await pullTable(client, table)) changed.push(table);
+      }
+    } finally {
+      // Even a pull that failed partway landed real rows for the tables
+      // before the failure; the screens showing them should redraw.
+      notifyRemoteChange(changed);
     }
     resetPullBackoff();
   } catch {
@@ -603,7 +611,9 @@ function readCursor(value: unknown): PullCursor {
   return { at: v?.at ?? "1970-01-01T00:00:00.000Z", id: v?.id ?? "" };
 }
 
-async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<void> {
+/** Returns whether any row from another device was written locally. */
+async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<boolean> {
+  let landed = false;
   const watermarkKey = PULL_CURSOR_PREFIX + table;
   const stored = await db.meta.get(watermarkKey);
   let cursor = readCursor(stored?.value);
@@ -638,6 +648,7 @@ async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<
         await localTable.put(row);
       }
     });
+    if (winners.length > 0) landed = true;
 
     const last = rows[rows.length - 1];
     // Every pulled row carries synced_at (the server stamps it); the fallback
@@ -647,6 +658,7 @@ async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<
 
     if (rows.length < PULL_PAGE_SIZE) break;
   }
+  return landed;
 }
 
 // ---------------------------------------------------------------------------
@@ -659,16 +671,41 @@ async function pullTable(client: BlindsClient, table: OutboxTableName): Promise<
  * can pull under a half-finished drain. A call landing mid-cycle joins the
  * running one instead of starting a second.
  */
-let syncInFlight: Promise<void> | null = null;
+/**
+ * Wrap a cycle so only one runs at a time, and a call landing mid-cycle
+ * books exactly one more run straight after.
+ *
+ * Joining the running cycle (what this used to do) is wrong for a sync: that
+ * cycle may already be past its push, so whatever was written in the
+ * meantime sat on the phone until the next round, or until the app was
+ * reopened if the phone locked first. Notes ticked off in a fix batch took 2
+ * to 13 minutes to reach the other phone (2026-10-19). The returned promise
+ * settles once the booked run has finished too.
+ */
+export function oneAtATime(run: () => Promise<void>): () => Promise<void> {
+  let inFlight: Promise<void> | null = null;
+  let again = false;
+  return () => {
+    if (inFlight) {
+      again = true;
+      return inFlight;
+    }
+    inFlight = (async () => {
+      try {
+        do {
+          again = false;
+          await run();
+        } while (again);
+      } finally {
+        inFlight = null;
+      }
+    })();
+    return inFlight;
+  };
+}
 
 /** Push then pull once. Safe to call anytime; no-ops when unconfigured. */
-export function syncOnce(): Promise<void> {
-  if (syncInFlight) return syncInFlight;
-  syncInFlight = runSyncOnce().finally(() => {
-    syncInFlight = null;
-  });
-  return syncInFlight;
-}
+export const syncOnce: () => Promise<void> = oneAtATime(() => runSyncOnce());
 
 /**
  * Make sure this device knows which company it writes as, before anything is
@@ -969,14 +1006,23 @@ export async function signOutUser(): Promise<void> {
 // Loop: start()
 // ---------------------------------------------------------------------------
 
-const SYNC_INTERVAL_MS = 60_000;
+/**
+ * How often an open app checks for the rest of the crew's work. Each check
+ * is one small request per table that returns nothing when nothing changed.
+ * It was a minute, which with screens that never redrew meant two people on
+ * the same floor could not see each other's ticks.
+ */
+const SYNC_INTERVAL_MS = 15_000;
+/** Quiet time after the last local write before pushing it. */
+const PUSH_DEBOUNCE_MS = 1_500;
 const STATUS_POLL_MS = 3_000;
 
 let started = false;
 
 /**
  * Wire up the sync loop: run once immediately, then on 'online', on
- * visibilitychange (tab foregrounded), and every 60s. Also polls the
+ * visibilitychange, a moment after every local write, and every 15s while
+ * the app is open. Also polls the
  * outbox count every few seconds so `pendingCount` stays live even though
  * lib/db.ts's writers (owned by other agents' code) can't call back into
  * this module directly. Idempotent — safe to call from every mounted
@@ -1010,11 +1056,23 @@ export function start(): void {
     window.addEventListener("offline", () => {
       void refreshSnapshot();
     });
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") void syncOnce();
+    // Visible again: catch up. Hidden (switched app, screen locked): send what
+    // is waiting now, while the phone still lets the request out.
+    document.addEventListener("visibilitychange", () => void syncOnce());
+
+    let pushTimer: ReturnType<typeof setTimeout> | null = null;
+    onLocalWrite(() => {
+      if (pushTimer) clearTimeout(pushTimer);
+      pushTimer = setTimeout(() => {
+        pushTimer = null;
+        void syncOnce();
+      }, PUSH_DEBOUNCE_MS);
     });
 
-    setInterval(() => void syncOnce(), SYNC_INTERVAL_MS);
+    // A backgrounded tab does not need polling; visibilitychange catches it up.
+    setInterval(() => {
+      if (document.visibilityState === "visible") void syncOnce();
+    }, SYNC_INTERVAL_MS);
     void syncOnce();
   }
 

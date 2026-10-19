@@ -17,6 +17,7 @@ import type {
 } from "./types";
 import { DEMO_COMPANY_ID, getCompanyIdSync, setCompanyIdCache } from "./tenant";
 import { carryUnitNumber, compareFloorLabels } from "./floor-copy";
+import { notifyLocalWrite } from "./sync-events";
 
 /**
  * Local-first IndexedDB store (Dexie). The UI reads/writes here only —
@@ -175,6 +176,10 @@ async function writeRow<T extends { id: string; updated_at: string; deleted: boo
     await table.put(stamped);
     if (!isDemo) await db.outbox.add({ table: tableName, rowId: stamped.id, op, at });
   });
+  // Tell the sync loop there is something to send, so it goes up in seconds
+  // rather than on the next minute's round — by which time the phone is
+  // often locked in a pocket.
+  if (!isDemo) notifyLocalWrite();
   return stamped;
 }
 

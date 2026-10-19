@@ -35,6 +35,9 @@ import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
 import { unitRooms } from "@/lib/tags";
 import { readPref, writePref } from "@/lib/local-pref";
+import { useRemoteVersion } from "@/lib/sync-events";
+
+const REMOTE_TABLES_FLOOR = ["projects", "floors", "units", "windows", "deficiencies"] as const;
 
 type FloorMode = "measure" | "install";
 const FLOOR_MODE_KEY_PREFIX = "measure:floorMode:";
@@ -93,6 +96,7 @@ export default function FloorPage() {
   const [mode, setMode] = useState<FloorMode>("measure");
   const [installSheetUnitId, setInstallSheetUnitId] = useState<string | null>(null);
   const [deficiencies, setDeficiencies] = useState<Deficiency[]>([]);
+  const remote = useRemoteVersion(REMOTE_TABLES_FLOOR);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +106,7 @@ export default function FloorPage() {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, remote]);
 
   async function handleDeficiency(id: string, status: Deficiency["status"]) {
     await setDeficiencyStatus(id, status);
@@ -229,7 +233,7 @@ export default function FloorPage() {
       setUnits(data.units);
       setWindowsByUnit(data.windowsByUnit);
     })();
-  }, [projectId, floorId]);
+  }, [projectId, floorId, remote]);
 
   function nextUnitNumber(): string {
     return suggestUnitNumber(units, floor?.label ?? "", project?.building_type ?? "residential");

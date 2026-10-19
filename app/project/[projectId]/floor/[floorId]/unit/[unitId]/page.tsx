@@ -45,6 +45,7 @@ import {
   type WindowIssueFields,
 } from "@/components/window-issue";
 import { BackButton } from "@/components/back-button";
+import { useRemoteVersion } from "@/lib/sync-events";
 
 interface DraftWindow {
   id: string | null;
@@ -121,6 +122,8 @@ const DEDUCT_OPTIONS: Array<[Exclude<Deduct, null>, string]> = [
   ["D", "Both"],
 ];
 
+const REMOTE_TABLES_UNIT = ["units", "windows", "deficiencies", "photos"] as const;
+
 export default function WindowEntryPage() {
   const { projectId, floorId, unitId } = useParams<{
     projectId: string;
@@ -191,6 +194,8 @@ export default function WindowEntryPage() {
   const [photoView, setPhotoView] = useState<UnitPhoto | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [deficiencies, setDeficiencies] = useState<Deficiency[]>([]);
+  // Another phone's edits to this unit redraw it (held while typing).
+  const remote = useRemoteVersion(REMOTE_TABLES_UNIT);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,7 +205,7 @@ export default function WindowEntryPage() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, unitId]);
+  }, [projectId, unitId, remote]);
 
   async function handleDeficiency(id: string, status: Deficiency["status"]) {
     await setDeficiencyStatus(id, status);
@@ -287,7 +292,7 @@ export default function WindowEntryPage() {
     return () => {
       cancelled = true;
     };
-  }, [unitId, floorId]);
+  }, [unitId, floorId, remote]);
 
   // Best-effort cleanup: drop a truly-empty draft row (tag picked, nothing
   // else ever entered) if the user navigates away mid-edit.

@@ -16,6 +16,7 @@ import { WelcomeSheet } from "@/components/welcome-sheet";
 import { WELCOME_DISMISSED_KEY } from "@/lib/guide";
 import { SyncStatus } from "@/components/sync-status";
 import { installOf, isBlocked, unitsWithOutstanding } from "@/components/status";
+import { useRemoteVersion } from "@/lib/sync-events";
 import { readPref, writePref } from "@/lib/local-pref";
 
 interface ProjectRow {
@@ -61,6 +62,8 @@ const EXPANDED_STORAGE_KEY = "measure:dashboard:expanded";
 const subscribeNever = () => () => {};
 const readWelcome = () => readPref(WELCOME_DISMISSED_KEY);
 
+const REMOTE_TABLES_HOME = ["projects", "floors", "units", "windows", "invoices", "deficiencies"] as const;
+
 export default function Home() {
   const [rows, setRows] = useState<ProjectRow[] | null>(null);
   const { signedIn } = useSyncStatus();
@@ -77,6 +80,8 @@ export default function Home() {
   const [onlySample, setOnlySample] = useState(false);
   const welcomeAnswered = useSyncExternalStore(subscribeNever, readWelcome, () => "server");
   const [welcomeClosed, setWelcomeClosed] = useState(false);
+  // Redraw when another phone's work arrives.
+  const remote = useRemoteVersion(REMOTE_TABLES_HOME);
   const showWelcome = onlySample && welcomeAnswered === null && !welcomeClosed;
 
   useEffect(() => {
@@ -197,7 +202,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [signedIn]);
+  }, [signedIn, remote]);
 
   const overview: Overview | null =
     rows && rows.length > 0

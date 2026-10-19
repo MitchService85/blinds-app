@@ -19,6 +19,7 @@ import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
 import { readPref, writePref } from "@/lib/local-pref";
+import { useRemoteVersion } from "@/lib/sync-events";
 
 function defaultFloorDefaults(): FloorDefaults {
   return {
@@ -74,6 +75,8 @@ const subscribeNever = () => () => {};
 const readBusinessOpen = () => readPref(BUSINESS_OPEN_KEY);
 const businessUnknown = () => null;
 
+const REMOTE_TABLES_JOB = ["projects", "floors", "units", "deficiencies"] as const;
+
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
@@ -87,6 +90,7 @@ export default function ProjectPage() {
   const [unitNumbers, setUnitNumbers] = useState<Map<string, string>>(new Map());
   const [tripsVersion, setTripsVersion] = useState(0);
   const [editingTags, setEditingTags] = useState(false);
+  const remote = useRemoteVersion(REMOTE_TABLES_JOB);
   // Stored choice, overridden by a tap this visit (the store isn't watched).
   const storedBusiness = useSyncExternalStore(subscribeNever, readBusinessOpen, businessUnknown);
   const [businessTapped, setBusinessTapped] = useState<boolean | null>(null);
@@ -111,7 +115,7 @@ export default function ProjectPage() {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, remote]);
 
   async function handleDeficiency(id: string, status: Deficiency["status"]) {
     await setDeficiencyStatus(id, status);
@@ -130,7 +134,7 @@ export default function ProjectPage() {
       if (p) setProject(p);
       setFloors(rows);
     })();
-  }, [projectId]);
+  }, [projectId, remote]);
 
   async function handleAddFloor() {
     if (!newLabel.trim() || saving) return;

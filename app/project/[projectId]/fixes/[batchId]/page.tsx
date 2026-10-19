@@ -37,6 +37,7 @@ import { formatCents, parseDollarsToCents } from "@/lib/pricing";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { BackButton } from "@/components/back-button";
 import { BottomBar } from "@/components/bottom-bar";
+import { useRemoteVersion } from "@/lib/sync-events";
 import type { Company, FixBatch, FixItem, InvoiceRecord, Project } from "@/lib/types";
 
 type Filter = "todo" | "done" | "all";
@@ -56,12 +57,15 @@ function shortDate(iso: string): string {
  * rule as the invoice and project screens, because reading a write back a
  * keystroke late reverts the input mid-word.
  */
+const REMOTE_TABLES_FIXES = ["fix_batches", "fix_items", "invoices", "units", "windows"] as const;
+
 export default function FixBatchPage() {
   const { projectId, batchId } = useParams<{ projectId: string; batchId: string }>();
   const router = useRouter();
   const [batch, setBatch] = useState<FixBatch | null>(null);
   const [items, setItems] = useState<FixItem[]>([]);
   const latest = useRef<Map<string, FixItem>>(new Map());
+  const firstLoad = useRef(true);
   const [project, setProject] = useState<Project | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
@@ -75,6 +79,8 @@ export default function FixBatchPage() {
   // Ticked off on this visit: kept on the To do list until the page is left,
   // so a note can still be added (or the tap undone) right where it was.
   const [justDone, setJustDone] = useState<Set<string>>(new Set());
+  // The other phone's ticks and notes arrive here without reopening.
+  const remote = useRemoteVersion(REMOTE_TABLES_FIXES);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,14 +118,16 @@ export default function FixBatchPage() {
       setFloorLabels(new Map(floors.map((f) => [f.id, f.label])));
       setNewSeeds(fresh);
       setRateText(b.rate_cents === null ? "" : (b.rate_cents / 100).toFixed(2));
-      // Open on what is left to do, or on the whole list once nothing is.
-      if (its.every((i) => i.status !== "open")) setFilter("all");
+      // Open on what is left to do, or on the whole list once nothing is —
+      // on first load only, not every time the other phone's work arrives.
+      if (firstLoad.current && its.every((i) => i.status !== "open")) setFilter("all");
+      firstLoad.current = false;
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [batchId, projectId]);
+  }, [batchId, projectId, remote]);
 
   if (loading) return <main className="p-4 text-sm text-neutral-500">Loading…</main>;
   if (!batch) {

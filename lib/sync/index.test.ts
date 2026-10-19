@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  oneAtATime,
   distinctPendingRows,
   drainOutbox,
   isPermanentError,
@@ -193,5 +194,40 @@ describe("server stamps never travel back up", () => {
     const out = normalizeForPush("windows", row) as unknown as Record<string, unknown>;
     expect("synced_at" in out).toBe(false);
     expect(out.updated_at).toBe("2026-09-10T13:00:00.000Z");
+  });
+});
+
+describe("oneAtATime", () => {
+  it("runs again once when called mid-run, and never two at a time", async () => {
+    let running = 0;
+    let maxRunning = 0;
+    let runs = 0;
+    const gates: Array<() => void> = [];
+    const run = oneAtATime(async () => {
+      running++;
+      maxRunning = Math.max(maxRunning, running);
+      runs++;
+      await new Promise<void>((r) => gates.push(r));
+      running--;
+    });
+    const first = run();
+    // Three calls while the first is still going: one extra run, not three.
+    const second = run();
+    run();
+    run();
+    expect(second).toBe(first);
+    gates.shift()!();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(runs).toBe(2);
+    gates.shift()!();
+    await first;
+    expect(runs).toBe(2);
+    expect(maxRunning).toBe(1);
+    // Idle again: the next call starts a fresh run.
+    const later = run();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(runs).toBe(3);
+    gates.shift()!();
+    await later;
   });
 });
