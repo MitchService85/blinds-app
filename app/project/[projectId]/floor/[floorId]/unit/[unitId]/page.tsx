@@ -28,7 +28,7 @@ import {
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { WindowBadges } from "@/components/window-badges";
 import { computeTagLabels } from "@/lib/tags";
-import { floorToEighth, formatFraction } from "@/lib/fractions";
+import { floorToEighth, formatFraction, totalWidth } from "@/lib/fractions";
 import type { ControlOverride, Deduct, Floor, MeasureOverride, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
 import {
@@ -1144,6 +1144,18 @@ export default function WindowEntryPage() {
           >
             + panel
           </button>
+          {/* The whole wall, so it can be taped once and compared: a panel
+              short on each side looks fine panel by panel and only shows in
+              the total (Arbour L8, 2026-10). */}
+          {draft.widths.length > 1 && (
+            <div className="basis-full text-sm">
+              <span className="text-neutral-500">Total width </span>
+              <span className="font-mono font-semibold">
+                {draft.widths.every((w) => w > 0) ? formatFraction(totalWidth(draft.widths)) : "—"}
+              </span>
+              <span className="text-neutral-500"> — tape the whole wall to check it</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -1503,6 +1515,14 @@ export default function WindowEntryPage() {
                   </span>
                 )}
               </div>
+              {w.widths.length > 1 && (
+                <div className="text-neutral-500">
+                  Total width{" "}
+                  <span className="font-semibold text-neutral-800 dark:text-neutral-200">
+                    {formatFraction(totalWidth(w.widths))}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex shrink-0 gap-2">
               <button

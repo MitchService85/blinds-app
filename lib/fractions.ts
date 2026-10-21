@@ -102,3 +102,14 @@ export function toDecimal(sixteenths: number): number {
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
+
+/**
+ * The whole bay, as ordered: each panel rounded down to the eighth the way
+ * the factory sheet sends it, then added up. Tape the full wall and compare —
+ * two side panels each 1/2" short on every bay of a floor (Arbour L8,
+ * 2026-10) shows up as the total coming in an inch under the wall, where
+ * three plausible-looking panel numbers on their own never do.
+ */
+export function totalWidth(widths: number[]): number {
+  return widths.reduce((sum, w) => sum + floorToEighth(Math.max(0, w)), 0);
+}

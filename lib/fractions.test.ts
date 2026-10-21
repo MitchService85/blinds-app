@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { floorToEighth, formatFraction, formatThirtySeconds, thirtySecondsToStoredSixteenths, toDecimal, toSixteenths } from "./fractions";
+import { floorToEighth, formatFraction, formatThirtySeconds, thirtySecondsToStoredSixteenths, toDecimal, toSixteenths, totalWidth } from "./fractions";
 
 describe("toSixteenths", () => {
   it("converts a whole number with no fraction", () => {
@@ -114,5 +114,15 @@ describe("thirty-seconds (Mike's laser)", () => {
       const viaStorage = floorToEighth(thirtySecondsToStoredSixteenths(t)) * 2;
       expect(viaStorage).toBe(floorToEighthOf32(t));
     }
+  });
+});
+
+describe("totalWidth", () => {
+  it("adds the panels as ordered (each rounded down to the eighth)", () => {
+    // 35 1/2 + 36 + 35 1/2 = 107
+    expect(totalWidth([568, 576, 568])).toBe(1712);
+    // 1/16 on each panel is dropped before adding, as on the factory sheet.
+    expect(totalWidth([561, 577])).toBe(560 + 576);
+    expect(totalWidth([0, 576])).toBe(576);
   });
 });
