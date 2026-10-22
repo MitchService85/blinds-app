@@ -119,7 +119,7 @@ export default function HelpPage() {
         </Topic>
         <Topic id="bays" title="Bay windows and deducts">
           <p>One frame holding two or three blinds is <b>one window</b>: enter the first width, tap <b>+ panel</b>, enter the next. Each panel is one blind.</p>
-          <p>Under the panels you&apos;ll see the <b>Total width</b> — every panel added up. Tape the whole wall and check it matches: side panels that are each a little short look fine one at a time and only show up in the total.</p>
+          <p>Under the panels you&apos;ll see the <b>Total width</b> — every panel added up. Tape the whole wall and check it matches: side panels that are each a little short look fine one at a time and only show up in the total. A bay entered as separate windows (LR1 with deduct left, LR2, LR3 with deduct right) gets the same total, under its last window.</p>
           <p>A deduct of <b>Both</b> trims only the outer edges — the left of the left blind (Dl) and the right of the right blind (Dr). Middle blinds are never trimmed.</p>
           <p>On a bay, each panel&apos;s drive side can differ: under <b>Control per panel</b>, tap a panel to switch it between the floor&apos;s default, L and R.</p>
         </Topic>

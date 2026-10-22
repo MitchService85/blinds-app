@@ -28,6 +28,7 @@ import {
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { WindowBadges } from "@/components/window-badges";
 import { computeTagLabels } from "@/lib/tags";
+import { findWallRuns, type WallRun } from "@/lib/wall-runs";
 import { floorToEighth, formatFraction, totalWidth } from "@/lib/fractions";
 import type { ControlOverride, Deduct, Floor, MeasureOverride, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
@@ -783,6 +784,24 @@ export default function WindowEntryPage() {
   }
   const activeIsHeight = activeField === "height";
 
+  // Bays measured as separate windows (LR1 Dl | LR2 | LR3 Dr), totalled the
+  // same way a multi-panel window is. Uses the draft's live values so the
+  // total moves as the window being edited does.
+  const wallRuns = findWallRuns(
+    windows.map((w) =>
+      w.id === draft.id
+        ? { ...w, tag_base: draft.tag_base ?? w.tag_base, deduct: draft.deduct, widths: draft.widths }
+        : w
+    )
+  );
+  const runEndingAt = new Map(wallRuns.map((r) => [r.ids[r.ids.length - 1], r]));
+  const draftRun = draft.id ? wallRuns.find((r) => r.ids.includes(draft.id as string)) : undefined;
+  function runLabel(r: WallRun): string {
+    const first = windows.find((w) => w.id === r.ids[0]);
+    const last = windows.find((w) => w.id === r.ids[r.ids.length - 1]);
+    return first && last ? `${displayLabelFor(first)}–${displayLabelFor(last)}` : "";
+  }
+
   // The per-window checks plus this floor's room-tag check, narrowed to the
   // blind it anchors on here — so whatever put the ⚠ on this unit's tile is
   // visible on the row that can answer it, next to "Looks right".
@@ -1156,6 +1175,13 @@ export default function WindowEntryPage() {
               <span className="text-neutral-500"> — tape the whole wall to check it</span>
             </div>
           )}
+          {draft.widths.length === 1 && draftRun && (
+            <div className="basis-full text-sm">
+              <span className="text-neutral-500">Total width {runLabel(draftRun)} </span>
+              <span className="font-mono font-semibold">{formatFraction(draftRun.total)}</span>
+              <span className="text-neutral-500"> — tape the whole wall to check it</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -1520,6 +1546,14 @@ export default function WindowEntryPage() {
                   Total width{" "}
                   <span className="font-semibold text-neutral-800 dark:text-neutral-200">
                     {formatFraction(totalWidth(w.widths))}
+                  </span>
+                </div>
+              )}
+              {runEndingAt.has(w.id) && (
+                <div className="text-neutral-500">
+                  Total width {runLabel(runEndingAt.get(w.id) as WallRun)}{" "}
+                  <span className="font-semibold text-neutral-800 dark:text-neutral-200">
+                    {formatFraction((runEndingAt.get(w.id) as WallRun).total)}
                   </span>
                 </div>
               )}
