@@ -16,6 +16,7 @@ import { PmAccessCard } from "@/components/pm-access-card";
 import { DeficiencyList } from "@/components/deficiency-list";
 import { FixBatchesCard } from "@/components/fix-batches-card";
 import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
+import { isCrewIssue } from "@/lib/issues";
 import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
 import { readPref, writePref } from "@/lib/local-pref";
@@ -332,10 +333,10 @@ export default function ProjectPage() {
       {deficiencies.some((d) => d.status === "open") && (
         <section>
           <h2 className="mb-2 text-sm font-semibold text-neutral-500">
-            Open deficiencies ({deficiencies.filter((d) => d.status === "open").length})
+            Open PM deficiencies ({deficiencies.filter((d) => d.status === "open" && !isCrewIssue(d)).length})
           </h2>
           <DeficiencyList
-            items={deficiencies.filter((d) => d.status === "open")}
+            items={deficiencies.filter((d) => d.status === "open" && !isCrewIssue(d))}
             unitNumber={(id) => unitNumbers.get(id) ?? "?"}
             onResolve={(id) => void handleDeficiency(id, "resolved")}
           />

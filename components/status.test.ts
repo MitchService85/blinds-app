@@ -33,3 +33,13 @@ describe("outstanding deficiencies block an installed unit", () => {
     expect(isBlocked(unit("done", false), false)).toBe(false);
   });
 });
+
+describe("a fixed issue is a record, not outstanding", () => {
+  it("does not hold the unit yellow", () => {
+    const windows = [
+      { unit_id: "u1", deleted: false, issue_note: "Right side no deduction", issue_fault: null, issue_recut: false, issue_fixed_at: "2026-10-23T14:00:00Z" },
+      { unit_id: "u2", deleted: false, issue_note: "Right side no deduction", issue_fault: null, issue_recut: false, issue_fixed_at: null },
+    ];
+    expect([...unitsWithOutstanding(windows)]).toEqual(["u2"]);
+  });
+});

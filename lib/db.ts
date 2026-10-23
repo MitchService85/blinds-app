@@ -18,6 +18,7 @@ import type {
 import { DEMO_COMPANY_ID, getCompanyIdSync, setCompanyIdCache } from "./tenant";
 import { carryUnitNumber, compareFloorLabels } from "./floor-copy";
 import { notifyLocalWrite } from "./sync-events";
+import { CREW, deficiencyOpen, hasLegacyIssue, legacyIssueId, legacyIssueOpen } from "./issues";
 
 /**
  * Local-first IndexedDB store (Dexie). The UI reads/writes here only —
@@ -443,6 +444,8 @@ export async function createWindow(
     issue_note: input.issue_note ?? "",
     issue_fault: input.issue_fault ?? null,
     issue_recut: input.issue_recut ?? false,
+    issue_fixed_at: input.issue_fixed_at ?? null,
+    issue_fix_note: input.issue_fix_note ?? "",
     id: newId(),
     updated_at: "",
     deleted: false,
@@ -751,11 +754,8 @@ export async function listAllDeficiencies(): Promise<Deficiency[]> {
 export async function setDeficiencyStatus(id: string, status: Deficiency["status"]): Promise<void> {
   const existing = await db.deficiencies.get(id);
   if (!existing) return;
-  await writeRow(db.deficiencies, "deficiencies", {
-    ...existing,
-    status,
-    resolved_at: status === "resolved" ? new Date().toISOString() : null,
-  });
+  if (status === "resolved") await resolveIssue(id, existing.fix_note ?? "");
+  else await reopenIssue(id);
 }
 
 // ---------------------------------------------------------------------------
@@ -876,45 +876,203 @@ export async function listProjectFixItems(projectId: string): Promise<FixItem[]>
   return rows.filter((r) => !r.deleted);
 }
 
-/**
- * Move a fix between to-do, fixed and can't-fix, keeping the blind's own ⚠
- * in step: a fixed blind is no longer a deficiency, so its flag clears (and
- * its unit unblocks once nothing in it is still flagged); undoing a fix puts
- * the flag back from the batch's snapshot. A flag someone has written since
- * is never overwritten.
- */
-export async function setFixStatus(item: FixItem, status: FixItem["status"]): Promise<FixItem> {
-  const saved = await writeRow(db.fix_items, "fix_items", {
-    ...item,
-    status,
-    fixed_at: status === "fixed" ? item.fixed_at ?? new Date().toISOString() : null,
+// ---------------------------------------------------------------------------
+// Problems on units and blinds (deficiencies, crew- or PM-raised)
+// ---------------------------------------------------------------------------
+
+/** Record a problem on a blind (or the unit, with no window). */
+export async function createIssue(input: {
+  project_id: string;
+  unit_id: string;
+  window_id: string | null;
+  note: string;
+  fault?: Deficiency["fault"];
+  recut?: boolean;
+}): Promise<Deficiency> {
+  return writeRow(db.deficiencies, "deficiencies", {
+    id: newId(),
+    company_id: await parentCompanyId(db.units, input.unit_id),
+    updated_at: "",
+    deleted: false,
+    project_id: input.project_id,
+    unit_id: input.unit_id,
+    window_id: input.window_id,
+    share_id: null,
+    note: input.note,
+    raised_by: CREW,
+    raised_at: new Date().toISOString(),
+    status: "open",
+    resolved_at: null,
+    fault: input.fault ?? null,
+    recut: input.recut ?? false,
+    fix_note: "",
   });
-  const w = await db.windows.get(item.window_id);
-  const unit = await db.units.get(item.unit_id);
-  if (!w || w.deleted || !unit || unit.deleted) return saved;
-  const flagged = Boolean((w.issue_note ?? "").trim()) || (w.issue_fault ?? null) !== null || w.issue_recut === true;
-  if (status === "fixed") {
-    if (flagged) {
-      await upsertWindow({ ...w, issue_note: "", issue_fault: null, issue_recut: false });
-    }
-    if (unit.install_blocked) {
-      const others = await listWindows(unit.id);
-      const stillFlagged = others.some(
-        (o) =>
-          o.id !== w.id &&
-          (Boolean((o.issue_note ?? "").trim()) || (o.issue_fault ?? null) !== null || o.issue_recut === true)
-      );
-      if (!stillFlagged) await updateUnit(unit.id, { install_blocked: false });
-    }
-  } else if (item.status === "fixed") {
-    if (!flagged) {
-      await upsertWindow({ ...w, issue_note: item.problem, issue_fault: item.fault, issue_recut: item.recut });
-    }
-    if (item.unit_was_blocked && !unit.install_blocked) {
-      await updateUnit(unit.id, { install_blocked: true });
+}
+
+/** Write the whole row as the screen holds it (see saveInvoice for why). */
+export async function saveIssue(d: Deficiency): Promise<Deficiency> {
+  return writeRow(db.deficiencies, "deficiencies", d);
+}
+
+/** Entered by mistake: gone, not fixed. */
+export async function removeIssue(id: string): Promise<void> {
+  const existing = await db.deficiencies.get(id);
+  if (!existing) return;
+  await writeRow(db.deficiencies, "deficiencies", { ...existing, deleted: true }, "delete");
+  await unblockIfClear(existing.unit_id);
+}
+
+/** Open problems on a unit: deficiencies, plus any old-style window issue. */
+async function unitHasOpen(unitId: string, exceptId?: string): Promise<boolean> {
+  const defs = await db.deficiencies.where("unit_id").equals(unitId).toArray();
+  if (defs.some((d) => d.id !== exceptId && deficiencyOpen(d))) return true;
+  return (await listWindows(unitId)).some((w) => legacyIssueOpen(w));
+}
+
+/** Take a unit off ⚠ blocked once nothing in it is still open. */
+async function unblockIfClear(unitId: string): Promise<void> {
+  const unit = await db.units.get(unitId);
+  if (unit && !unit.deleted && unit.install_blocked && !(await unitHasOpen(unitId))) {
+    await updateUnit(unitId, { install_blocked: false });
+  }
+}
+
+/**
+ * Mark one problem fixed, keeping it as the record with when and what was
+ * done. The unit comes off ⚠ blocked once nothing else in it is open, and an
+ * open fix-batch entry for the same problem is ticked off with it so the
+ * batch and the unit screen never disagree.
+ */
+export async function resolveIssue(
+  id: string,
+  fixNote: string,
+  opts: { at?: string; fromBatch?: boolean } = {}
+): Promise<void> {
+  const d = await db.deficiencies.get(id);
+  if (!d || d.deleted) return;
+  const at = opts.at ?? d.resolved_at ?? new Date().toISOString();
+  await writeRow(db.deficiencies, "deficiencies", { ...d, status: "resolved", resolved_at: at, fix_note: fixNote });
+  await unblockIfClear(d.unit_id);
+  if (!opts.fromBatch) {
+    const items = await db.fix_items.filter((i) => i.deficiency_id === id && !i.deleted && i.status === "open").toArray();
+    for (const i of items) {
+      await writeRow(db.fix_items, "fix_items", { ...i, status: "fixed", fixed_at: at, fix_note: fixNote || i.fix_note });
     }
   }
+}
+
+/** Not fixed after all: open again, and the unit re-blocked if asked. */
+export async function reopenIssue(id: string, opts: { reblock?: boolean; fromBatch?: boolean } = {}): Promise<void> {
+  const d = await db.deficiencies.get(id);
+  if (!d || d.deleted) return;
+  await writeRow(db.deficiencies, "deficiencies", { ...d, status: "open", resolved_at: null });
+  if (opts.reblock) {
+    const unit = await db.units.get(d.unit_id);
+    if (unit && !unit.deleted && !unit.install_blocked) await updateUnit(unit.id, { install_blocked: true });
+  }
+  if (!opts.fromBatch) {
+    const items = await db.fix_items.filter((i) => i.deficiency_id === id && !i.deleted && i.status === "fixed").toArray();
+    for (const i of items) await writeRow(db.fix_items, "fix_items", { ...i, status: "open", fixed_at: null });
+  }
+}
+
+/** Keep a fixed problem's "what was done" in step with its batch entry. */
+export async function setIssueFixNote(id: string, note: string): Promise<void> {
+  const d = await db.deficiencies.get(id);
+  if (!d || d.deleted) return;
+  await writeRow(db.deficiencies, "deficiencies", { ...d, fix_note: note });
+}
+
+/**
+ * Move problems still held in a window's old single-issue fields into
+ * deficiency rows, then empty those fields. Runs after every sync, so a
+ * phone still on an older version that flags a blind the old way has it
+ * picked up by the next phone that syncs. The row's id comes from the issue
+ * itself (legacyIssueId), so two phones moving the same one write one row.
+ */
+export async function adoptLegacyIssues(): Promise<number> {
+  const windows = await db.windows.filter((w) => !w.deleted && hasLegacyIssue(w)).toArray();
+  let moved = 0;
+  for (const w of windows) {
+    const unit = await db.units.get(w.unit_id);
+    const floor = unit ? await db.floors.get(unit.floor_id) : undefined;
+    if (!unit || !floor) continue;
+    const id = await legacyIssueId(w);
+    if (!(await db.deficiencies.get(id))) {
+      const fixedAt = w.issue_fixed_at ?? null;
+      await writeRow(db.deficiencies, "deficiencies", {
+        id,
+        company_id: w.company_id ?? unit.company_id,
+        updated_at: "",
+        deleted: false,
+        project_id: floor.project_id,
+        unit_id: unit.id,
+        window_id: w.id,
+        share_id: null,
+        note: w.issue_note ?? "",
+        raised_by: CREW,
+        raised_at: w.updated_at,
+        status: fixedAt ? "resolved" : "open",
+        resolved_at: fixedAt,
+        fault: w.issue_fault ?? null,
+        recut: w.issue_recut === true,
+        fix_note: w.issue_fix_note ?? "",
+      });
+    }
+    const items = await db.fix_items.filter((i) => i.window_id === w.id && !i.deleted && !i.deficiency_id).toArray();
+    for (const i of items) await writeRow(db.fix_items, "fix_items", { ...i, deficiency_id: id });
+    await upsertWindow({
+      ...w,
+      issue_note: "",
+      issue_fault: null,
+      issue_recut: false,
+      issue_fixed_at: null,
+      issue_fix_note: "",
+    });
+    moved++;
+  }
+  return moved;
+}
+
+/**
+ * Move a fix between to-do, fixed and can't-fix, keeping its deficiency in
+ * step: ✓ Fixed marks that one problem fixed (kept as the record — see
+ * resolveIssue); undoing it opens it again and re-blocks the unit if it was
+ * blocked when the batch was made.
+ */
+export async function setFixStatus(item: FixItem, status: FixItem["status"]): Promise<FixItem> {
+  const fixedAt = status === "fixed" ? item.fixed_at ?? new Date().toISOString() : null;
+  const saved = await writeRow(db.fix_items, "fix_items", { ...item, status, fixed_at: fixedAt });
+  if (!item.deficiency_id) return saved;
+  if (status === "fixed") {
+    await resolveIssue(item.deficiency_id, item.fix_note, { at: fixedAt ?? undefined, fromBatch: true });
+  } else if (item.status === "fixed") {
+    await reopenIssue(item.deficiency_id, { reblock: item.unit_was_blocked, fromBatch: true });
+  }
   return saved;
+}
+
+/**
+ * Floors with their units, blinds and problems, ready for gatherFixItems.
+ * Moves any old-style window issue into a problem entry first so it is
+ * gathered like the rest.
+ */
+export async function loadFixGather(
+  projectId: string,
+  floorIds?: string[]
+): Promise<Array<{ floor: Floor; gather: { id: string; units: Array<{ unit: Unit; windows: WindowRecord[]; deficiencies: Deficiency[] }> } }>> {
+  await adoptLegacyIssues().catch(() => 0);
+  const defs = await listDeficiencies(projectId);
+  const floors = (await listFloors(projectId)).filter((f) => !floorIds || floorIds.includes(f.id));
+  const out = [];
+  for (const floor of floors) {
+    const units = [];
+    for (const unit of await listUnits(floor.id)) {
+      units.push({ unit, windows: await listWindows(unit.id), deficiencies: defs.filter((d) => d.unit_id === unit.id) });
+    }
+    out.push({ floor, gather: { id: floor.id, units } });
+  }
+  return out;
 }
 
 /** Write the whole item as the screen holds it (see saveInvoice for why). */

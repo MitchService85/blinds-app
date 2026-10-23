@@ -6,12 +6,10 @@ import { useRouter } from "next/navigation";
 import {
   createFixBatch,
   listFixBatches,
-  listFloors,
   listProjectFixItems,
-  listUnits,
-  listWindows,
+  loadFixGather,
 } from "@/lib/db";
-import { fixCounts, gatherFixItems, type GatherFloor } from "@/lib/fixes";
+import { fixCounts, gatherFixItems, inBatchIds, type GatherFloor } from "@/lib/fixes";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import type { FixBatch, FixItem, Floor } from "@/lib/types";
 import { useRemoteVersion } from "@/lib/sync-events";
@@ -21,19 +19,6 @@ const REMOTE_TABLES = ["fix_batches", "fix_items", "floors", "units", "windows"]
 interface FloorOption {
   floor: Floor;
   gather: GatherFloor;
-}
-
-/** Every floor with its units and windows, ready to gather from. */
-async function loadFloors(projectId: string): Promise<FloorOption[]> {
-  const out: FloorOption[] = [];
-  for (const floor of await listFloors(projectId)) {
-    const units = [];
-    for (const unit of await listUnits(floor.id)) {
-      units.push({ unit, windows: await listWindows(unit.id) });
-    }
-    out.push({ floor, gather: { id: floor.id, units } });
-  }
-  return out;
 }
 
 /**
@@ -61,7 +46,7 @@ export function FixBatchesCard({ projectId }: { projectId: string }) {
       const [bs, its, fs] = await Promise.all([
         listFixBatches(projectId),
         listProjectFixItems(projectId),
-        loadFloors(projectId),
+        loadFixGather(projectId),
       ]);
       if (cancelled) return;
       setBatches(bs);
@@ -76,7 +61,7 @@ export function FixBatchesCard({ projectId }: { projectId: string }) {
   if (!floors) return null;
   // A blind still waiting in a batch is not gathered twice. A fixed one has
   // had its flag cleared, so if it is flagged again it is a new problem.
-  const inBatch = new Set(items.filter((i) => i.status !== "fixed").map((i) => i.window_id));
+  const inBatch = inBatchIds(items);
   const options = floors.map((f) => ({ ...f, flagged: gatherFixItems([f.gather], inBatch).length }));
   const flaggedFloors = options.filter((f) => f.flagged > 0);
   if (batches.length === 0 && flaggedFloors.length === 0) return null;

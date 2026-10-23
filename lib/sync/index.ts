@@ -15,6 +15,7 @@ import {
   primeCompanyId,
   type OutboxEntry,
   type OutboxTableName,
+  adoptLegacyIssues,
 } from "../db";
 import { getCompanyIdSync } from "../tenant";
 import { productionOrigin } from "../origin";
@@ -402,6 +403,8 @@ export function normalizeForPush(table: OutboxTableName, row: SyncedRow): Synced
     r.issue_note = r.issue_note ?? "";
     r.issue_fault = r.issue_fault ?? null;
     r.issue_recut = r.issue_recut ?? false;
+    r.issue_fixed_at = r.issue_fixed_at ?? null;
+    r.issue_fix_note = r.issue_fix_note ?? "";
   } else if (table === "exports") {
     r.blind_count = r.blind_count ?? 0;
     r.filename = r.filename ?? "";
@@ -447,6 +450,7 @@ export function normalizeForPush(table: OutboxTableName, row: SyncedRow): Synced
     r.billable = r.billable ?? true;
     r.fixed_at = r.fixed_at ?? null;
     r.invoice_id = r.invoice_id ?? null;
+    r.deficiency_id = r.deficiency_id ?? null;
   } else if (table === "deficiencies") {
     r.window_id = r.window_id ?? null;
     r.share_id = r.share_id ?? null;
@@ -454,6 +458,9 @@ export function normalizeForPush(table: OutboxTableName, row: SyncedRow): Synced
     r.raised_by = r.raised_by ?? "";
     r.status = r.status ?? "open";
     r.resolved_at = r.resolved_at ?? null;
+    r.fault = r.fault ?? null;
+    r.recut = r.recut ?? false;
+    r.fix_note = r.fix_note ?? "";
   }
   return r as unknown as SyncedRow;
 }
@@ -742,6 +749,10 @@ async function runSyncOnce(): Promise<void> {
   await ensureActingCompany();
   await drainOutbox();
   await pullSince();
+  // A phone on an older version may still flag a blind in the window's old
+  // single-issue fields; move any that arrived into deficiency rows. Its
+  // writes queue a push, which the local-write signal sends a moment later.
+  await adoptLegacyIssues().catch(() => 0);
   // The seed-adoption pass is gone with lib/seed.ts: examples were real client
   // jobs seeded per device, which both leaked customer data to a signed-out
   // visitor and duplicated across phones. The sandbox that replaced it is

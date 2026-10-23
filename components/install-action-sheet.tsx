@@ -1,10 +1,11 @@
 "use client";
 
-import type { Unit, WindowRecord } from "@/lib/types";
+import type { Deficiency, Unit, WindowRecord } from "@/lib/types";
 import { Icon } from "@/components/icon";
 import { blockedOf, installOf, lockedOf } from "./status";
 import { windowBlindCount, windowTagLabel } from "@/lib/export/shared";
-import { issueSummary, windowHasIssue } from "./window-issue";
+import { deficiencySummary, fixedSummary } from "./window-issue";
+import { deficiencyOpen } from "@/lib/issues";
 
 export type InstallAction = "staged" | "complete" | "blocked" | "locked" | "clear";
 
@@ -12,6 +13,8 @@ interface InstallActionSheetProps {
   unit: Unit | null;
   /** The unit's windows — flagged blind issues preview here. */
   windows?: WindowRecord[];
+  /** Problems recorded on this unit's blinds (open and fixed). */
+  issues?: Deficiency[];
   onAction: (action: InstallAction) => void;
   onOpenUnit: () => void;
   onEditNote: () => void;
@@ -28,6 +31,7 @@ interface InstallActionSheetProps {
 export function InstallActionSheet({
   unit,
   windows,
+  issues: unitIssues,
   onAction,
   onOpenUnit,
   onEditNote,
@@ -38,7 +42,11 @@ export function InstallActionSheet({
   const install = installOf(unit);
   const blocked = blockedOf(unit);
   const locked = lockedOf(unit);
-  const issues = (windows ?? []).filter(windowHasIssue);
+  const byId = new Map((windows ?? []).map((w) => [w.id, w]));
+  const onBlinds = (unitIssues ?? []).filter((d) => d.window_id && byId.has(d.window_id) && !d.deleted);
+  const issues = onBlinds.filter(deficiencyOpen);
+  const fixedIssues = onBlinds.filter((d) => d.status === "resolved");
+  const label = (d: Deficiency) => windowTagLabel(byId.get(d.window_id as string) as WindowRecord);
   // Openings vs blinds differ on bays and repeat rows (one 3-panel bay is
   // three blinds, three sets of brackets), so both are worth stating here —
   // this sheet is what the installer opens before starting the unit.
@@ -72,12 +80,22 @@ export function InstallActionSheet({
 
         {issues.length > 0 && (
           <div className="mb-3 flex flex-col gap-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            {issues.map((w) => (
-              <div key={w.id}>
-                <Icon name="alert" size={14} /> {windowTagLabel(w)} — {issueSummary(w)}
+            {issues.map((d) => (
+              <div key={d.id}>
+                <Icon name="alert" size={14} /> {label(d)} — {deficiencySummary(d)}
               </div>
             ))}
             <div className="mt-0.5 opacity-80">Shows yellow once installed until these are fixed.</div>
+          </div>
+        )}
+
+        {fixedIssues.length > 0 && (
+          <div className="mb-3 flex flex-col gap-1 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+            {fixedIssues.map((d) => (
+              <div key={d.id}>
+                {label(d)} — {deficiencySummary(d)}. <span className="font-semibold">{fixedSummary(d)}</span>
+              </div>
+            ))}
           </div>
         )}
         {blocked && issues.length === 0 && !unit.note && (

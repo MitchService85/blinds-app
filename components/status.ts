@@ -1,4 +1,5 @@
 import type { Deficiency, InstallStatus, Unit, UnitStatus, WindowRecord } from "@/lib/types";
+import { deficiencyOpen, legacyIssueOpen } from "@/lib/issues";
 
 /**
  * The stored UnitStatus enum only has three values (active | na | done).
@@ -57,16 +58,17 @@ export function lockedOf(unit: Pick<Unit, "locked">): boolean {
  * cleared, or a PM deficiency still open.
  */
 export function unitsWithOutstanding(
-  windows: Pick<WindowRecord, "unit_id" | "deleted" | "issue_note" | "issue_fault" | "issue_recut">[],
+  windows: Pick<WindowRecord, "unit_id" | "deleted" | "issue_note" | "issue_fault" | "issue_recut" | "issue_fixed_at">[],
   deficiencies: Pick<Deficiency, "unit_id" | "status" | "deleted">[] = []
 ): Set<string> {
   const out = new Set<string>();
   for (const w of windows) {
     if (w.deleted) continue;
-    if ((w.issue_note ?? "").trim() || (w.issue_fault ?? null) !== null || w.issue_recut === true) out.add(w.unit_id);
+    // The window's old single-issue form, until it is moved to a deficiency.
+    if (legacyIssueOpen(w)) out.add(w.unit_id);
   }
   for (const d of deficiencies) {
-    if (!d.deleted && d.status === "open") out.add(d.unit_id);
+    if (deficiencyOpen(d)) out.add(d.unit_id);
   }
   return out;
 }

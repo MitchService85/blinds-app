@@ -5,11 +5,12 @@ import {
   fixLineLabel,
   fixQtyFor,
   gatherFixItems,
+  inBatchIds,
   readyToBill,
   suggestedFixNote,
   toggleQuickNote,
 } from "./fixes";
-import type { FixItem, Unit, WindowRecord } from "./types";
+import type { Deficiency, FixItem, Unit, WindowRecord } from "./types";
 
 function unit(id: string, number: string, sort_order: number, install_blocked = false): Unit {
   return {
@@ -50,38 +51,64 @@ describe("toggleQuickNote", () => {
 
 describe("gatherFixItems", () => {
   const units = [unit("u1206", "1206", 2), unit("u705", "705", 1, true)];
+  const def = (id: string, unit_id: string, window_id: string | null, note: string, extra: Partial<Deficiency> = {}): Deficiency => ({
+    id, unit_id, window_id, note, project_id: "p", share_id: null, raised_by: "Crew", raised_at: "2026-10-01T00:00:00Z",
+    status: "open", resolved_at: null, fault: null, recut: false, fix_note: "", updated_at: "", deleted: false, ...extra,
+  });
   const floors = [
     {
       id: "f4",
       units: [
         {
           unit: units[0],
-          windows: [
-            win("w-lr2", "u1206", "LR", 2, { issue_note: "Left side no deduction" }),
-            win("w-lr1", "u1206", "LR", 1, { issue_note: "Right side no deduction" }),
-            win("w-k", "u1206", "K", 0, {}),
+          windows: [win("w-lr2", "u1206", "LR", 2, {}), win("w-lr1", "u1206", "LR", 1, {}), win("w-k", "u1206", "K", 0, {})],
+          deficiencies: [
+            def("d-lr2", "u1206", "w-lr2", "Left side no deduction"),
+            def("d-lr1", "u1206", "w-lr1", "Right side no deduction"),
+            // Fixed already: the record stays, nothing to gather.
+            def("d-k", "u1206", "w-k", "Needs 1/8 cut off", { status: "resolved", resolved_at: "2026-10-20T00:00:00Z" }),
+            // About the whole unit: not a blind to fix.
+            def("d-unit", "u1206", null, "Locked out"),
           ],
         },
         {
           unit: units[1],
-          windows: [win("w-br", "u705", "BR", 0, { issue_note: "Left side no deduct, right side no deduct", issue_fault: "measure" })],
+          windows: [win("w-br", "u705", "BR", 0, {})],
+          deficiencies: [
+            def("d-br-stain", "u705", "w-br", "Stain on blind, needs replacement", { raised_at: "2026-10-22T00:00:00Z" }),
+            def("d-br", "u705", "w-br", "Left side no deduct, right side no deduct", { fault: "measure" }),
+          ],
         },
       ],
     },
   ];
 
-  it("takes flagged blinds only, in unit then blind order, with export labels", () => {
+  it("one entry per open problem, in unit then blind order, oldest problem first", () => {
     const items = gatherFixItems(floors);
-    expect(items.map((i) => `${i.unit_number} ${i.blind_label}`)).toEqual(["705 BR", "1206 LR1", "1206 LR2"]);
-    expect(items.map((i) => i.sort_order)).toEqual([0, 1, 2]);
+    expect(items.map((i) => `${i.unit_number} ${i.blind_label} ${i.deficiency_id}`)).toEqual([
+      "705 BR d-br",
+      "705 BR d-br-stain",
+      "1206 LR1 d-lr1",
+      "1206 LR2 d-lr2",
+    ]);
+    expect(items.map((i) => i.sort_order)).toEqual([0, 1, 2, 3]);
     expect(items[0]).toMatchObject({ qty: 2, unit_was_blocked: true, billable: false, status: "open" });
-    expect(items[1]).toMatchObject({ qty: 1, billable: true, problem: "Right side no deduction" });
+    expect(items[2]).toMatchObject({ qty: 1, billable: true, problem: "Right side no deduction" });
   });
 
-  it("skips blinds already in the batch", () => {
-    const items = gatherFixItems(floors, new Set(["w-br", "w-lr1"]), 10);
-    expect(items.map((i) => i.window_id)).toEqual(["w-lr2"]);
+  it("skips problems already waiting in a batch", () => {
+    const items = gatherFixItems(floors, new Set(["d-br", "d-lr1"]), 10);
+    expect(items.map((i) => i.deficiency_id)).toEqual(["d-br-stain", "d-lr2"]);
     expect(items[0].sort_order).toBe(10);
+  });
+
+  it("inBatchIds counts waiting entries only", () => {
+    expect([...inBatchIds([
+      { status: "open", deficiency_id: "a" },
+      { status: "cant", deficiency_id: "b" },
+      { status: "fixed", deficiency_id: "c" },
+      { status: "open", deficiency_id: null },
+    ])]).toEqual(["a", "b"]);
   });
 });
 

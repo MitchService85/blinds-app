@@ -28,9 +28,10 @@ import { windowBlindCount, windowTagLabel } from "@/lib/export/shared";
 import { floorSettingParts } from "@/lib/floor-summary";
 import { findDuplicateUnitNumbers, mergeUnits } from "@/lib/merge-units";
 import { BottomBar } from "@/components/bottom-bar";
-import { issueSummary, windowHasIssue } from "@/components/window-issue";
+import { deficiencySummary } from "@/components/window-issue";
+import { deficiencyOpen, isCrewIssue } from "@/lib/issues";
 import { DeficiencyList } from "@/components/deficiency-list";
-import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
+import { adoptLegacyIssues, listDeficiencies, setDeficiencyStatus } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
 import { unitRooms } from "@/lib/tags";
@@ -100,9 +101,12 @@ export default function FloorPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void listDeficiencies(projectId).then((rows) => {
+    void (async () => {
+      // A blind flagged the old single-issue way becomes a problem entry first.
+      await adoptLegacyIssues().catch(() => 0);
+      const rows = await listDeficiencies(projectId);
       if (!cancelled) setDeficiencies(rows);
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -195,22 +199,25 @@ export default function FloorPage() {
     return { staged, done, blocked, locked, toGo, blockedUnits };
   }, [units, outstanding]);
 
-  /** Every flagged blind on the floor — the install-mode issues panel, and
-   * the running count of recuts the factory owes (their error, they pay). */
+  /** Every open problem on a blind on this floor, as the crew recorded it —
+   * the install-mode issues panel, and the running count of recuts the
+   * factory owes (their error, they pay). PM complaints have their own list. */
   const windowIssues = useMemo(() => {
-    const out: Array<{ unit: Unit; window: WindowRecord }> = [];
+    const out: Array<{ unit: Unit; window: WindowRecord; issue: Deficiency }> = [];
     for (const u of units) {
       if (u.status === "na") continue;
       for (const w of windowsByUnit.get(u.id) ?? []) {
-        if (windowHasIssue(w)) out.push({ unit: u, window: w });
+        for (const d of deficiencies) {
+          if (d.window_id === w.id && deficiencyOpen(d) && isCrewIssue(d)) out.push({ unit: u, window: w, issue: d });
+        }
       }
     }
     return out;
-  }, [units, windowsByUnit]);
+  }, [units, windowsByUnit, deficiencies]);
   const factoryRecuts = useMemo(
     () =>
       windowIssues.filter(
-        ({ window: w }) => w.issue_recut === true && w.issue_fault === "factory"
+        ({ issue }) => issue.recut === true && issue.fault === "factory"
       ).length,
     [windowIssues]
   );
@@ -622,9 +629,9 @@ export default function FloorPage() {
                 {factoryRecuts > 0 &&
                   ` — ${factoryRecuts} recut${factoryRecuts === 1 ? "" : "s"} on the factory`}
               </div>
-              {windowIssues.map(({ unit, window: w }) => (
-                <div key={w.id}>
-                  {unit.number} · {windowTagLabel(w)} — {issueSummary(w)}
+              {windowIssues.map(({ unit, window: w, issue }) => (
+                <div key={issue.id}>
+                  {unit.number} · {windowTagLabel(w)} — {deficiencySummary(issue)}
                 </div>
               ))}
             </div>
@@ -634,7 +641,8 @@ export default function FloorPage() {
 
       {(() => {
         const unitIds = new Set(units.map((u) => u.id));
-        const open = deficiencies.filter((d) => d.status === "open" && unitIds.has(d.unit_id));
+        // The PM's own complaints; the crew's are in the blind issues panel.
+        const open = deficiencies.filter((d) => deficiencyOpen(d) && !isCrewIssue(d) && unitIds.has(d.unit_id));
         if (open.length === 0) return null;
         return (
           <div className="rounded-xl border border-rose-300 p-3 dark:border-rose-800">
@@ -807,6 +815,7 @@ export default function FloorPage() {
         <InstallActionSheet
           unit={units.find((u) => u.id === installSheetUnitId) ?? null}
           windows={windowsByUnit.get(installSheetUnitId) ?? []}
+          issues={deficiencies.filter((d) => d.unit_id === installSheetUnitId)}
           onAction={(action) => handleInstallAction(installSheetUnitId, action)}
           onOpenUnit={() => router.push(`/project/${projectId}/floor/${floorId}/unit/${installSheetUnitId}`)}
           onEditNote={() => {

@@ -21,6 +21,8 @@ export interface DeficiencyWindow {
   issue_note: string;
   issue_fault: IssueFault;
   issue_recut: boolean;
+  /** Fixed on site: the issue is kept on the blind but is not on this list. */
+  issue_fixed_at?: string | null;
   sort_order: number;
 }
 
@@ -52,8 +54,11 @@ export interface DeficiencyRow {
   assumed: boolean;
 }
 
-export function hasIssue(w: Pick<DeficiencyWindow, "issue_note" | "issue_fault" | "issue_recut">): boolean {
-  return w.issue_note.trim() !== "" || w.issue_fault !== null || w.issue_recut;
+/** Still open — a fixed blind keeps its issue as the record but is done. */
+export function hasIssue(
+  w: Pick<DeficiencyWindow, "issue_note" | "issue_fault" | "issue_recut" | "issue_fixed_at">
+): boolean {
+  return (w.issue_note.trim() !== "" || w.issue_fault !== null || w.issue_recut) && !w.issue_fixed_at;
 }
 
 /**

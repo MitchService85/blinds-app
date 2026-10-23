@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { getFloor, getProject, listFloors, listUnits, listWindows } from "@/lib/db";
-import type { Floor, Project, Unit, WindowRecord } from "@/lib/types";
+import { adoptLegacyIssues, getFloor, getProject, listDeficiencies, listFloors, listUnits, listWindows } from "@/lib/db";
+import { deficiencyOpen } from "@/lib/issues";
+import type { Deficiency, Floor, Project, Unit, WindowRecord } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
 import { ExportButton } from "@/components/export-button";
 import { Icon } from "@/components/icon";
@@ -12,7 +13,6 @@ import { localDateISO } from "@/lib/export/build-input";
 import { windowBlindCount } from "@/lib/export/shared";
 import {
   buildDeficiencyRows,
-  hasIssue,
   suggestedDeficiencyFilename,
   type DeficiencyFloor,
 } from "@/lib/export/deficiencies";
@@ -21,13 +21,17 @@ interface FloorData {
   floor: Floor;
   units: Unit[];
   windowsByUnit: Map<string, WindowRecord[]>;
+  /** Open problems on this floor's blinds, one entry each. */
+  openIssues: Deficiency[];
 }
 
-async function loadFloorData(floor: Floor): Promise<FloorData> {
+async function loadFloorData(floor: Floor, deficiencies: Deficiency[]): Promise<FloorData> {
   const units = await listUnits(floor.id);
   const windowsByUnit = new Map<string, WindowRecord[]>();
   await Promise.all(units.map(async (u) => windowsByUnit.set(u.id, await listWindows(u.id))));
-  return { floor, units, windowsByUnit };
+  const unitIds = new Set(units.map((u) => u.id));
+  const openIssues = deficiencies.filter((d) => d.window_id && unitIds.has(d.unit_id) && deficiencyOpen(d));
+  return { floor, units, windowsByUnit, openIssues };
 }
 
 function toDeficiencyFloor(d: FloorData): DeficiencyFloor {
@@ -38,17 +42,24 @@ function toDeficiencyFloor(d: FloorData): DeficiencyFloor {
       .map((u) => ({
         number: u.number,
         sort_order: u.sort_order,
-        windows: (d.windowsByUnit.get(u.id) ?? []).map((w) => ({
-          tag_base: w.tag_base,
-          tag_index: w.tag_index,
-          widths: w.widths,
-          height: w.height,
-          deduct: w.deduct,
-          issue_note: w.issue_note ?? "",
-          issue_fault: w.issue_fault ?? null,
-          issue_recut: w.issue_recut ?? false,
-          sort_order: w.sort_order,
-        })),
+        // One entry per open problem: a blind with two (a cut, and later a
+        // stain) is listed twice, each with its own correction.
+        windows: (d.windowsByUnit.get(u.id) ?? []).flatMap((w) =>
+          d.openIssues
+            .filter((issue) => issue.window_id === w.id)
+            .sort((a, b) => a.raised_at.localeCompare(b.raised_at))
+            .map((issue) => ({
+              tag_base: w.tag_base,
+              tag_index: w.tag_index,
+              widths: w.widths,
+              height: w.height,
+              deduct: w.deduct,
+              issue_note: issue.note,
+              issue_fault: issue.fault ?? null,
+              issue_recut: issue.recut === true,
+              sort_order: w.sort_order,
+            }))
+        ),
       })),
   };
 }
@@ -69,11 +80,17 @@ export default function ExportPage() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [p, f, all] = await Promise.all([getProject(projectId), getFloor(floorId), listFloors(projectId)]);
+      await adoptLegacyIssues().catch(() => 0);
+      const [p, f, all, defs] = await Promise.all([
+        getProject(projectId),
+        getFloor(floorId),
+        listFloors(projectId),
+        listDeficiencies(projectId),
+      ]);
       if (cancelled || !p || !f) return;
       setProject(p);
       setFloors(all);
-      const loaded = await Promise.all(all.map(loadFloorData));
+      const loaded = await Promise.all(all.map((floor) => loadFloorData(floor, defs)));
       if (cancelled) return;
       setData(new Map(loaded.map((d) => [d.floor.id, d])));
     })();
@@ -108,9 +125,8 @@ export default function ExportPage() {
   function issueCount(f: Floor): number {
     const d = data.get(f.id);
     if (!d) return 0;
-    let n = 0;
-    for (const u of d.units) if (u.status !== "na") for (const w of d.windowsByUnit.get(u.id) ?? []) if (hasIssue({ issue_note: w.issue_note ?? "", issue_fault: w.issue_fault ?? null, issue_recut: w.issue_recut ?? false })) n++;
-    return n;
+    const live = new Set(d.units.filter((u) => u.status !== "na").map((u) => u.id));
+    return d.openIssues.filter((issue) => live.has(issue.unit_id)).length;
   }
 
   async function exportDeficiencies() {

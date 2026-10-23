@@ -7,7 +7,8 @@ import { makeLineItem } from "./invoice/draft";
 import { splitNoteByPanel } from "./export/deficiencies";
 import { windowTagLabel } from "./export/shared";
 import { sortUnitsForDisplay } from "./unit-sort";
-import type { FixItem, InvoiceLineItem, Unit, WindowRecord } from "./types";
+import { deficiencyOpen } from "./issues";
+import type { Deficiency, FixItem, InvoiceLineItem, Unit, WindowRecord } from "./types";
 
 /**
  * One-tap notes for what was done. Written from how 44 Charles Batch 4 is
@@ -63,23 +64,19 @@ export function fixQtyFor(problem: string, panels: number): number {
   return Math.max(1, splitNoteByPanel(problem, panels).byPanel.size);
 }
 
-export function windowIsFlagged(
-  w: Pick<WindowRecord, "issue_note" | "issue_fault" | "issue_recut">
-): boolean {
-  return (w.issue_note ?? "").trim() !== "" || (w.issue_fault ?? null) !== null || w.issue_recut === true;
-}
-
 export interface GatherFloor {
   id: string;
-  units: Array<{ unit: Unit; windows: WindowRecord[] }>;
+  units: Array<{ unit: Unit; windows: WindowRecord[]; deficiencies: Deficiency[] }>;
 }
 
 export type FixItemSeed = Omit<FixItem, "id" | "updated_at" | "deleted" | "batch_id" | "project_id">;
 
 /**
- * Every flagged blind on these floors that is not already in the batch, in
- * walking order: floor as given, units as the grid shows them, blinds as
- * measured.
+ * Every open problem on a blind on these floors that is not already in a
+ * batch, in walking order: floor as given, units as the grid shows them,
+ * blinds as measured, a blind's problems oldest first. One entry per
+ * problem, so a blind with two (cut 1/8 off, and later a stain) is two
+ * things to fix. Problems about a whole unit (no blind) are not gathered.
  */
 export function gatherFixItems(
   floors: GatherFloor[],
@@ -91,37 +88,48 @@ export function gatherFixItems(
   for (const floor of floors) {
     const byId = new Map(floor.units.map((u) => [u.unit.id, u]));
     for (const unit of sortUnitsForDisplay(floor.units.map((u) => u.unit))) {
-      const windows = [...(byId.get(unit.id)?.windows ?? [])]
-        .filter((w) => !w.deleted && windowIsFlagged(w) && !alreadyIn.has(w.id))
-        .sort((a, b) => a.sort_order - b.sort_order);
+      const entry = byId.get(unit.id);
+      if (!entry) continue;
+      const windows = [...entry.windows].filter((w) => !w.deleted).sort((a, b) => a.sort_order - b.sort_order);
       for (const w of windows) {
-        const problem = (w.issue_note ?? "").trim();
-        const fault = w.issue_fault ?? null;
-        out.push({
-          floor_id: floor.id,
-          unit_id: unit.id,
-          window_id: w.id,
-          unit_number: unit.number,
-          blind_label: windowTagLabel(w),
-          panels: w.widths.length,
-          problem,
-          fault,
-          recut: w.issue_recut === true,
-          unit_was_blocked: unit.install_blocked,
-          status: "open",
-          fix_note: "",
-          qty: fixQtyFor(problem, w.widths.length),
-          // Our own measure error is still logged — it is what the mistake
-          // cost — but the customer does not pay for it.
-          billable: fault !== "measure",
-          fixed_at: null,
-          invoice_id: null,
-          sort_order: order++,
-        });
+        const problems = entry.deficiencies
+          .filter((d) => d.window_id === w.id && deficiencyOpen(d) && !alreadyIn.has(d.id))
+          .sort((a, b) => a.raised_at.localeCompare(b.raised_at));
+        for (const d of problems) {
+          const problem = d.note.trim();
+          const fault = d.fault ?? null;
+          out.push({
+            floor_id: floor.id,
+            unit_id: unit.id,
+            window_id: w.id,
+            deficiency_id: d.id,
+            unit_number: unit.number,
+            blind_label: windowTagLabel(w),
+            panels: w.widths.length,
+            problem,
+            fault,
+            recut: d.recut === true,
+            unit_was_blocked: unit.install_blocked,
+            status: "open",
+            fix_note: "",
+            qty: fixQtyFor(problem, w.widths.length),
+            // Our own measure error is still logged — it is what the mistake
+            // cost — but the customer does not pay for it.
+            billable: fault !== "measure",
+            fixed_at: null,
+            invoice_id: null,
+            sort_order: order++,
+          });
+        }
       }
     }
   }
   return out;
+}
+
+/** Problems already waiting in a batch — not gathered into another. */
+export function inBatchIds(items: Pick<FixItem, "status" | "deficiency_id">[]): Set<string> {
+  return new Set(items.filter((i) => i.status !== "fixed" && i.deficiency_id).map((i) => i.deficiency_id as string));
 }
 
 /** Already on an invoice that still exists. A deleted draft frees its fixes. */

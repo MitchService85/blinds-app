@@ -175,10 +175,11 @@ export default function HelpPage() {
             <li><b>Blocked</b> — something is stopping the install. It opens the unit so you can say what.</li>
           </ul>
           <p>A single blind wrong? Open the unit and tap <b>⚠</b> on that window: say what&apos;s wrong, whose error it was (Factory or Measure), and whether it needs a recut.</p>
+          <p>Each problem is its own entry. When it&apos;s fixed, tap it and <b>✓ Mark fixed</b> with what was done — it stays listed in green as the record. Something new wrong with the same blind later? Tap <b>⚠</b> again and add it; it&apos;s fixed on its own. A unit stays yellow while any problem is open.</p>
         </Topic>
         <Topic id="fixes" title="Going back to fix deficiencies">
-          <p>On the job&apos;s page, under <b>Deficiency fixes</b>, tap <b>Start a fix batch</b> and tick the floor you&apos;re fixing. Every blind with a <b>⚠</b> on it goes in the list.</p>
-          <p>Work down the list and tap <b>✓ Fixed</b> on each blind. With no note written it fills in the likely one (<b>New blind installed</b> for a deduct, <b>Shimmed</b> for a shim); tap the note buttons or type to change it. Fixing a blind clears its ⚠; <b>Undo</b> puts it back. <b>Can&apos;t fix</b> keeps the ⚠ for the ones that need the factory.</p>
+          <p>On the job&apos;s page, under <b>Deficiency fixes</b>, tap <b>Start a fix batch</b> and tick the floor you&apos;re fixing. Every open problem on a blind goes in the list.</p>
+          <p>Work down the list and tap <b>✓ Fixed</b> on each blind. With no note written it fills in the likely one (<b>New blind installed</b> for a deduct, <b>Shimmed</b> for a shim); tap the note buttons or type to change it. Each problem is its own line, so a blind with two is two. Fixing one marks it fixed on the blind (it stays as the record); <b>Undo</b> opens it again. <b>Can&apos;t fix</b> keeps the ⚠ for the ones that need the factory.</p>
           <p>An installed unit with a ⚠ blind or an open PM deficiency shows <b>yellow</b> — it isn&apos;t finished until the last one is fixed.</p>
           <p>Each blind bills as one fix per panel worked on — a bay fixed on both sides is 2. Set the <b>charge per fix</b> once, then <b>Make invoice</b> bills everything fixed that hasn&apos;t been billed yet. Untick <b>Charge for it</b> on our own measure errors.</p>
         </Topic>

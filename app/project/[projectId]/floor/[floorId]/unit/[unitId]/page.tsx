@@ -7,7 +7,15 @@ import { compressImage } from "@/lib/photos";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BottomBar } from "@/components/bottom-bar";
 import { DeficiencyList } from "@/components/deficiency-list";
-import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
+import {
+  adoptLegacyIssues,
+  createIssue,
+  listDeficiencies,
+  removeIssue,
+  resolveIssue,
+  saveIssue,
+  setDeficiencyStatus,
+} from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
 import { useParams } from "next/navigation";
 import {
@@ -21,6 +29,8 @@ import {
   listWindows,
   updateUnit,
   upsertWindow,
+  reopenIssue,
+  setIssueFixNote,
   createPhoto,
   deletePhoto,
   listPhotos,
@@ -29,6 +39,7 @@ import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { WindowBadges } from "@/components/window-badges";
 import { computeTagLabels } from "@/lib/tags";
 import { findWallRuns, type WallRun } from "@/lib/wall-runs";
+import { deficiencyOpen, hasLegacyIssue } from "@/lib/issues";
 import { floorToEighth, formatFraction, totalWidth } from "@/lib/fractions";
 import type { ControlOverride, Deduct, Floor, MeasureOverride, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
@@ -39,12 +50,7 @@ import {
 } from "@/lib/export/shared";
 import { syncUnitTagIndices } from "@/components/window-tags";
 import { blockedOf } from "@/components/status";
-import {
-  WindowIssueEditor,
-  issueSummary,
-  windowHasIssue,
-  type WindowIssueFields,
-} from "@/components/window-issue";
+import { BlindIssues } from "@/components/window-issue";
 import { BackButton } from "@/components/back-button";
 import { useRemoteVersion } from "@/lib/sync-events";
 
@@ -200,18 +206,27 @@ export default function WindowEntryPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void listDeficiencies(projectId).then((rows) => {
+    void (async () => {
+      // A blind flagged the old single-issue way becomes a problem entry first.
+      await adoptLegacyIssues().catch(() => 0);
+      const rows = await listDeficiencies(projectId);
       if (!cancelled) setDeficiencies(rows.filter((d) => d.unit_id === unitId));
-    });
+    })();
     return () => {
       cancelled = true;
     };
   }, [projectId, unitId, remote]);
 
-  async function handleDeficiency(id: string, status: Deficiency["status"]) {
-    await setDeficiencyStatus(id, status);
+  async function reloadDeficiencies() {
     const rows = await listDeficiencies(projectId);
     setDeficiencies(rows.filter((d) => d.unit_id === unitId));
+  }
+
+  async function handleDeficiency(id: string, status: Deficiency["status"]) {
+    await setDeficiencyStatus(id, status);
+    await reloadDeficiencies();
+    setUnit((await getUnit(unitId)) ?? null);
+    triggerSyncIfAvailable();
   }
 
   const draftRef = useRef(draft);
@@ -326,7 +341,7 @@ export default function WindowEntryPage() {
         const id = d.id!;
         void (async () => {
           const row = await getWindow(id);
-          if (row && !windowHasIssue(row)) await deleteWindow(id);
+          if (row && !hasLegacyIssue(row)) await deleteWindow(id);
         })();
       }
     };
@@ -695,14 +710,53 @@ export default function WindowEntryPage() {
   /** Per-blind issue edit, straight onto the stored row (state first, so the
    * controlled note input never waits out the write — see the floor page's
    * handleDefaultsChange for the caret/autocorrect failure that causes). */
-  async function patchIssue(id: string, patch: Partial<WindowIssueFields>) {
-    const current = windows.find((w) => w.id === id);
-    if (!current) return;
-    setWindows((ws) => ws.map((w) => (w.id === id ? { ...current, ...patch } : w)));
-    // Merge onto the freshly-read row, not render state, so a full-row
-    // upsert can't resurrect stale fields (see patchDraft's update branch).
-    const row = await getWindow(id);
-    if (row) await upsertWindow({ ...row, ...patch });
+  // ---- Problems on a blind: one deficiency each (see components/window-issue)
+
+  async function handleAddIssue(windowId: string, issue: { note: string; fault: Deficiency["fault"]; recut: boolean }) {
+    if (!floor) return;
+    const created = await createIssue({
+      project_id: floor.project_id,
+      unit_id: unitId,
+      window_id: windowId,
+      note: issue.note.trim(),
+      fault: issue.fault,
+      recut: issue.recut,
+    });
+    setDeficiencies((ds) => [...ds, created]);
+    setIssueOpenId(null);
+    triggerSyncIfAvailable();
+  }
+
+  /** Typed per keystroke: state first, written without reading back. */
+  function handleEditIssue(d: Deficiency) {
+    setDeficiencies((ds) => ds.map((x) => (x.id === d.id ? d : x)));
+    void saveIssue(d);
+  }
+
+  async function handleResolveIssue(id: string, note: string) {
+    await resolveIssue(id, note);
+    await reloadDeficiencies();
+    setUnit((await getUnit(unitId)) ?? null);
+    triggerSyncIfAvailable();
+  }
+
+  async function handleReopenIssue(id: string) {
+    await reopenIssue(id);
+    await reloadDeficiencies();
+    triggerSyncIfAvailable();
+  }
+
+  async function handleRemoveIssue(id: string) {
+    if (!confirm("Remove this problem? Use this only if it was entered by mistake — a fixed problem should be marked fixed.")) return;
+    await removeIssue(id);
+    await reloadDeficiencies();
+    setUnit((await getUnit(unitId)) ?? null);
+    triggerSyncIfAvailable();
+  }
+
+  function handleIssueFixNote(id: string, note: string) {
+    setDeficiencies((ds) => ds.map((x) => (x.id === id ? { ...x, fix_note: note } : x)));
+    void setIssueFixNote(id, note);
   }
 
   /**
@@ -783,6 +837,12 @@ export default function WindowEntryPage() {
     return windowLabels.get(w.id) ?? w.tag_base;
   }
   const activeIsHeight = activeField === "height";
+
+  // Problems tied to a blind show under that blind; the rest (a PM's note on
+  // the unit as a whole, or a blind since deleted) show in one list up top.
+  const windowIds = new Set(windows.map((w) => w.id));
+  const unitLevelDeficiencies = deficiencies.filter((d) => !d.deleted && !(d.window_id && windowIds.has(d.window_id)));
+  const issuesFor = (windowId: string) => deficiencies.filter((d) => !d.deleted && d.window_id === windowId);
 
   // Bays measured as separate windows (LR1 Dl | LR2 | LR3 Dr), totalled the
   // same way a multi-panel window is. Uses the draft's live values so the
@@ -869,13 +929,13 @@ export default function WindowEntryPage() {
       {/* Confirms the block for someone who just tapped Blocked in install
           mode and was brought straight here, and names both ways to explain
           it: the unit note directly below, or a ⚠ on the specific blinds. */}
-      {deficiencies.length > 0 && (
+      {unitLevelDeficiencies.length > 0 && (
         <div className="rounded-xl border border-rose-300 p-3 dark:border-rose-800">
           <div className="mb-2 text-sm font-semibold text-rose-900 dark:text-rose-200">
-            PM deficiencies
+            Deficiencies on the unit
           </div>
           <DeficiencyList
-            items={deficiencies}
+            items={unitLevelDeficiencies}
             windowLabel={(id) => {
               const w = windows.find((x) => x.id === id);
               return w ? displayLabelFor(w) : "blind";
@@ -1562,11 +1622,13 @@ export default function WindowEntryPage() {
               <button
                 type="button"
                 onClick={() => setIssueOpenId((id) => (id === w.id ? null : w.id))}
-                aria-label={windowHasIssue(w) ? "Edit blind issue" : "Flag blind issue"}
+                aria-label="Add a problem on this blind"
                 className={`flex min-h-9 items-center rounded-lg px-3 text-xs font-medium ${
-                  windowHasIssue(w)
+                  issuesFor(w.id).some(deficiencyOpen)
                     ? "bg-amber-500 text-white"
-                    : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
+                    : issuesFor(w.id).length > 0
+                      ? "bg-emerald-600 text-white"
+                      : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
                 }`}
               >
                 <Icon name="alert" size={16} />
@@ -1587,25 +1649,17 @@ export default function WindowEntryPage() {
               </button>
             </div>
           </div>
-          {windowHasIssue(w) && issueOpenId !== w.id && (
-            <button
-              type="button"
-              onClick={() => setIssueOpenId(w.id)}
-              className="text-left text-xs font-medium text-amber-800 dark:text-amber-300"
-            >
-              <Icon name="alert" size={14} /> {issueSummary(w)}
-            </button>
-          )}
-          {issueOpenId === w.id && (
-            <WindowIssueEditor
-              value={w}
-              onChange={(patch) => void patchIssue(w.id, patch)}
-              onClear={() => {
-                setIssueOpenId(null);
-                void patchIssue(w.id, { issue_note: "", issue_fault: null, issue_recut: false });
-              }}
-            />
-          )}
+          <BlindIssues
+            issues={issuesFor(w.id)}
+            adding={issueOpenId === w.id}
+            onAdd={(issue) => void handleAddIssue(w.id, issue)}
+            onCancelAdd={() => setIssueOpenId(null)}
+            onEdit={handleEditIssue}
+            onResolve={(id, note) => void handleResolveIssue(id, note)}
+            onReopen={(id) => void handleReopenIssue(id)}
+            onRemove={(id) => void handleRemoveIssue(id)}
+            onFixNote={handleIssueFixNote}
+          />
           {windowWarnings.has(w.id) && (
             <div className="flex items-start gap-2">
               <div className="flex-1 text-xs font-medium text-amber-800 dark:text-amber-300">

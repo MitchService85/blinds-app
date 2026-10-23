@@ -302,6 +302,16 @@ export interface WindowRecord extends TenantRow {
   issue_fault?: IssueFault;
   /** This blind needs a recut/remake (factory pays when issue_fault is "factory"). */
   issue_recut?: boolean;
+  /**
+   * When the issue was fixed on site. The issue itself stays — note, fault,
+   * recut — so the record of what was wrong survives (Mitch, 2026-10-23: "the
+   * issue still shows, so we have it to track, but we can show that we have
+   * addressed the deficiency"). Set = no longer open: the unit is not held
+   * yellow for it and it leaves the open deficiency list. Null/absent = open.
+   */
+  issue_fixed_at?: string | null;
+  /** What was done, e.g. "Shimmed, New blind installed". */
+  issue_fix_note?: string;
   note: string;
   sort_order: number;
 }
@@ -501,8 +511,17 @@ export interface ProjectShare extends TenantRow {
 export type DeficiencyStatus = "open" | "resolved";
 
 /**
- * A complaint raised by a PM through their share link — the customer's
- * words, not our fault attribution (that is the per-blind issue fields).
+ * One problem with a unit or a blind, open until it is fixed. Raised by a PM
+ * through their share link, or by the crew (raised_by "Crew", no share).
+ *
+ * Each problem is its own row so each is completed on its own and the record
+ * of it stays (Mitch, 2026-10-23: "we complete 'needs 1/8 cut off', then add
+ * 'stain on blind, needs replacement' later — those should be two separate
+ * completable deficiencies"). This replaced the single issue_note/fault/recut
+ * set on the window, which could only ever hold one problem at a time.
+ *
+ * fault, recut and fix_note are ours — the PM view returns only the
+ * deficiencies raised through that PM's own link, and never these fields.
  */
 export interface Deficiency extends TenantRow {
   project_id: string;
@@ -514,7 +533,14 @@ export interface Deficiency extends TenantRow {
   raised_by: string;
   raised_at: string;
   status: DeficiencyStatus;
+  /** When it was fixed. */
   resolved_at: string | null;
+  /** Whose error — decides who pays a recut. Crew-raised only. */
+  fault?: IssueFault;
+  /** Needs a recut / remake. */
+  recut?: boolean;
+  /** What was done, e.g. "Shimmed, New blind installed". */
+  fix_note?: string;
 }
 
 /**
@@ -589,6 +615,8 @@ export interface FixItem extends TenantRow {
   floor_id: string;
   unit_id: string;
   window_id: string;
+  /** The deficiency this entry fixes. Null on entries from before 2026-10-23. */
+  deficiency_id?: string | null;
   unit_number: string;
   /** "LR1", as exported. */
   blind_label: string;

@@ -16,6 +16,7 @@ import { WelcomeSheet } from "@/components/welcome-sheet";
 import { WELCOME_DISMISSED_KEY } from "@/lib/guide";
 import { SyncStatus } from "@/components/sync-status";
 import { installOf, isBlocked, unitsWithOutstanding } from "@/components/status";
+import { isCrewIssue } from "@/lib/issues";
 import { useRemoteVersion } from "@/lib/sync-events";
 import { readPref, writePref } from "@/lib/local-pref";
 
@@ -188,7 +189,8 @@ export default function Home() {
           project,
           floors: floorProgress,
           money: moneyFor(invoicesByProject.get(project.id) ?? []),
-          deficiencies: openDeficiencies.filter((d) => d.project_id === project.id).length,
+          // The PM's complaints; the crew's own problems show on the units.
+          deficiencies: openDeficiencies.filter((d) => d.project_id === project.id && !isCrewIssue(d)).length,
         };
       });
 

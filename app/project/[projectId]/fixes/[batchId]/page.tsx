@@ -14,10 +14,10 @@ import {
   listFloors,
   listInvoices,
   listProjectFixItems,
-  listUnits,
-  listWindows,
+  loadFixGather,
   saveFixItem,
   setFixStatus,
+  setIssueFixNote,
   updateFixBatch,
 } from "@/lib/db";
 import {
@@ -25,6 +25,7 @@ import {
   fixCounts,
   fixInvoiceLines,
   gatherFixItems,
+  inBatchIds,
   hasQuickNote,
   isInvoiced,
   readyToBill,
@@ -100,14 +101,8 @@ export default function FixBatchPage() {
       ]);
       // Blinds flagged on the batch's floors since it was made, so a flag
       // added mid-run can join without starting a new batch.
-      const inBatch = new Set(projectItems.filter((i) => i.status !== "fixed").map((i) => i.window_id));
-      const gather = [];
-      for (const floorId of b.floor_ids) {
-        const units = [];
-        for (const unit of await listUnits(floorId)) units.push({ unit, windows: await listWindows(unit.id) });
-        gather.push({ id: floorId, units });
-      }
-      const fresh = gatherFixItems(gather, inBatch, its.length);
+      const gather = (await loadFixGather(projectId, b.floor_ids)).map((f) => f.gather);
+      const fresh = gatherFixItems(gather, inBatchIds(projectItems), its.length);
       if (cancelled) return;
       latest.current = new Map(its.map((i) => [i.id, i]));
       setBatch(b);
@@ -173,6 +168,10 @@ export default function FixBatchPage() {
     const next = { ...current, ...patch };
     replace(next);
     void saveFixItem(next).then(() => triggerSyncIfAvailable());
+    // A fixed blind carries what was done on its own ⚠ record too.
+    if (patch.fix_note !== undefined && next.status === "fixed" && next.deficiency_id) {
+      void setIssueFixNote(next.deficiency_id, next.fix_note);
+    }
   }
 
   async function changeStatus(id: string, status: FixItem["status"]) {
