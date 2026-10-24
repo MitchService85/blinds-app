@@ -114,11 +114,11 @@ export default function HelpPage() {
         <Topic id="tags" title="Room tags (LR, BR, MBR, STU…)">
           <p>LR living room, BR bedroom, MBR master, K kitchen, <b>STU</b> studio or bachelor (one room that&apos;s also the bedroom).</p>
           <p>Two windows in the same room number themselves: LR1, LR2. Delete one and the rest renumber.</p>
-          <p>The room carries over from the window before — handy along one wall, risky when you walk into the next room. A carried-over room shows in <b>amber</b> until you tap a room to confirm it.</p>
+          <p>The room carries over from the window before — handy along one wall, risky when you walk into the next room. A carried-over room shows in <b>yellow</b> until you tap a room to confirm it.</p>
           <p>Need another room type? Add it on the job&apos;s page under <b>Room tags</b>.</p>
         </Topic>
         <Topic id="bays" title="Bay windows and deducts">
-          <p>One frame holding two or three blinds is <b>one window</b>: enter the first width, tap <b>+ panel</b>, enter the next. Each panel is one blind.</p>
+          <p>One frame holding two or three blinds is <b>one window</b>: enter the first width, tap <b className="whitespace-nowrap">+ panel</b>, enter the next. Each panel is one blind.</p>
           <p>Under the panels you&apos;ll see the <b>Total width</b> — every panel added up. Tape the whole wall and check it matches: side panels that are each a little short look fine one at a time and only show up in the total. A bay entered as separate windows (LR1 with deduct left, LR2, LR3 with deduct right) gets the same total, under its last window.</p>
           <p>A deduct of <b>Both</b> trims only the outer edges — the left of the left blind (Dl) and the right of the right blind (Dr). Middle blinds are never trimmed.</p>
           <p>On a bay, each panel&apos;s drive side can differ: under <b>Control per panel</b>, tap a panel to switch it between the floor&apos;s default, L and R.</p>
@@ -147,13 +147,15 @@ export default function HelpPage() {
           <p>Any one window can override these — see &ldquo;One window that&apos;s different&rdquo;.</p>
         </Topic>
         <Topic id="grid" title="Tile colours and the ⋯ menu">
-          <p><b>Green</b> done, <b>amber</b> started, <b>plain</b> not started, <b>struck through</b> skipped (N/A). The line under the number lists the rooms measured there.</p>
-          <p>Tap a tile to measure it. Tap its <b>⋯</b> (or press and hold) to mark it done or N/A, add a note, or delete it.</p>
+          <p><b>Green</b> done, <b>yellow</b> in progress, <b>plain</b> not started, <b>struck through</b> skipped (N/A). The line under the number lists the rooms measured there.</p>
+          <p>An <b>orange dot</b> in a tile&apos;s corner is a measurement to double-check — see the next topic. A <b>blue dot</b> means the unit has a note.</p>
+          <p>Tap a tile to measure it. Tap its <b>⋯</b> (or press and hold) to <b>Mark done</b> or <b>Mark N/A</b>, add a note, or delete it.</p>
+          <p>Install mode colours the same grid its own way — see &ldquo;Install mode&rdquo;.</p>
         </Topic>
-        <Topic id="warnings" title="Orange warnings and “Looks right”">
-          <p>An orange <b>⚠</b> means something looks unusual: a size way off, bay sides that don&apos;t match, or every blind in a unit tagged the same room.</p>
-          <p>Tap the ⚠ on a tile to see why. Open the unit and the warning sits on the blind it&apos;s about.</p>
-          <p>It never blocks you. If it&apos;s actually right, tap <b>Looks right</b> — that clears it on every phone. You can turn it back on from the same spot.</p>
+        <Topic id="warnings" title="Measurement checks and “Looks right”">
+          <p>An <b>orange dot</b> on a tile means a measurement looks unusual: a size way off, bay sides that don&apos;t match, or every blind in a unit tagged the same room.</p>
+          <p>Tap the dot to see why — each line starts <b>Check:</b>. Open the unit and the check sits in grey, with a ruler, on the blind it&apos;s about.</p>
+          <p>It&apos;s a question, not a deficiency, and it never blocks you. If the size is wrong, tap <b>Edit</b> on that blind. If it&apos;s really like that, tap <b>Looks right</b> — that clears it on every phone. <b>Turn checks back on</b> in the same spot brings it back.</p>
         </Topic>
         <Topic id="duplicates" title="Two phones made the same unit">
           <p>If two people add the same unit while apart, the floor shows a warning after syncing with a one-tap <b>Merge</b>. Nothing is lost: windows and photos from both end up on one unit, and repeated room tags renumber themselves.</p>
@@ -162,42 +164,55 @@ export default function HelpPage() {
 
       <Group title="Sending and installing">
         <Topic id="export" title="Exporting to the factory">
-          <p>On a floor, tap <b>Export</b>. The blue <b>Export measure sheet</b> is the file the factory builds from. The <b>deficiency list</b> below it is only the blinds flagged with a problem, for the PM — not for the factory.</p>
+          <p>On a floor, tap <b>Export</b>. The blue <b>Export measure sheet</b> is the file the factory builds from. The <b>deficiency list</b> below it is only the blinds with a deficiency, for the PM — not for the factory.</p>
           <p>If anything changed since the last export, you&apos;ll see what before it builds. Tap &ldquo;Exported …&rdquo; to see past exports and download any of them again.</p>
           <p>It works with no signal — the file is made on the phone. Send it with your phone&apos;s share sheet.</p>
         </Topic>
         <Topic id="install" title="Install mode">
-          <p>Flip a floor from <b>Measure</b> to <b>Install</b>, then tap a unit to mark it.</p>
+          <p>Flip a floor from <b>Measure</b> to <b>Install</b>. The top says what&apos;s left — &ldquo;9 of 12 still to do&rdquo; — then tap a unit. The top row of its sheet says how far it got:</p>
           <ul className="flex list-disc flex-col gap-1 pl-5">
+            <li><b>Not started</b> — nothing there yet.</li>
             <li><b>Staged</b> — blinds and hardware dropped off, ready to go.</li>
-            <li><b>Installed</b> — done.</li>
-            <li><b>Locked out</b> — couldn&apos;t get in. A PM with a share link sees it and arranges access.</li>
-            <li><b>Blocked</b> — something is stopping the install. It opens the unit so you can say what.</li>
+            <li><b>Installed</b> — up and finished.</li>
           </ul>
-          <p>A single blind wrong? Open the unit and tap <b>⚠</b> on that window: say what&apos;s wrong, whose error it was (Factory or Measure), and whether it needs a recut.</p>
-          <p>Each problem is its own entry. When it&apos;s fixed, tap it and <b>✓ Mark fixed</b> with what was done — it stays listed in green as the record. Something new wrong with the same blind later? Tap <b>⚠</b> again and add it; it&apos;s fixed on its own. A unit stays yellow while any problem is open.</p>
+          <p>Under it, what&apos;s stopping it:</p>
+          <ul className="flex list-disc flex-col gap-1 pl-5">
+            <li><b className="whitespace-nowrap">⚠ Blocked</b> — something stops the install. It asks why right there on the floor (&ldquo;painters still in BR&rdquo;). Tap <b>Unblock</b> when it clears.</li>
+            <li><b className="whitespace-nowrap">🔒 Locked out</b> — couldn&apos;t get in. A PM with a share link sees it and arranges access.</li>
+          </ul>
+          <p>Tiles: <b>green</b> installed, <b>green outline</b> staged, <b>plain</b> not started, <b>strong yellow</b> blocked, <b>purple</b> locked out. A yellow tile says why: <b className="whitespace-nowrap">⚠ 2 to fix</b> (deficiencies for you), <b className="whitespace-nowrap">⚠ PM</b> (the PM&apos;s report), <b className="whitespace-nowrap">⚠ on hold</b> (blocked by hand). A plain tile reading <b className="whitespace-nowrap">⚠ 1 to check</b> isn&apos;t up yet but has a deficiency recorded — often the note for a blind still to go up.</p>
+          <p>Once a unit is staged or installed, any open deficiency — yours or the PM&apos;s — shows it <b>blocked</b> until the last one is fixed. There&apos;s nothing to undo: fix the last one and it turns green.</p>
+          <p>The unit&apos;s sheet lists what&apos;s open; <b>Open unit to fix</b> takes you there. Below the grid, <b>Still to fix on this floor</b> lists every one — tap a row to go straight to that blind.</p>
         </Topic>
-        <Topic id="fixes" title="Going back to fix deficiencies">
-          <p>On the job&apos;s page, under <b>Deficiency fixes</b>, tap <b>Start a fix batch</b> and tick the floor you&apos;re fixing. Every open problem on a blind goes in the list.</p>
-          <p>Work down the list and tap <b>✓ Fixed</b> on each blind. With no note written it fills in the likely one (<b>New blind installed</b> for a deduct, <b>Shimmed</b> for a shim); tap the note buttons or type to change it. Each problem is its own line, so a blind with two is two. Fixing one marks it fixed on the blind (it stays as the record); <b>Undo</b> opens it again. <b>Can&apos;t fix</b> keeps the ⚠ for the ones that need the factory.</p>
-          <p>An installed unit with a ⚠ blind or an open PM deficiency shows <b>yellow</b> — it isn&apos;t finished until the last one is fixed.</p>
-          <p>Each blind bills as one fix per panel worked on — a bay fixed on both sides is 2. Set the <b>charge per fix</b> once, then <b>Make invoice</b> bills everything fixed that hasn&apos;t been billed yet. Untick <b>Charge for it</b> on our own measure errors.</p>
+        <Topic id="deficiencies" title="Recording and fixing deficiencies">
+          <p>Something wrong with a blind? Open the unit and tap <b className="whitespace-nowrap">+ Deficiency</b> under that blind. Say what&apos;s wrong, whose error it was — <b>Factory error</b>, <b>Measure error</b> or <b>Not sure</b> — and tick <b>Needs recut</b> if it does. Then <b>Add deficiency</b>.</p>
+          <p>Each deficiency is its own entry, in yellow under its blind. The line above the windows says where the unit stands: &ldquo;2 deficiencies to fix · 1 fixed&rdquo; — tap it to jump to the first.</p>
+          <p>To fix one, tap <b className="whitespace-nowrap">Fix ›</b>. Pick what was done (the likely one is picked for you — <b>New blind installed</b> for a deduct, <b>Shimmed</b> for a shim) or type it, then <b className="whitespace-nowrap">✓ Mark fixed</b>. It stays listed in green as the record — &ldquo;✓ Fixed Oct 23 — Shimmed&rdquo;. <b className="whitespace-nowrap">Edit ›</b> on it changes what was done; <b>Not fixed after all</b> opens it again.</p>
+          <p>Something new wrong with the same blind later? Tap <b className="whitespace-nowrap">+ Deficiency</b> again: it&apos;s a separate entry, fixed on its own. Entered one by mistake? <b className="whitespace-nowrap">Fix ›</b>, then <b>Change</b>, then <b>Remove (entered by mistake)</b>.</p>
+          <p>A PM&apos;s deficiency carries a <b>PM · Anthony</b> chip and is fixed the same way — they see it as <b className="whitespace-nowrap">✓ Fixed</b>. One about the whole unit rather than a blind sits under <b>Deficiencies on the whole unit</b>.</p>
+        </Topic>
+        <Topic id="fixes" title="Deficiency batches: going back to fix">
+          <p>Going back to fix a floor&apos;s worth? On the job&apos;s page, under <b>Deficiency batches</b>, tap <b className="whitespace-nowrap">+ Start a deficiency batch</b> and tick the floors you&apos;re fixing. Every open deficiency on them goes in the list, one line each — a blind with two is two.</p>
+          <p>Work down it: pick or type what was done and tap <b className="whitespace-nowrap">✓ Fixed</b>. The card folds up, with <b>Change</b> and <b>Undo</b> if you need them, and the deficiency is marked fixed on the blind too. <b>Can&apos;t fix</b> keeps it open, with a reason — waiting on the factory, say.</p>
+          <p><b className="whitespace-nowrap">Bill N fixes ↓</b> at the bottom takes you to <b>Bill these fixes</b>. Each blind bills as one fix per panel worked on — a bay fixed on both sides is 2. Set the <b>charge per fix</b> once; it bills everything fixed and not billed yet. Our own measure errors show <b>Our error — not charged</b>.</p>
         </Topic>
         <Topic id="pm" title="Sharing with a project manager">
-          <p>On a job&apos;s page, under <b>Business</b>, <b>Give a PM access</b> makes a link. They see which units are installed, locked out or need a revisit, and can flag a deficiency. They never see sizes, notes, reasons or prices.</p>
+          <p>On a job&apos;s page, open <b>Business</b>, then under <b>Project manager access</b> tap <b className="whitespace-nowrap">+ Give a PM access</b>. Fill in <b>Name the PM sees</b> — it heads their page and goes on every deficiency they send, so you see it as <b>PM · Anthony</b>. <b>Create link</b>, then <b>Share link</b>. <b>Revoke</b> cuts it off.</p>
+          <p>Their page shows how many units are complete, and a tile per unit: <b>complete</b>, <b>not yet</b>, <b>no access</b> (locked out — theirs to arrange), <b>your report</b> (a deficiency they sent, now with you) or <b>return visit</b> (you&apos;re coming back, for a reason they don&apos;t see). <b>Needs your attention</b> at the top lists what&apos;s theirs.</p>
+          <p>They can report a deficiency on a unit or a blind. When you mark it fixed, their page shows <b className="whitespace-nowrap">✓ Fixed</b>. They never see sizes, notes, reasons or prices.</p>
         </Topic>
       </Group>
 
       <Group title="Your account and the app">
         <Topic id="sync" title="Signing in and syncing">
           <p>Sign in once — it emails you a code — and your work shares with the rest of the crew.</p>
-          <p>No signal is fine. The status at the top of the home screen shows <b>offline</b>, a number of changes <b>pending</b>, or <b>✓ synced</b>. It catches up by itself; tap it for <b>Sync now</b>.</p>
+          <p>No signal is fine. The status at the top of the home screen shows <b>offline</b>, a number of changes <b>pending</b>, or <b className="whitespace-nowrap">✓ synced</b>. It catches up by itself; tap it for <b>Sync now</b>.</p>
         </Topic>
         <Topic id="money" title="Contract, invoices and site trips">
           <p>On a job&apos;s page, under <b>Business</b>: record the contract, log each site trip, and make an invoice from the blinds actually measured and installed. Your standard rates live in <b>Settings</b>.</p>
         </Topic>
         <Topic id="version" title="Which version am I on?">
-          <p>At the bottom of <b>Settings</b>: &ldquo;Version v1.4 · Up to date&rdquo;. If it says a newer version is available, tap <b>Reload</b>. Mention the version when you report a problem.</p>
+          <p>At the bottom of <b>Settings</b>: &ldquo;Version v2.8 · Up to date&rdquo;. If it says a newer version is available, tap <b>Reload</b>. Mention the version when you report a problem.</p>
         </Topic>
         <Topic id="demo" title="The sample job">
           <p><b>Sample Building (demo)</b> is made up, for trying things. It only shows while you&apos;re signed out and never syncs anywhere.</p>
