@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createProjectShare, listProjectShares, revokeProjectShare } from "@/lib/db";
+import { createProjectShare, getProject, listProjectShares, revokeProjectShare } from "@/lib/db";
 import { pmShareUrl } from "@/lib/pm";
 import { productionOrigin } from "@/lib/origin";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
@@ -13,21 +13,31 @@ import type { ProjectShare } from "@/lib/types";
  * the whole authorisation, so it is shown in full and re-copyable, and
  * revoking is one tap.
  */
-export function PmAccessCard({ projectId }: { projectId: string }) {
+export function PmAccessCard({ projectId, projectName }: { projectId: string; projectName?: string }) {
   const [shares, setShares] = useState<ProjectShare[]>([]);
   const [label, setLabel] = useState("");
   const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  // The share sheet's title is what the PM sees above the link in a text
+  // message — "Install progress" alone does not say which building. Read the
+  // name from the local database when the job page does not pass it.
+  const [storedName, setStoredName] = useState<string | undefined>(undefined);
+  const name = projectName ?? storedName;
 
   useEffect(() => {
     let cancelled = false;
     void listProjectShares(projectId).then((rows) => {
       if (!cancelled) setShares(rows);
     });
+    if (projectName === undefined) {
+      void getProject(projectId).then((p) => {
+        if (!cancelled) setStoredName(p?.name || undefined);
+      });
+    }
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, projectName]);
 
   async function refresh() {
     setShares(await listProjectShares(projectId));
@@ -57,7 +67,7 @@ export function PmAccessCard({ projectId }: { projectId: string }) {
     const nav = navigator as Navigator & { share?: (d: { url: string; title?: string }) => Promise<void> };
     if (nav.share) {
       try {
-        await nav.share({ url, title: "Install progress" });
+        await nav.share({ url, title: name ? `${name} — install progress` : "Install progress" });
         return;
       } catch {
         // cancelled — fall through to copy
@@ -98,14 +108,14 @@ export function PmAccessCard({ projectId }: { projectId: string }) {
             <button
               type="button"
               onClick={() => void handleShare(s)}
-              className="min-h-9 shrink-0 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white"
+              className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white"
             >
               {copied === s.id ? "Copied" : "Share link"}
             </button>
             <button
               type="button"
               onClick={() => void handleRevoke(s.id)}
-              className="min-h-9 shrink-0 rounded-lg bg-neutral-100 px-2.5 text-xs font-medium dark:bg-neutral-800"
+              className="min-h-11 shrink-0 rounded-lg bg-neutral-100 px-3 text-sm font-medium dark:bg-neutral-800"
             >
               Revoke
             </button>
@@ -119,18 +129,28 @@ export function PmAccessCard({ projectId }: { projectId: string }) {
 
         {adding ? (
           <div className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
-            <label className="mb-1 block text-sm text-neutral-500">Who is this link for?</label>
+            <label htmlFor={`pm-label-${projectId}`} className="mb-1 block text-sm text-neutral-500">
+              Name the PM sees
+            </label>
             <input
+              id={`pm-label-${projectId}`}
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") void handleCreate();
               }}
               enterKeyHint="done"
-              placeholder="e.g. Site PM, Property manager"
+              placeholder="e.g. Anthony, Pentacon site PM"
               autoFocus
               className="min-h-11 w-full rounded-lg border border-neutral-300 px-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
+            {/* The label is not private: it heads the PM's page and is
+                raised_by on every deficiency they send. Say so, and say what
+                else they will see, before the link goes out. */}
+            <div className="mt-1 text-xs text-neutral-500">
+              Shown on their page and on each deficiency they send. They also see the job name, address and
+              floor names.
+            </div>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
@@ -159,7 +179,7 @@ export function PmAccessCard({ projectId }: { projectId: string }) {
           </button>
         )}
         <div className="text-xs text-neutral-500">
-          They see which units are installed, locked out, or need a revisit, and can flag a
+          They see which units are installed, locked out, or need a revisit, and can report a
           deficiency on a unit or a blind. No sizes, notes, reasons or pricing.
         </div>
       </div>
