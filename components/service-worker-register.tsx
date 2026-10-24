@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useServiceWorkerUpdate } from "@/lib/sw";
 
 /**
@@ -10,8 +11,11 @@ import { useServiceWorkerUpdate } from "@/lib/sw";
  */
 export function ServiceWorkerRegister() {
   const { updateAvailable, reload } = useServiceWorkerUpdate();
+  const pathname = usePathname();
 
-  if (!updateAvailable) return null;
+  // A building's PM opening a share link has no idea what "a new version"
+  // of the crew's app means, and the page refetches on its own anyway.
+  if (!updateAvailable || pathname?.startsWith("/pm/")) return null;
 
   // The app paints edge-to-edge (viewportFit: cover, so the top bars can pad
   // for the notch), which means a fixed top element with no inset sits UNDER
