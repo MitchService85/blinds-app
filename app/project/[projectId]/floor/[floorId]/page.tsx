@@ -21,7 +21,13 @@ import type { Floor, FloorDefaults, InstallStatus, Project, Unit, UnitStatus, Wi
 import { UnitTile } from "@/components/unit-tile";
 import { InstallTile } from "@/components/install-tile";
 import { InstallActionSheet, type InstallAction } from "@/components/install-action-sheet";
-import { installOf, isBlocked, lockedOf, unitsWithOutstanding } from "@/components/status";
+import {
+  blockedOf,
+  deriveInstallState,
+  lockedOf,
+  outstandingByUnit,
+  type InstallTileState,
+} from "@/components/status";
 import { FloorDefaultsForm } from "@/components/floor-defaults-form";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { windowBlindCount, windowTagLabel } from "@/lib/export/shared";
@@ -30,8 +36,8 @@ import { findDuplicateUnitNumbers, mergeUnits } from "@/lib/merge-units";
 import { BottomBar } from "@/components/bottom-bar";
 import { deficiencySummary } from "@/components/window-issue";
 import { deficiencyOpen, isCrewIssue } from "@/lib/issues";
-import { DeficiencyList } from "@/components/deficiency-list";
-import { adoptLegacyIssues, listDeficiencies, setDeficiencyStatus } from "@/lib/db";
+import { PmChip } from "@/components/deficiency-list";
+import { adoptLegacyIssues, listDeficiencies } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
 import { unitRooms } from "@/lib/tags";
@@ -102,21 +108,21 @@ export default function FloorPage() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      // A blind flagged the old single-issue way becomes a problem entry first.
-      await adoptLegacyIssues().catch(() => 0);
+      // A blind flagged the old single-issue way becomes a deficiency first.
+      const moved = await adoptLegacyIssues().catch(() => 0);
       const rows = await listDeficiencies(projectId);
-      if (!cancelled) setDeficiencies(rows);
+      // Moving one clears the window's old fields, so reload the windows too:
+      // with the stale copy the tile would count that deficiency twice, once
+      // as the old field and once as the new row ("2 to fix" for one).
+      const data = moved > 0 ? await loadFloorPageData(projectId, floorId) : null;
+      if (cancelled) return;
+      setDeficiencies(rows);
+      if (data?.floor) setWindowsByUnit(data.windowsByUnit);
     })();
     return () => {
       cancelled = true;
     };
-  }, [projectId, remote]);
-
-  async function handleDeficiency(id: string, status: Deficiency["status"]) {
-    await setDeficiencyStatus(id, status);
-    setDeficiencies(await listDeficiencies(projectId));
-    triggerSyncIfAvailable();
-  }
+  }, [projectId, floorId, remote]);
 
   useEffect(() => {
     const stored = readPref(`${FLOOR_MODE_KEY_PREFIX}${floorId}`);
@@ -168,59 +174,70 @@ export default function FloorPage() {
     await refresh();
   }
 
-  // Units with a ⚠ blind or an open PM deficiency: yellow once installed.
+  // Open deficiencies per unit (crew and PM, on a blind or the whole unit):
+  // yellow once installed, and the count the tile shows.
   const outstanding = useMemo(
-    () => unitsWithOutstanding([...windowsByUnit.values()].flat(), deficiencies),
+    () => outstandingByUnit([...windowsByUnit.values()].flat(), deficiencies),
     [windowsByUnit, deficiencies]
   );
 
+  /**
+   * The install line, counted the way the tiles are coloured so the numbers
+   * add up to the units on the grid. Leads with what is left: an installed
+   * unit still holding a deficiency is not done, so it counts as still to do
+   * (Mitch, 2026-10-16 — see isBlocked).
+   */
   const installSummary = useMemo(() => {
-    let staged = 0;
-    let done = 0;
-    let blocked = 0;
-    let locked = 0;
-    let toGo = 0;
-    const blockedUnits: Unit[] = [];
-    for (const u of units) {
-      if (u.status === "na") continue;
-      const blockedNow = isBlocked(u, outstanding.has(u.id));
-      const install = installOf(u);
-      if (lockedOf(u)) locked++;
-      if (blockedNow) {
-        blocked++;
-        blockedUnits.push(u);
-      } else if (install === "staged") {
-        staged++;
-      } else if (install === "done") {
-        done++;
-      }
-      if (!blockedNow && install !== "done") toGo++;
-    }
-    return { staged, done, blocked, locked, toGo, blockedUnits };
+    const counts: Record<InstallTileState, number> = {
+      na: 0, locked: 0, blocked: 0, done: 0, staged: 0, not_started: 0,
+    };
+    for (const u of units) counts[deriveInstallState(u, (outstanding.get(u.id)?.open ?? 0) > 0)]++;
+    const total = units.length - counts.na;
+    return { counts, total, toDo: total - counts.done };
   }, [units, outstanding]);
 
-  /** Every open problem on a blind on this floor, as the crew recorded it —
-   * the install-mode issues panel, and the running count of recuts the
-   * factory owes (their error, they pay). PM complaints have their own list. */
-  const windowIssues = useMemo(() => {
-    const out: Array<{ unit: Unit; window: WindowRecord; issue: Deficiency }> = [];
+  /**
+   * Everything still to fix on the floor, in one list below the grid, grouped
+   * by unit in grid order: every open deficiency (the crew's and the PM's, on a
+   * blind or the whole unit) and every unit put on hold by hand. It replaces
+   * three boxes — blocked notes, "Blind issues" and a rose PM list — that said
+   * overlapping things in three colours above the grid (v2.8 review). Fixing
+   * happens on the unit screen; each row goes straight to its blind there.
+   */
+  const stillToFix = useMemo(() => {
+    type Row = { key: string; unit: Unit; label: string; text: string; pm: string | null; href: string };
+    const rows: Row[] = [];
+    const base = `/project/${projectId}/floor/${floorId}/unit/`;
     for (const u of units) {
-      if (u.status === "na") continue;
-      for (const w of windowsByUnit.get(u.id) ?? []) {
-        for (const d of deficiencies) {
-          if (d.window_id === w.id && deficiencyOpen(d) && isCrewIssue(d)) out.push({ unit: u, window: w, issue: d });
-        }
+      const ws = new Map((windowsByUnit.get(u.id) ?? []).map((w) => [w.id, w]));
+      if (blockedOf(u))
+        rows.push({
+          key: `hold-${u.id}`, unit: u, label: "On hold",
+          text: u.note.trim() || "no reason noted yet", pm: null, href: base + u.id,
+        });
+      for (const d of deficiencies) {
+        if (d.unit_id !== u.id || !deficiencyOpen(d)) continue;
+        const w = d.window_id ? ws.get(d.window_id) : undefined;
+        rows.push({
+          key: d.id, unit: u,
+          label: !d.window_id ? "Whole unit" : w ? windowTagLabel(w) : "Removed blind",
+          text: deficiencySummary(d),
+          pm: isCrewIssue(d) ? null : d.raised_by,
+          href: base + u.id + (w ? `#w-${w.id}` : ""),
+        });
       }
     }
-    return out;
-  }, [units, windowsByUnit, deficiencies]);
-  const factoryRecuts = useMemo(
-    () =>
-      windowIssues.filter(
-        ({ issue }) => issue.recut === true && issue.fault === "factory"
-      ).length,
-    [windowIssues]
-  );
+    return rows;
+  }, [units, windowsByUnit, deficiencies, projectId, floorId]);
+  const [showAllToFix, setShowAllToFix] = useState(false);
+
+  /** The running count of recuts the factory owes (their error, they pay). */
+  const factoryRecuts = useMemo(() => {
+    const unitIds = new Set(units.map((u) => u.id));
+    return deficiencies.filter(
+      (d) => unitIds.has(d.unit_id) && deficiencyOpen(d) && d.recut === true && d.fault === "factory"
+    ).length;
+  }, [units, deficiencies]);
 
   async function refresh() {
     const data = await loadFloorPageData(projectId, floorId);
@@ -357,24 +374,42 @@ export default function FloorPage() {
   }
 
   /**
-   * Staged/Complete/Clear are simple writes that close the sheet. Blocked
-   * always sets install_blocked, but doesn't touch install itself (blocked
-   * is an independent overlay — see Unit.install_blocked), and then opens
-   * the unit: a block is usually about specific blinds rather than the
-   * whole unit (field note — per-blind issues turned out more common than
-   * unit notes), and the unit screen is where both live, the note at the
-   * top and a ⚠ on every window.
+   * Progress (Not started / Staged / Installed) and the two overlays
+   * (Blocked, Locked out) are separate controls on the sheet, so each write
+   * touches only what the crew tapped — except where one fact implies
+   * another, noted below. Blocked does not write here: it asks why first
+   * (handleSaveBlock), on the floor, instead of sending the crew into the
+   * unit screen as it used to (v2.8 review: "I tapped Blocked and lost my
+   * place on the floor").
    */
   async function handleInstallAction(unitId: string, action: InstallAction) {
     const unit = units.find((u) => u.id === unitId);
     if (!unit) return;
 
+    if (action === "block") {
+      setInstallSheetUnitId(null);
+      setBlockReason(unit.note);
+      setBlockUnitId(unitId);
+      return;
+    }
+
     let patch: { install?: InstallStatus; install_blocked?: boolean; locked?: boolean; status?: Unit["status"] };
     switch (action) {
-      case "staged":
-        patch = { install: "staged", install_blocked: false, locked: false };
+      case "not_started":
+        // Undoing a tap, mostly. Blocked and Locked out have toggles of their
+        // own now, so this leaves them as they are.
+        patch = { install: null };
         break;
-      case "complete":
+      case "staged":
+        // Blinds dropped in the unit means we got in; a block stays — staged
+        // and waiting on the painters is the usual blocked unit.
+        patch = { install: "staged", locked: false };
+        break;
+      case "installed":
+        // Up on the wall: whatever blocked it by hand is over. A deficiency
+        // still open keeps it yellow regardless (isBlocked), which the toast
+        // below says out loud.
+        //
         // An installed unit is a measured unit. The measure tick is a
         // separate manual step, and on floors where the crew went straight
         // to installing it never got pressed: Level 3 at Arbour House read
@@ -387,11 +422,10 @@ export default function FloorPage() {
           ...(unit.status === "active" ? { status: "done" as const } : {}),
         };
         break;
-      case "clear":
-        patch = { install: null, install_blocked: false, locked: false };
-        break;
-      case "blocked":
-        patch = { install_blocked: true };
+      case "unblock":
+        // The note stays: it is the unit's note as well as the reason, and
+        // "come back after painters" is still worth reading afterwards.
+        patch = { install_blocked: false };
         break;
       case "locked":
         // Toggle: tapping it again on a locked unit means we got in.
@@ -402,15 +436,55 @@ export default function FloorPage() {
 
     setInstallSheetUnitId(null);
     await refresh();
+    triggerSyncIfAvailable();
 
-    if (action === "blocked") {
-      // The unit screen confirms the block (banner at the top) and carries
-      // both ways to explain it. Navigating after the refresh keeps the
-      // floor correct for the back tap; install mode is remembered per
-      // floor, so back lands on the install grid, not measure.
-      router.push(`/project/${projectId}/floor/${floorId}/unit/${unitId}`);
+    // Installed, yet the tile stays yellow: say why on the spot, or it looks
+    // like the tap did not take (v2.8 review, 109).
+    const open = outstanding.get(unitId)?.open ?? 0;
+    if (action === "installed" && open > 0) {
+      showToast(
+        `${unit.number} installed — stays blocked: ${open === 1 ? "1 deficiency" : `${open} deficiencies`} still open.`
+      );
     }
   }
+
+  // Why a unit is blocked, asked on the floor. In the page flow rather than in
+  // the sheet for the same reason as the note panel: a text field inside a
+  // fixed overlay makes WebKit scroll the page away on every keystroke
+  // (components/keyboard.tsx).
+  const [blockUnitId, setBlockUnitId] = useState<string | null>(null);
+  const [blockReason, setBlockReason] = useState("");
+  const blockPanelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!blockUnitId) return;
+    const el = blockPanelRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.querySelector("input")?.focus();
+  }, [blockUnitId]);
+
+  async function handleSaveBlock() {
+    if (!blockUnitId) return;
+    const id = blockUnitId;
+    setBlockUnitId(null);
+    // The reason IS the unit note: one place to read it, on the floor, the
+    // sheet and the unit screen alike.
+    await updateUnit(id, { install_blocked: true, note: blockReason.trim() });
+    await refresh();
+    triggerSyncIfAvailable();
+  }
+
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function showToast(text: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(text);
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
+  }
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
 
   const notePanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -513,16 +587,20 @@ export default function FloorPage() {
         </div>
       </header>
 
-      <button
-        type="button"
-        onClick={() => setEditingDefaults((v) => !v)}
-        className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 p-3 text-left text-xs dark:border-neutral-800"
-      >
-        <DefaultsSummary defaults={floor.defaults} />
-        <JobInfoChips orderNumber={floor.order_number ?? ""} blinds={blindCount} />
-        <span className="ml-auto shrink-0 text-blue-600">Edit</span>
-      </button>
-      {editingDefaults && (
+      {/* Measuring settings: nothing an installer changes, and on a phone
+          they pushed the install grid half a screen down (v2.8 review). */}
+      {mode === "measure" && (
+        <button
+          type="button"
+          onClick={() => setEditingDefaults((v) => !v)}
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 p-3 text-left text-xs dark:border-neutral-800"
+        >
+          <DefaultsSummary defaults={floor.defaults} />
+          <JobInfoChips orderNumber={floor.order_number ?? ""} blinds={blindCount} />
+          <span className="ml-auto shrink-0 text-blue-600">Edit</span>
+        </button>
+      )}
+      {mode === "measure" && editingDefaults && (
         <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
           {/* "D=1/2", "Rev", "Tight" mean nothing to someone new. Explained
               where they are being changed, not on the always-visible row. */}
@@ -569,7 +647,9 @@ export default function FloorPage() {
       {mode === "measure" && shownWarnings && (
         <div
           ref={warningPanelRef}
-          className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+          // Neutral, not amber: amber means a deficiency or a block now, and a
+          // size check is a "have another look", not something wrong (v2.8).
+          className="rounded-xl border border-neutral-300 bg-neutral-100 p-3 text-sm text-neutral-800 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
         >
           <div className="mb-1 flex items-center justify-between gap-2">
             <span className="font-semibold">{shownWarnings.title}</span>
@@ -577,90 +657,51 @@ export default function FloorPage() {
               type="button"
               onClick={() => setShownWarnings(null)}
               aria-label="Dismiss"
-              className="flex min-h-8 min-w-8 shrink-0 items-center justify-center"
+              className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center"
             >
               <Icon name="close" size={16} />
             </button>
           </div>
           <ul className="flex flex-col gap-1">
             {shownWarnings.items.map((w) => (
-              <li key={w.window_id}>
-                <Icon name="alert" size={14} /> {w.unit_number}-{w.tag}: {w.message}
+              <li key={w.window_id} className="flex items-start gap-1.5">
+                <Icon name="help" size={14} className="mt-0.5 shrink-0 text-neutral-500" />
+                <span>
+                  <b>Check:</b> {w.unit_number}-{w.tag} {w.message}
+                </span>
               </li>
             ))}
           </ul>
-          <div className="mt-2 text-xs text-amber-800/80 dark:text-amber-300/80">
+          <div className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
             Open the blind named above and tap “Looks right” to clear it.
           </div>
         </div>
       )}
 
-      {mode === "install" && (
-        <>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-neutral-600 dark:text-neutral-400">
-            <span className="inline-flex items-center gap-1"><Icon name="circle-dot" size={14} className="text-emerald-600" />{installSummary.staged} staged</span>
-            <span className="inline-flex items-center gap-1"><Icon name="check-circle" size={14} className="text-emerald-600" />{installSummary.done} done</span>
-            <span className="inline-flex items-center gap-1"><Icon name="alert" size={14} className="text-amber-600" />{installSummary.blocked} blocked</span>
-            {installSummary.locked > 0 && (
-              <span className="inline-flex items-center gap-1"><Icon name="lock" size={14} className="text-violet-600" />{installSummary.locked} locked</span>
-            )}
-            <span>{installSummary.toGo} to go</span>
+      {mode === "install" && installSummary.total > 0 && (
+        <div>
+          <div className="text-base font-semibold">
+            {installSummary.toDo === 0
+              ? `All ${installSummary.total} installed`
+              : `${installSummary.toDo} of ${installSummary.total} still to do`}
           </div>
-          {/* Only blocked units that carry a note: since per-blind issues,
-              crews clear the unit note and record the detail on the blinds
-              (field request) — a '"no note"' line was just noise, and the
-              blocked count, amber tiles, and Blind issues panel already say
-              the rest. */}
-          {installSummary.blockedUnits.some((u) => u.note) && (
-            <div className="flex flex-col gap-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-              {installSummary.blockedUnits
-                .filter((u) => u.note)
-                .map((u) => (
-                  <div key={u.id}>
-                    <Icon name="alert" size={14} /> {u.number} — &quot;{u.note}&quot;
-                  </div>
-                ))}
-            </div>
-          )}
-          {windowIssues.length > 0 && (
-            <div className="flex flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-              <div className="font-semibold">
-                Blind issues
-                {factoryRecuts > 0 &&
-                  ` — ${factoryRecuts} recut${factoryRecuts === 1 ? "" : "s"} on the factory`}
-              </div>
-              {windowIssues.map(({ unit, window: w, issue }) => (
-                <div key={issue.id}>
-                  {unit.number} · {windowTagLabel(w)} — {deficiencySummary(issue)}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+          {/* Same buckets as the tile colours, so they add up to the grid. */}
+          <div className="text-sm text-neutral-600 dark:text-neutral-400">
+            {(
+              [
+                [installSummary.counts.done, "installed"],
+                [installSummary.counts.staged, "staged"],
+                [installSummary.counts.not_started, "not started"],
+                [installSummary.counts.blocked, "blocked"],
+                [installSummary.counts.locked, "locked out"],
+              ] as const
+            )
+              .filter(([n]) => n > 0)
+              .map(([n, what]) => `${n} ${what}`)
+              .join(" · ")}
+          </div>
+        </div>
       )}
-
-      {(() => {
-        const unitIds = new Set(units.map((u) => u.id));
-        // The PM's own complaints; the crew's are in the blind issues panel.
-        const open = deficiencies.filter((d) => deficiencyOpen(d) && !isCrewIssue(d) && unitIds.has(d.unit_id));
-        if (open.length === 0) return null;
-        return (
-          <div className="rounded-xl border border-rose-300 p-3 dark:border-rose-800">
-            <div className="mb-2 text-sm font-semibold text-rose-900 dark:text-rose-200">
-              PM deficiencies on this floor ({open.length})
-            </div>
-            <DeficiencyList
-              items={open}
-              unitNumber={(id) => units.find((u) => u.id === id)?.number ?? "?"}
-              windowLabel={(id) => {
-                const w = [...windowsByUnit.values()].flat().find((x) => x.id === id);
-                return w ? windowTagLabel(w) : "blind";
-              }}
-              onResolve={(id) => void handleDeficiency(id, "resolved")}
-            />
-          </div>
-        );
-      })()}
 
       {duplicateNumbers.size > 0 && mode === "measure" && (
         <div className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
@@ -715,7 +756,8 @@ export default function FloorPage() {
                 key={unit.id}
                 unit={unit}
                 blindCount={(windowsByUnit.get(unit.id) ?? []).reduce((n, w) => n + windowBlindCount(w), 0)}
-                outstanding={outstanding.has(unit.id)}
+                openCount={outstanding.get(unit.id)?.open ?? 0}
+                pmCount={outstanding.get(unit.id)?.pm ?? 0}
                 onTap={() => setInstallSheetUnitId(unit.id)}
               />
             ))}
@@ -795,6 +837,109 @@ export default function FloorPage() {
         />
       )}
 
+      {mode === "install" && blockUnitId && (
+        <div
+          ref={blockPanelRef}
+          className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 dark:border-amber-600 dark:bg-amber-950/40"
+        >
+          <label className="mb-2 block text-sm font-semibold" htmlFor="block-reason">
+            Unit {units.find((u) => u.id === blockUnitId)?.number} — why can&apos;t it be done?
+          </label>
+          <input
+            id="block-reason"
+            value={blockReason}
+            onChange={(e) => setBlockReason(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleSaveBlock();
+              }
+            }}
+            enterKeyHint="done"
+            placeholder="e.g. painters still in BR"
+            className="min-h-12 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base dark:border-neutral-700 dark:bg-neutral-900"
+          />
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => void handleSaveBlock()}
+              className="min-h-11 flex-1 rounded-lg bg-amber-500 text-sm font-semibold text-amber-950 active:bg-amber-600"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setBlockUnitId(null)}
+              className="min-h-11 rounded-lg bg-neutral-100 px-4 text-sm dark:bg-neutral-800"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === "install" && stillToFix.length > 0 && (
+        <section className="rounded-xl border border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+          <h2 className="px-3 pt-3 pb-1 text-sm font-semibold">
+            Still to fix on this floor ({stillToFix.length})
+            {factoryRecuts > 0 && ` — ${factoryRecuts} recut${factoryRecuts === 1 ? "" : "s"} on the factory`}
+          </h2>
+          <ul className="flex flex-col">
+            {(showAllToFix ? stillToFix : stillToFix.slice(0, 5)).map((row, i, shown) => (
+              <li
+                key={row.key}
+                // A heavier rule where the unit changes: the rows are grouped
+                // by unit, and the number repeats on each so a row never
+                // needs its neighbour to make sense.
+                className={
+                  i === 0 ? "" : shown[i - 1].unit.id === row.unit.id
+                    ? "border-t border-amber-200/70 dark:border-amber-800/60"
+                    : "border-t-2 border-amber-300 dark:border-amber-700"
+                }
+              >
+                <Link
+                  href={row.href}
+                  className="flex min-h-11 items-center gap-2 px-3 py-2 text-sm active:bg-amber-100 dark:active:bg-amber-900/40"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="font-semibold">
+                      {row.unit.number} · {row.label}
+                    </span>{" "}
+                    — {row.text}
+                    {row.pm !== null && (
+                      <>
+                        {" "}
+                        <PmChip name={row.pm} />
+                      </>
+                    )}
+                  </span>
+                  <span aria-hidden className="shrink-0 text-amber-600">›</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {stillToFix.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setShowAllToFix((v) => !v)}
+              className="min-h-11 w-full border-t border-amber-300 text-sm font-semibold text-amber-900 dark:border-amber-700 dark:text-amber-200"
+            >
+              {showAllToFix ? "Show fewer" : `Show all ${stillToFix.length}`}
+            </button>
+          )}
+        </section>
+      )}
+
+      {toast && (
+        <div
+          role="status"
+          className="fixed inset-x-4 top-[max(1rem,env(safe-area-inset-top))] z-40 mx-auto max-w-sm rounded-xl border-2 border-amber-500 bg-amber-100 px-4 py-3 text-sm font-semibold text-amber-950 shadow-lg dark:bg-amber-900 dark:text-amber-50"
+          onClick={() => setToast(null)}
+        >
+          <Icon name="alert" size={16} /> {toast}
+        </div>
+      )}
+
       <BottomBar>
         <button
           type="button"
@@ -816,6 +961,7 @@ export default function FloorPage() {
           unit={units.find((u) => u.id === installSheetUnitId) ?? null}
           windows={windowsByUnit.get(installSheetUnitId) ?? []}
           issues={deficiencies.filter((d) => d.unit_id === installSheetUnitId)}
+          unitHref={`/project/${projectId}/floor/${floorId}/unit/${installSheetUnitId}`}
           onAction={(action) => handleInstallAction(installSheetUnitId, action)}
           onOpenUnit={() => router.push(`/project/${projectId}/floor/${floorId}/unit/${installSheetUnitId}`)}
           onEditNote={() => {

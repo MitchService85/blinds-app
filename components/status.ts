@@ -1,5 +1,5 @@
 import type { Deficiency, InstallStatus, Unit, UnitStatus, WindowRecord } from "@/lib/types";
-import { deficiencyOpen, legacyIssueOpen } from "@/lib/issues";
+import { deficiencyOpen, isCrewIssue, legacyIssueOpen } from "@/lib/issues";
 
 /**
  * The stored UnitStatus enum only has three values (active | na | done).
@@ -53,24 +53,58 @@ export function lockedOf(unit: Pick<Unit, "locked">): boolean {
   return unit.locked ?? false;
 }
 
+/** What is still open in one unit: every open deficiency, and how many of
+ * those came from a PM (they read "⚠ PM" on the tile rather than a count). */
+export interface UnitOutstanding {
+  open: number;
+  pm: number;
+}
+
+type OutstandingWindow = Pick<
+  WindowRecord,
+  "unit_id" | "deleted" | "issue_note" | "issue_fault" | "issue_recut" | "issue_fixed_at"
+>;
+type OutstandingDeficiency = Pick<Deficiency, "unit_id" | "status" | "deleted"> &
+  Partial<Pick<Deficiency, "raised_by" | "share_id">>;
+
+/**
+ * Open deficiencies per unit, counted. Every open row counts, whatever it is
+ * attached to — a blind, the unit as a whole (a PM's complaint), or a blind
+ * since deleted — because each one holds the unit yellow, and a tile that says
+ * "2 to fix" must match the two rows its sheet lists.
+ */
+export function outstandingByUnit(
+  windows: OutstandingWindow[],
+  deficiencies: OutstandingDeficiency[] = []
+): Map<string, UnitOutstanding> {
+  const out = new Map<string, UnitOutstanding>();
+  const bump = (unitId: string, pm: boolean) => {
+    const o = out.get(unitId) ?? { open: 0, pm: 0 };
+    o.open++;
+    if (pm) o.pm++;
+    out.set(unitId, o);
+  };
+  for (const w of windows) {
+    if (w.deleted) continue;
+    // The window's old single-issue form, until it is moved to a deficiency.
+    if (legacyIssueOpen(w)) bump(w.unit_id, false);
+  }
+  for (const d of deficiencies) {
+    if (!deficiencyOpen(d)) continue;
+    bump(d.unit_id, !isCrewIssue({ raised_by: d.raised_by ?? "", share_id: d.share_id ?? null }));
+  }
+  return out;
+}
+
 /**
  * Units with something still wrong in them: a blind flagged ⚠ that nobody has
  * cleared, or a PM deficiency still open.
  */
 export function unitsWithOutstanding(
-  windows: Pick<WindowRecord, "unit_id" | "deleted" | "issue_note" | "issue_fault" | "issue_recut" | "issue_fixed_at">[],
+  windows: OutstandingWindow[],
   deficiencies: Pick<Deficiency, "unit_id" | "status" | "deleted">[] = []
 ): Set<string> {
-  const out = new Set<string>();
-  for (const w of windows) {
-    if (w.deleted) continue;
-    // The window's old single-issue form, until it is moved to a deficiency.
-    if (legacyIssueOpen(w)) out.add(w.unit_id);
-  }
-  for (const d of deficiencies) {
-    if (deficiencyOpen(d)) out.add(d.unit_id);
-  }
-  return out;
+  return new Set(outstandingByUnit(windows, deficiencies).keys());
 }
 
 /**
@@ -111,9 +145,38 @@ export const INSTALL_STATE_TILE_CLASSES: Record<InstallTileState, string> = {
   not_started: UNIT_STATE_TILE_CLASSES.not_started,
   locked:
     "bg-violet-100 text-violet-900 border-violet-400 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-600",
+  // Stronger than measure mode's amber-100 "in progress": on the install grid
+  // a blocked unit is the one the crew has to go back to, and the old pale
+  // yellow read as "partly done" from arm's length (v2.8 review).
   blocked:
-    "bg-amber-100 text-amber-900 border-amber-400 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-600",
+    "bg-amber-300 text-amber-950 border-2 border-amber-500 dark:bg-amber-500 dark:text-amber-950 dark:border-amber-300",
   staged:
     "bg-white text-emerald-700 border-2 border-emerald-500 dark:bg-neutral-900 dark:text-emerald-300 dark:border-emerald-500",
   done: "bg-emerald-500 text-white border-emerald-600 dark:bg-emerald-600 dark:border-emerald-500",
 };
+
+/**
+ * The few words under the unit number on an install tile, saying WHY it looks
+ * the way it does — "blocked" alone sent the crew into every yellow unit to
+ * find out (v2.8 review). Null where the tile's colour already says it all.
+ */
+export function installTileReason(
+  unit: Pick<Unit, "status" | "install" | "install_blocked" | "locked">,
+  outstanding: UnitOutstanding = { open: 0, pm: 0 }
+): { kind: "to_fix" | "pm" | "on_hold" | "to_check"; text: string } | null {
+  if (unit.status === "na" || lockedOf(unit)) return null;
+  const { open, pm } = outstanding;
+  if (isBlocked(unit, open > 0)) {
+    // An open deficiency is the more useful reason when there are both: it
+    // names work to do, where a hand-set block only names a wait.
+    if (open > 0 && installOf(unit) !== null) {
+      if (pm === open) return { kind: "pm", text: open === 1 ? "PM" : `${open} PM` };
+      return { kind: "to_fix", text: `${open} to fix` };
+    }
+    return { kind: "on_hold", text: "on hold" };
+  }
+  // Not installed yet: the deficiency is often the reorder note for a blind
+  // still to go up (see isBlocked), so the tile stays grey but still says so.
+  if (open > 0) return { kind: "to_check", text: `${open} to check` };
+  return null;
+}
