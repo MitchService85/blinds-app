@@ -6,7 +6,6 @@ import { Icon } from "@/components/icon";
 import { compressImage } from "@/lib/photos";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BottomBar } from "@/components/bottom-bar";
-import { DeficiencyList } from "@/components/deficiency-list";
 import {
   adoptLegacyIssues,
   createIssue,
@@ -14,7 +13,6 @@ import {
   removeIssue,
   resolveIssue,
   saveIssue,
-  setDeficiencyStatus,
 } from "@/lib/db";
 import type { Deficiency } from "@/lib/types";
 import { useParams } from "next/navigation";
@@ -39,7 +37,7 @@ import { triggerSyncIfAvailable } from "@/components/trigger-sync";
 import { WindowBadges } from "@/components/window-badges";
 import { computeTagLabels } from "@/lib/tags";
 import { findWallRuns, type WallRun } from "@/lib/wall-runs";
-import { deficiencyOpen, hasLegacyIssue } from "@/lib/issues";
+import { deficiencyOpen, hasLegacyIssue, legacyIssueOpen } from "@/lib/issues";
 import { floorToEighth, formatFraction, totalWidth } from "@/lib/fractions";
 import type { ControlOverride, Deduct, Floor, MeasureOverride, MountType, Project, Unit, WindowRecord, UnitPhoto } from "@/lib/types";
 import { Keypad, usePrecision } from "@/components/keypad";
@@ -49,8 +47,8 @@ import {
   panelControl,
 } from "@/lib/export/shared";
 import { syncUnitTagIndices } from "@/components/window-tags";
-import { blockedOf } from "@/components/status";
-import { BlindIssues } from "@/components/window-issue";
+import { blockedOf, installOf, isBlocked } from "@/components/status";
+import { BlindIssues, type IssuePanel } from "@/components/window-issue";
 import { BackButton } from "@/components/back-button";
 import { useRemoteVersion } from "@/lib/sync-events";
 
@@ -131,6 +129,36 @@ const DEDUCT_OPTIONS: Array<[Exclude<Deduct, null>, string]> = [
 
 const REMOTE_TABLES_UNIT = ["units", "windows", "deficiencies", "photos"] as const;
 
+/**
+ * A ruler, for the "Check:" measurement warnings. Drawn in the stroke of
+ * components/icon.tsx, whose set has no ruler; those warnings used to wear
+ * the same amber ⚠ as a deficiency, so a size worth a second look read like
+ * a blind that was wrong.
+ */
+function RulerIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`inline-block shrink-0 align-[-0.2em] ${className}`}
+      aria-hidden
+    >
+      <rect x="2.5" y="8" width="19" height="8" rx="1.5" />
+      <path d="M6.5 8v3M10 8v2M13.5 8v3M17 8v2" />
+    </svg>
+  );
+}
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 export default function WindowEntryPage() {
   const { projectId, floorId, unitId } = useParams<{
     projectId: string;
@@ -195,8 +223,13 @@ export default function WindowEntryPage() {
    * uses any of them is loaded for edit, so nothing set is ever hidden.
    */
   const [moreOpen, setMoreOpen] = useState(false);
-  /** Window id whose per-blind issue editor is open in the list, if any. */
-  const [issueOpenId, setIssueOpenId] = useState<string | null>(null);
+  /**
+   * The one deficiency panel open on this screen — an add form on a blind,
+   * or one deficiency's fix — or null. Held here rather than per blind so
+   * opening one closes any other: two open forms on a long unit was how a
+   * fix note ended up typed into the wrong blind.
+   */
+  const [issuePanel, setIssuePanel] = useState<IssuePanel>(null);
   const [photos, setPhotos] = useState<UnitPhoto[]>([]);
   const [photoView, setPhotoView] = useState<UnitPhoto | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -220,13 +253,6 @@ export default function WindowEntryPage() {
   async function reloadDeficiencies() {
     const rows = await listDeficiencies(projectId);
     setDeficiencies(rows.filter((d) => d.unit_id === unitId));
-  }
-
-  async function handleDeficiency(id: string, status: Deficiency["status"]) {
-    await setDeficiencyStatus(id, status);
-    await reloadDeficiencies();
-    setUnit((await getUnit(unitId)) ?? null);
-    triggerSyncIfAvailable();
   }
 
   const draftRef = useRef(draft);
@@ -309,6 +335,28 @@ export default function WindowEntryPage() {
       cancelled = true;
     };
   }, [unitId, floorId, remote]);
+
+  // Arriving from a floor or sheet row that names one blind
+  // (.../unit/<id>#w-<window id>): bring it into view and ring it for a
+  // moment, so the eye lands on the one row of a dozen the link was about.
+  // Once per visit — a sync redraw must not yank the screen back to it.
+  const hashDoneRef = useRef(false);
+  useEffect(() => {
+    if (hashDoneRef.current || windows.length === 0) return;
+    hashDoneRef.current = true;
+    const hash = window.location.hash.slice(1);
+    if (!hash.startsWith("w-")) return;
+    // After the photos have landed above the list, or the row is scrolled
+    // to and then pushed back down past the fold.
+    window.setTimeout(() => {
+      const el = document.getElementById(hash);
+      if (!el) return;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      const ring = ["ring-4", "ring-blue-500", "ring-offset-2", "dark:ring-offset-neutral-950"];
+      el.classList.add(...ring);
+      window.setTimeout(() => el.classList.remove(...ring), 2000);
+    }, 300);
+  }, [windows]);
 
   // Best-effort cleanup: drop a truly-empty draft row (tag picked, nothing
   // else ever entered) if the user navigates away mid-edit.
@@ -723,7 +771,7 @@ export default function WindowEntryPage() {
       recut: issue.recut,
     });
     setDeficiencies((ds) => [...ds, created]);
-    setIssueOpenId(null);
+    setIssuePanel(null);
     triggerSyncIfAvailable();
   }
 
@@ -747,7 +795,13 @@ export default function WindowEntryPage() {
   }
 
   async function handleRemoveIssue(id: string) {
-    if (!confirm("Remove this problem? Use this only if it was entered by mistake — a fixed problem should be marked fixed.")) return;
+    if (
+      !confirm(
+        "Remove this deficiency? Only if it was entered by mistake — one that was fixed should be marked fixed, so it stays as the record."
+      )
+    )
+      return;
+    setIssuePanel(null);
     await removeIssue(id);
     await reloadDeficiencies();
     setUnit((await getUnit(unitId)) ?? null);
@@ -844,6 +898,39 @@ export default function WindowEntryPage() {
   const unitLevelDeficiencies = deficiencies.filter((d) => !d.deleted && !(d.window_id && windowIds.has(d.window_id)));
   const issuesFor = (windowId: string) => deficiencies.filter((d) => !d.deleted && d.window_id === windowId);
 
+  const liveDeficiencies = deficiencies.filter((d) => !d.deleted);
+  const openCount = liveDeficiencies.filter(deficiencyOpen).length;
+  const fixedCount = liveDeficiencies.length - openCount;
+  // Blocked the way the install grid shows it (components/status isBlocked):
+  // by hand, or installed with a deficiency still open. Only the first can
+  // be undone with Unblock; the second clears itself as the last one is
+  // marked fixed, so it gets no button that would seem to do nothing.
+  const outstanding = openCount > 0 || windows.some(legacyIssueOpen);
+  const blocked = isBlocked(unit, outstanding);
+  const blockedByDeficiencies = outstanding && installOf(unit) !== null;
+  const canUnblock = blockedOf(unit) && !blockedByDeficiencies;
+
+  /** The first open deficiency, in the order the screen lists them. */
+  function scrollToFirstOpen() {
+    const byAge = (a: Deficiency, b: Deficiency) => a.raised_at.localeCompare(b.raised_at);
+    const first =
+      unitLevelDeficiencies.filter(deficiencyOpen).sort(byAge)[0] ??
+      windows.map((w) => issuesFor(w.id).filter(deficiencyOpen).sort(byAge)[0]).find(Boolean);
+    if (first) document.getElementById(`d-${first.id}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  // The same handlers for a blind's list and the whole-unit one, so a fix
+  // note typed on either is saved the same way.
+  const issueHandlers = {
+    panel: issuePanel,
+    onPanel: setIssuePanel,
+    onEdit: handleEditIssue,
+    onResolve: (id: string, note: string) => void handleResolveIssue(id, note),
+    onReopen: (id: string) => void handleReopenIssue(id),
+    onRemove: (id: string) => void handleRemoveIssue(id),
+    onFixNote: handleIssueFixNote,
+  };
+
   // Bays measured as separate windows (LR1 Dl | LR2 | LR3 Dr), totalled the
   // same way a multi-panel window is. Uses the draft's live values so the
   // total moves as the window being edited does.
@@ -927,37 +1014,31 @@ export default function WindowEntryPage() {
       </header>
 
       {/* Confirms the block for someone who just tapped Blocked in install
-          mode and was brought straight here, and names both ways to explain
-          it: the unit note directly below, or a ⚠ on the specific blinds. */}
-      {unitLevelDeficiencies.length > 0 && (
-        <div className="rounded-xl border border-rose-300 p-3 dark:border-rose-800">
-          <div className="mb-2 text-sm font-semibold text-rose-900 dark:text-rose-200">
-            Deficiencies on the unit
-          </div>
-          <DeficiencyList
-            items={unitLevelDeficiencies}
-            windowLabel={(id) => {
-              const w = windows.find((x) => x.id === id);
-              return w ? displayLabelFor(w) : "blind";
-            }}
-            onResolve={(id) => void handleDeficiency(id, "resolved")}
-            onReopen={(id) => void handleDeficiency(id, "open")}
-          />
-        </div>
-      )}
-
-      {blockedOf(unit) && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+          mode and was brought straight here, and says what finishes it. */}
+      {blocked && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-100">
+          <Icon name="alert" size={18} className="shrink-0 self-start" />
           <span className="flex-1">
-            <b><Icon name="alert" size={14} /> Blocked.</b> Note the unit below, or tap the <Icon name="alert" size={12} /> on the blinds that are wrong.
+            {openCount > 0 ? (
+              <>
+                <b>Blocked</b> — {plural(openCount, "deficiency", "deficiencies")} open below. Mark{" "}
+                {openCount === 1 ? "it" : "them"} fixed to finish the unit.
+              </>
+            ) : (
+              <>
+                <b>Blocked.</b> Say why in the unit note, or add a deficiency on the blind that&apos;s wrong.
+              </>
+            )}
           </span>
-          <button
-            type="button"
-            onClick={() => void handleUnblock()}
-            className="min-h-9 shrink-0 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white active:bg-amber-700"
-          >
-            Unblock
-          </button>
+          {canUnblock && (
+            <button
+              type="button"
+              onClick={() => void handleUnblock()}
+              className="min-h-11 shrink-0 rounded-lg bg-amber-600 px-4 text-sm font-semibold text-white active:bg-amber-700"
+            >
+              Unblock
+            </button>
+          )}
         </div>
       )}
 
@@ -1006,7 +1087,7 @@ export default function WindowEntryPage() {
           onClick={() => void handleRemovedChange((unit.removed ?? 0) - 1)}
           disabled={(unit.removed ?? 0) === 0}
           aria-label="One less removed"
-          className="min-h-9 min-w-9 rounded-lg bg-neutral-100 text-base disabled:opacity-40 dark:bg-neutral-800"
+          className="min-h-11 min-w-11 rounded-lg bg-neutral-100 text-base disabled:opacity-40 dark:bg-neutral-800"
         >
           −
         </button>
@@ -1018,13 +1099,13 @@ export default function WindowEntryPage() {
           }}
           inputMode="numeric"
           aria-label="Old blinds removed"
-          className="min-h-9 w-12 rounded-lg border border-neutral-300 text-center tabular-nums dark:border-neutral-700 dark:bg-neutral-900"
+          className="min-h-11 w-12 rounded-lg border border-neutral-300 text-center tabular-nums dark:border-neutral-700 dark:bg-neutral-900"
         />
         <button
           type="button"
           onClick={() => void handleRemovedChange((unit.removed ?? 0) + 1)}
           aria-label="One more removed"
-          className="min-h-9 min-w-9 rounded-lg bg-neutral-100 text-base dark:bg-neutral-800"
+          className="min-h-11 min-w-11 rounded-lg bg-neutral-100 text-base dark:bg-neutral-800"
         >
           +
         </button>
@@ -1527,6 +1608,7 @@ export default function WindowEntryPage() {
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
+      {issuePanel === null && (
       <BottomBar variant="floating">
         <button
           type="button"
@@ -1539,6 +1621,7 @@ export default function WindowEntryPage() {
           {justSaved ? "✓ Saved" : "Save · next window"}
         </button>
       </BottomBar>
+      )}
         </>
       )}
 
@@ -1562,20 +1645,67 @@ export default function WindowEntryPage() {
           entryOpen ? "pb-[calc(6rem+env(safe-area-inset-bottom))]" : ""
         }`}
       >
+        {/* Where the unit stands on deficiencies, in one line, before the
+            rows that hold them — on a 12-blind unit the open ones could be
+            three screens down. */}
+        {openCount > 0 ? (
+          <button
+            type="button"
+            onClick={scrollToFirstOpen}
+            className="flex min-h-11 items-center gap-2 rounded-lg border border-amber-400 bg-amber-100 px-3 text-left text-sm font-semibold text-amber-950 active:bg-amber-200 dark:border-amber-600 dark:bg-amber-900/50 dark:text-amber-100"
+          >
+            <Icon name="alert" size={18} />
+            <span className="flex-1">
+              {plural(openCount, "deficiency", "deficiencies")} to fix
+              {fixedCount > 0 && <span className="font-normal"> · {fixedCount} fixed</span>}
+            </span>
+            <span aria-hidden>›</span>
+          </button>
+        ) : fixedCount > 0 ? (
+          <div className="flex min-h-11 items-center gap-2 rounded-lg bg-emerald-50 px-3 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <Icon name="check-circle" size={18} />
+            All deficiencies fixed
+          </div>
+        ) : null}
+
+        {/* A deficiency on no blind — a PM's note on the unit as a whole, or
+            one whose blind was since deleted — gets the same rows and the
+            same fix as a blind's, so its "what was done" is kept too. */}
+        {unitLevelDeficiencies.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <h2 className="text-sm font-semibold text-neutral-500">Deficiencies on the whole unit</h2>
+            <BlindIssues
+              issues={unitLevelDeficiencies}
+              windowId={null}
+              placeLabel={(d) => (d.window_id ? "Blind since deleted" : null)}
+              {...issueHandlers}
+            />
+          </div>
+        )}
+
         <h2 className="text-sm font-semibold text-neutral-500">This unit&apos;s windows</h2>
         {windowWarnings.size > 0 && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-            <Icon name="alert" size={14} /> {windowWarnings.size} measurement{windowWarnings.size === 1 ? "" : "s"} flagged
-            below — tap Edit to fix, or ignore if it&apos;s really like that.
+          <div className="flex items-start gap-2 rounded-lg border border-neutral-300 bg-neutral-50 p-2 text-xs text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+            <RulerIcon className="mt-px text-neutral-500" />
+            <span>
+              <b>{plural(windowWarnings.size, "measurement", "measurements")} to double-check</b> below — Edit
+              to fix, or Looks right if it&apos;s really like that.
+            </span>
           </div>
         )}
         {windows.length === 0 && <div className="text-sm text-neutral-500">None yet.</div>}
-        {windows.map((w) => (
+        {windows.map((w) => {
+          const issues = issuesFor(w.id);
+          // Amber is a blind with something still to fix. A measurement
+          // check stays neutral: it is a question, not a fault.
+          const hasOpen = issues.some(deficiencyOpen);
+          return (
           <div
             key={w.id}
-            className={`flex flex-col gap-1 rounded-lg border p-3 text-sm ${
-              windowWarnings.has(w.id)
-                ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/40"
+            id={`w-${w.id}`}
+            className={`flex flex-col gap-2 rounded-lg border p-3 text-sm transition-shadow ${
+              hasOpen
+                ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30"
                 : draft.id === w.id
                   ? "border-blue-600"
                   : "border-neutral-200 dark:border-neutral-800"
@@ -1618,57 +1748,35 @@ export default function WindowEntryPage() {
                 </div>
               )}
             </div>
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                onClick={() => setIssueOpenId((id) => (id === w.id ? null : w.id))}
-                aria-label="Add a problem on this blind"
-                className={`flex min-h-9 items-center rounded-lg px-3 text-xs font-medium ${
-                  issuesFor(w.id).some(deficiencyOpen)
-                    ? "bg-amber-500 text-white"
-                    : issuesFor(w.id).length > 0
-                      ? "bg-emerald-600 text-white"
-                      : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
-                }`}
-              >
-                <Icon name="alert" size={16} />
-              </button>
+            {/* Adding a deficiency moved to its own labelled button below,
+                so the pair here is only about the measurement. */}
+            <div className="flex shrink-0 gap-3">
               <button
                 type="button"
                 onClick={() => loadForEdit(w)}
-                className="min-h-9 rounded-lg bg-neutral-100 px-3 text-xs font-medium dark:bg-neutral-800"
+                className="min-h-11 rounded-lg bg-neutral-100 px-4 text-sm font-medium dark:bg-neutral-800"
               >
                 Edit
               </button>
               <button
                 type="button"
                 onClick={() => handleDeleteWindow(w.id)}
-                className="min-h-9 rounded-lg bg-red-50 px-3 text-xs font-medium text-red-600 dark:bg-red-950"
+                className="min-h-11 rounded-lg bg-red-50 px-3 text-sm font-medium text-red-600 dark:bg-red-950"
               >
                 Delete
               </button>
             </div>
           </div>
-          <BlindIssues
-            issues={issuesFor(w.id)}
-            adding={issueOpenId === w.id}
-            onAdd={(issue) => void handleAddIssue(w.id, issue)}
-            onCancelAdd={() => setIssueOpenId(null)}
-            onEdit={handleEditIssue}
-            onResolve={(id, note) => void handleResolveIssue(id, note)}
-            onReopen={(id) => void handleReopenIssue(id)}
-            onRemove={(id) => void handleRemoveIssue(id)}
-            onFixNote={handleIssueFixNote}
-          />
           {windowWarnings.has(w.id) && (
-            <div className="flex items-start gap-2">
-              <div className="flex-1 text-xs font-medium text-amber-800 dark:text-amber-300">
-                <Icon name="alert" size={14} /> {windowWarnings.get(w.id)}
+            <div className="flex items-center gap-2 rounded-lg bg-neutral-100 py-1 pl-3 pr-1 dark:bg-neutral-800/70">
+              <RulerIcon className="text-neutral-500" />
+              <div className="flex-1 text-xs text-neutral-700 dark:text-neutral-300">
+                <span className="font-semibold">Check:</span> {windowWarnings.get(w.id)}
               </div>
               <button
                 type="button"
                 onClick={() => void acknowledgeChecks(w.id)}
-                className="min-h-8 shrink-0 rounded-lg bg-amber-100 px-2.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                className="min-h-11 shrink-0 rounded-lg border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-800 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200"
               >
                 Looks right
               </button>
@@ -1678,16 +1786,25 @@ export default function WindowEntryPage() {
             <button
               type="button"
               onClick={() => void acknowledgeChecks(w.id, false)}
-              className="self-start text-[11px] text-neutral-500 underline decoration-dotted underline-offset-2"
+              className="min-h-11 self-start text-xs text-neutral-500 underline decoration-dotted underline-offset-2"
             >
-              Checked, warnings off. Turn back on
+              Checked, looks right · Turn checks back on
             </button>
           )}
+          <BlindIssues
+            issues={issues}
+            windowId={w.id}
+            onAdd={(issue) => void handleAddIssue(w.id, issue)}
+            {...issueHandlers}
+          />
           </div>
-        ))}
+          );
+        })}
       </div>
 
-      {entryOpen === false && (
+      {/* Not while a deficiency is open: the bar floats over the list, and
+          on a short phone it sat right on top of ✓ Mark fixed. */}
+      {entryOpen === false && issuePanel === null && (
         <BottomBar variant="floating">
           <button
             type="button"
