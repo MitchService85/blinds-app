@@ -14,7 +14,7 @@ export const TOUR_STEPS = [
   { id: "grid", title: "The unit grid" },
   { id: "measure", title: "Measure a window" },
   { id: "bays", title: "Bay windows" },
-  { id: "warnings", title: "Orange warnings" },
+  { id: "warnings", title: "Measurement checks" },
   { id: "export", title: "Send it to the factory" },
   { id: "install", title: "Install day" },
   { id: "offline", title: "No signal? No problem" },

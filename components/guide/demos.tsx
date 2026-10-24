@@ -14,7 +14,12 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/icon";
 import { Keypad, usePrecision } from "@/components/keypad";
 import { JobCard, type FloorProgress } from "@/components/job-card";
-import { UNIT_STATE_TILE_CLASSES, type DerivedUnitState } from "@/components/status";
+import {
+  INSTALL_STATE_TILE_CLASSES,
+  UNIT_STATE_TILE_CLASSES,
+  type DerivedUnitState,
+  type InstallTileState,
+} from "@/components/status";
 import { formatFraction } from "@/lib/fractions";
 import type { Project } from "@/lib/types";
 
@@ -121,7 +126,7 @@ interface GridUnit {
 
 const STATE_WORDS: Record<DerivedUnitState, string> = {
   not_started: "not started yet",
-  in_progress: "started",
+  in_progress: "in progress",
   done: "done",
   na: "skipped (N/A)",
 };
@@ -190,7 +195,7 @@ export function GridDemo({ onDone }: DemoProps) {
       </div>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-600 dark:text-neutral-400">
         <span><span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-400 align-middle" /> done</span>
-        <span><span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-300 align-middle" /> started</span>
+        <span><span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-300 align-middle" /> in progress</span>
         <span><span className="inline-block h-2.5 w-2.5 rounded-sm border border-neutral-400 align-middle" /> not started</span>
         <span className="line-through">skipped</span>
       </div>
@@ -347,8 +352,32 @@ export function BayDemo({ onDone }: DemoProps) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Orange warnings — the ⚠ explains itself; Looks right clears it
+// 5. Measurement checks — the orange dot explains itself; Looks right clears it
 // ---------------------------------------------------------------------------
+
+/** The unit screen's ruler, which marks a "Check:" there — a question about
+ * a size, drawn apart from the ⚠ of a deficiency (a blind that is wrong). */
+function RulerIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`inline-block shrink-0 align-[-0.2em] ${className}`}
+      aria-hidden
+    >
+      <rect x="2.5" y="8" width="19" height="8" rx="1.5" />
+      <path d="M6.5 8v3M10 8v2M13.5 8v3M17 8v2" />
+    </svg>
+  );
+}
+
+const CHECK_TEXT = "all 3 blinds here are tagged LR — check the room tags, the last one carries over";
 
 export function WarningDemo({ onDone }: DemoProps) {
   const [why, setWhy] = useState(false);
@@ -364,7 +393,7 @@ export function WarningDemo({ onDone }: DemoProps) {
         {!checked && (
           <button
             type="button"
-            aria-label="Why unit 702 is flagged"
+            aria-label="What to check on unit 702"
             onClick={() => setWhy(true)}
             className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white after:absolute after:-inset-2 after:content-['']"
           >
@@ -374,40 +403,52 @@ export function WarningDemo({ onDone }: DemoProps) {
       </div>
 
       {why && (
-        <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+        // Neutral, as on the floor: a check is "have another look", not a
+        // deficiency, and a deficiency's yellow would say the blind was wrong.
+        <div className="mt-3 rounded-xl border border-neutral-300 bg-neutral-100 p-3 text-sm text-neutral-800 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
           <div className="mb-1 font-semibold">Unit 702 — worth a second look</div>
-          <div className="mb-3">
-            <Icon name="alert" size={14} /> 702-LR1: all 3 blinds here are tagged LR — check the room tags, the last one carries over
+          <div className="mb-3 flex items-start gap-1.5">
+            <Icon name="help" size={14} className="mt-0.5 shrink-0 text-neutral-500" />
+            <span>
+              <b>Check:</b> 702-LR1 {CHECK_TEXT}
+            </span>
           </div>
-          {!checked ? (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-white p-2 dark:border-amber-800 dark:bg-neutral-900">
-              <div className="flex-1 text-xs">
-                <div className="font-semibold text-neutral-800 dark:text-neutral-100">LR1 · 78 ⅞ × 87</div>
-                Inside the unit, the warning sits on the blind it&apos;s about.
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setChecked(true);
-                  onDone();
-                }}
-                className="min-h-8 shrink-0 rounded-lg bg-amber-100 px-2.5 text-xs font-medium text-amber-900 dark:bg-amber-900 dark:text-amber-100"
-              >
-                Looks right
-              </button>
+          <div className="mb-1 text-xs font-semibold text-neutral-500">Inside the unit, on that blind:</div>
+          <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
+            <div>
+              <div className="font-medium">LR1</div>
+              <div className="text-neutral-500">78 ⅞ × 87</div>
             </div>
-          ) : (
-            <div className="text-xs">Checked, warnings off — and the ⚠ is gone from the tile.</div>
-          )}
+            {!checked ? (
+              <div className="flex items-center gap-2 rounded-lg bg-neutral-100 py-1 pl-3 pr-1 dark:bg-neutral-800/70">
+                <RulerIcon className="text-neutral-500" />
+                <div className="flex-1 text-xs text-neutral-700 dark:text-neutral-300">
+                  <span className="font-semibold">Check:</span> {CHECK_TEXT}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChecked(true);
+                    onDone();
+                  }}
+                  className="min-h-11 shrink-0 rounded-lg border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-800 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200"
+                >
+                  Looks right
+                </button>
+              </div>
+            ) : (
+              <div className="text-xs text-neutral-500">Checked, looks right · Turn checks back on</div>
+            )}
+          </div>
         </div>
       )}
 
       <Prompt done={checked}>
         {checked
-          ? "A warning never blocks you. If it's wrong — 702 really is a one-room studio — Looks right clears it on every phone."
+          ? "A check never blocks you, and it isn't a deficiency. 702 really is a one-room studio, so Looks right clears it — on every phone, and the dot is gone from the tile."
           : why
             ? "702 is a studio, so all-LR is right here. Tap Looks right."
-            : "An orange ⚠ means something looks unusual. Tap it to see why."}
+            : "An orange dot means a measurement looks unusual. Tap it to see why."}
       </Prompt>
     </>
   );
@@ -456,7 +497,7 @@ export function ExportDemo({ onDone }: DemoProps) {
         {picked === "sheet"
           ? "That's the one. Your phone's share sheet sends it — email, Drive, AirDrop. It works with no signal: the file is made on the phone."
           : picked === "deficiency"
-            ? "Not for the factory — that's the punch list for the PM, and it only lists blinds with a problem, so tag numbers skip. The factory needs the blue one."
+            ? "Not for the factory — that's the punch list for the PM, and it only lists blinds with a deficiency, so tag numbers skip. The factory needs the blue one."
             : "A floor is measured. Which file does the factory need?"}
       </Prompt>
     </>
@@ -464,28 +505,107 @@ export function ExportDemo({ onDone }: DemoProps) {
 }
 
 // ---------------------------------------------------------------------------
-// 7. Install day — the Measure / Install switch
+// 7. Install day — the Measure / Install switch, the sheet, the tile colours
 // ---------------------------------------------------------------------------
 
-type InstallMark = "staged" | "installed" | "locked" | "blocked" | null;
+type InstallProgress = "not_started" | "staged" | "installed";
 
-const MARK_LABEL: Record<Exclude<InstallMark, null>, { text: string; icon: "circle-dot" | "check-circle" | "lock" | "alert"; tone: string }> = {
-  staged: { text: "Staged", icon: "circle-dot", tone: "text-emerald-600" },
-  installed: { text: "Installed", icon: "check-circle", tone: "text-emerald-600" },
-  locked: { text: "Locked out", icon: "lock", tone: "text-violet-600" },
-  blocked: { text: "Blocked", icon: "alert", tone: "text-amber-600" },
-};
+interface DemoInstallUnit {
+  progress: InstallProgress;
+  blocked: boolean;
+  locked: boolean;
+  /** Open deficiencies: a staged or installed unit holding one shows blocked. */
+  toFix: number;
+}
+
+/** In the order components/status deriveInstallState decides it. */
+function demoTileState(u: DemoInstallUnit): InstallTileState {
+  if (u.locked) return "locked";
+  if (u.blocked || (u.toFix > 0 && u.progress !== "not_started")) return "blocked";
+  if (u.progress === "installed") return "done";
+  if (u.progress === "staged") return "staged";
+  return "not_started";
+}
+
+/** The line under the number, worded as components/install-tile words it. */
+function demoTileLine(u: DemoInstallUnit): ReactNode {
+  if (u.locked)
+    return (
+      <>
+        <Icon name="lock" size={12} /> locked out
+      </>
+    );
+  if (u.toFix > 0 && u.progress !== "not_started")
+    return (
+      <span className="font-semibold">
+        <Icon name="alert" size={12} /> {u.toFix} to fix
+      </span>
+    );
+  if (u.blocked)
+    return (
+      <span className="font-semibold">
+        <Icon name="alert" size={12} /> on hold
+      </span>
+    );
+  if (u.progress === "installed")
+    return (
+      <>
+        <Icon name="check" size={12} /> installed
+      </>
+    );
+  if (u.progress === "staged")
+    return (
+      <>
+        <Icon name="circle-dot" size={12} /> staged
+      </>
+    );
+  return "3 blinds";
+}
+
+const PROGRESS_BUTTONS: [InstallProgress, string][] = [
+  ["not_started", "Not started"],
+  ["staged", "Staged"],
+  ["installed", "Installed"],
+];
 
 export function InstallDemo({ onDone }: DemoProps) {
   const [mode, setMode] = useState<"measure" | "install">("measure");
-  const [marks, setMarks] = useState<Record<string, InstallMark>>({ "501": null, "502": null, "503": null });
+  const [units, setUnits] = useState<Record<string, DemoInstallUnit>>({
+    "501": { progress: "not_started", blocked: false, locked: false, toFix: 0 },
+    "502": { progress: "not_started", blocked: false, locked: false, toFix: 0 },
+    // Already up, with a deficiency still open: the strong yellow and its
+    // reason are what the learner should know again on the real grid.
+    "503": { progress: "installed", blocked: false, locked: false, toFix: 1 },
+  });
   const [sheet, setSheet] = useState<string | null>(null);
+  const [asking, setAsking] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
   const [nudge, setNudge] = useState(false);
-  const done = Object.values(marks).includes("installed");
+  const [done, setDone] = useState(false);
+
+  const all = Object.values(units);
+  const toDo = all.filter((u) => demoTileState(u) !== "done").length;
+  const open = sheet ? units[sheet] : null;
+
+  function update(number: string, patch: Partial<DemoInstallUnit>) {
+    setUnits((us) => ({ ...us, [number]: { ...us[number], ...patch } }));
+  }
+
+  function tapTile(number: string) {
+    if (mode !== "install") {
+      setNudge(true);
+      return;
+    }
+    setAsking(null);
+    setSheet(number);
+  }
 
   return (
     <>
-      <div className="mb-3 flex justify-end">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">
+          {mode === "install" && (toDo === 0 ? `All ${all.length} installed` : `${toDo} of ${all.length} still to do`)}
+        </div>
         <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
           {(["measure", "install"] as const).map((m) => (
             <button
@@ -501,53 +621,146 @@ export function InstallDemo({ onDone }: DemoProps) {
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
-        {Object.entries(marks).map(([number, mark]) => (
+        {Object.entries(units).map(([number, u]) => (
           <button
             key={number}
             type="button"
-            onClick={() => (mode === "install" ? setSheet(number) : setNudge(true))}
-            className={`${TILE} ${UNIT_STATE_TILE_CLASSES.done}`}
+            onClick={() => tapTile(number)}
+            className={`${TILE} ${mode === "install" ? INSTALL_STATE_TILE_CLASSES[demoTileState(u)] : UNIT_STATE_TILE_CLASSES.done}`}
           >
             <span className="text-base font-semibold">{number}</span>
-            {mark ? (
-              <span className={`flex items-center gap-1 text-[11px] font-semibold ${MARK_LABEL[mark].tone}`}>
-                <Icon name={MARK_LABEL[mark].icon} size={12} /> {MARK_LABEL[mark].text}
-              </span>
-            ) : (
-              <span className="text-[11px]">3 blinds</span>
-            )}
+            <span className="inline-flex items-center gap-1 text-[11px] [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1">
+              {mode === "install" ? demoTileLine(u) : "3 blinds"}
+            </span>
           </button>
         ))}
       </div>
-      {sheet && (
-        <div className="mt-3 rounded-xl border border-neutral-200 p-2 dark:border-neutral-700">
-          <div className="mb-1 px-1 text-sm font-semibold">Unit {sheet}</div>
-          <div className="grid grid-cols-2 gap-2">
-            {(Object.keys(MARK_LABEL) as Exclude<InstallMark, null>[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => {
-                  setMarks((ms) => ({ ...ms, [sheet]: m }));
-                  setSheet(null);
-                  if (m === "installed") onDone();
-                }}
-                className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-neutral-100 text-sm font-medium dark:bg-neutral-800"
-              >
-                <Icon name={MARK_LABEL[m].icon} size={14} className={MARK_LABEL[m].tone} /> {MARK_LABEL[m].text}
-              </button>
-            ))}
+
+      {asking && (
+        <div className="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-3 dark:border-amber-600 dark:bg-amber-950/40">
+          <label className="mb-2 block text-sm font-semibold" htmlFor="tour-block-reason">
+            Unit {asking} — why can&apos;t it be done?
+          </label>
+          <input
+            id="tour-block-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            enterKeyHint="done"
+            placeholder="e.g. painters still in BR"
+            className="min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base dark:border-neutral-700 dark:bg-neutral-900"
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                update(asking, { blocked: true });
+                setAsking(null);
+                setReason("");
+              }}
+              className="min-h-11 flex-1 rounded-lg bg-amber-500 text-sm font-semibold text-amber-950"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setAsking(null)}
+              className="min-h-11 rounded-lg bg-neutral-100 px-4 text-sm dark:bg-neutral-800"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
+
+      {sheet && open && (
+        <div className="mt-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
+          <div className="mb-2 flex items-center">
+            <span className="text-sm font-semibold">Unit {sheet}</span>
+            <button
+              type="button"
+              onClick={() => setSheet(null)}
+              aria-label="Close"
+              className="-my-2 ml-auto flex min-h-11 min-w-11 items-center justify-center text-neutral-500"
+            >
+              <Icon name="close" size={18} />
+            </button>
+          </div>
+          {open.toFix > 0 && (
+            <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+              <span className="font-semibold">LR1</span> — Cut ¼ short · Factory error · needs recut
+            </div>
+          )}
+          <div className="mb-2 flex gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-neutral-800">
+            {PROGRESS_BUTTONS.map(([value, text]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={open.progress === value}
+                onClick={() => {
+                  update(sheet, { progress: value });
+                  setSheet(null);
+                  if (value === "installed") {
+                    setDone(true);
+                    onDone();
+                  }
+                }}
+                className={`min-h-11 flex-1 rounded-md px-1 text-sm font-medium ${
+                  open.progress === value ? "bg-blue-600 font-semibold text-white" : "text-neutral-700 dark:text-neutral-300"
+                }`}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              aria-pressed={open.blocked}
+              onClick={() => {
+                // Blocked asks why first, on the floor, as the real one does.
+                if (open.blocked) update(sheet, { blocked: false });
+                else setAsking(sheet);
+                setSheet(null);
+              }}
+              className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-medium ${
+                open.blocked
+                  ? "border-2 border-amber-500 bg-amber-300 font-semibold text-amber-950"
+                  : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
+              }`}
+            >
+              <Icon name="alert" size={16} className={open.blocked ? "" : "text-amber-600"} />
+              {open.blocked ? "Unblock" : "Blocked"}
+            </button>
+            <button
+              type="button"
+              aria-pressed={open.locked}
+              onClick={() => {
+                update(sheet, { locked: !open.locked });
+                setSheet(null);
+              }}
+              className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-medium ${
+                open.locked
+                  ? "bg-violet-600 font-semibold text-white"
+                  : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
+              }`}
+            >
+              <Icon name="lock" size={16} className={open.locked ? "" : "text-violet-600"} />
+              Locked out
+            </button>
+          </div>
+        </div>
+      )}
+
       <Prompt done={done}>
         {done
-          ? "Installed. Staged means dropped off and ready; Locked out means you couldn't get in — a PM with a share link sees it and arranges access; Blocked asks you to say what's wrong."
+          ? "Installed — the tile goes solid green. 503 stays yellow: it's up, but has a deficiency still to fix. Something wrong with a blind? Open the unit, tap +\u00a0Deficiency, then ✓\u00a0Mark fixed when it's done."
           : mode === "measure"
             ? nudge
               ? "In Measure mode a tap opens the unit to measure. Flip the switch to Install first."
               : "Install day: flip the switch at the top of the floor to Install."
-            : "Now tap a unit and mark it Installed."}
+            : asking
+              ? "Blocked asks why, right there on the floor. Save it, or Cancel."
+              : "Each tile's colour says where it stands — 503's says it has 1 to fix. Tap 501 and mark it Installed."}
       </Prompt>
     </>
   );
