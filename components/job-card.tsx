@@ -79,18 +79,15 @@ export function JobCard({
       </Link>
 
       {deficiencies > 0 && (
-        <div className="mt-2 text-xs font-medium text-rose-700 dark:text-rose-300">
+        <div className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
           {deficiencies} open PM deficienc{deficiencies === 1 ? "y" : "ies"}
         </div>
       )}
       {money && (
         <div className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
           {money.invoiced_cents > 0 && `${formatCents(money.invoiced_cents)} invoiced`}
-          {money.outstanding_cents > 0 && (
-            <span className="text-amber-700 dark:text-amber-300">
-              {" "}· {formatCents(money.outstanding_cents)} outstanding
-            </span>
-          )}
+          {money.outstanding_cents > 0 &&
+            `${money.invoiced_cents > 0 ? " · " : ""}${formatCents(money.outstanding_cents)} outstanding`}
           {money.drafts > 0 &&
             `${money.invoiced_cents > 0 ? " · " : ""}${money.drafts} draft invoice${money.drafts === 1 ? "" : "s"}`}
         </div>
@@ -120,7 +117,7 @@ export function JobCard({
             <div key={f.id} className="flex flex-col gap-0.5">
               <Link
                 href={`/project/${project.id}/floor/${f.id}`}
-                className="min-h-9 rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-medium active:bg-neutral-100 dark:border-neutral-700 dark:active:bg-neutral-800"
+                className="flex min-h-11 items-center rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-medium active:bg-neutral-100 dark:border-neutral-700 dark:active:bg-neutral-800"
               >
                 {f.label} {f.total > 0 && f.done === f.total ? "✓" : `${f.done}/${f.total}`}
                 <span className="ml-1 text-neutral-500">

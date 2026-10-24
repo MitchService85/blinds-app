@@ -273,12 +273,9 @@ export default function Home() {
             value={String(overview.blocked)}
             tone={overview.blocked > 0 ? "amber" : undefined}
           />
-          <Stat
-            label="outstanding"
-            value={formatCents(overview.outstanding_cents)}
-            tone={overview.outstanding_cents > 0 ? "amber" : undefined}
-            wide
-          />
+          {/* Neutral: money owed is not a deficiency or a blocked unit, and
+              amber on this screen means one of those (PLAN v2.8 colours). */}
+          <Stat label="outstanding" value={formatCents(overview.outstanding_cents)} wide />
           {overview.drafts > 0 && (
             <Stat label={overview.drafts === 1 ? "draft invoice" : "draft invoices"} value={String(overview.drafts)} />
           )}
@@ -286,7 +283,7 @@ export default function Home() {
             <Stat
               label={overview.deficiencies === 1 ? "PM deficiency" : "PM deficiencies"}
               value={String(overview.deficiencies)}
-              tone="rose"
+              tone="amber"
             />
           )}
         </section>
@@ -341,18 +338,14 @@ function Stat({
 }: {
   label: string;
   value: string;
-  tone?: "amber" | "rose";
+  tone?: "amber";
   wide?: boolean;
 }) {
   return (
     <div className={`flex flex-col ${wide ? "col-span-2" : ""}`}>
       <span
         className={`text-lg font-semibold tabular-nums leading-tight ${
-          tone === "amber"
-            ? "text-amber-700 dark:text-amber-300"
-            : tone === "rose"
-              ? "text-rose-700 dark:text-rose-300"
-              : ""
+          tone === "amber" ? "text-amber-700 dark:text-amber-300" : ""
         }`}
       >
         {value}

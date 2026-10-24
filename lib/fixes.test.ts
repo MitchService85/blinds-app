@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+  CANT_REASONS,
+  billedInvoiceIds,
+  blindCount,
+  dropsWithDeficiency,
   fixCounts,
   fixInvoiceLines,
   fixLineLabel,
   fixQtyFor,
+  fixedUnbilled,
+  followsDeficiencyNote,
   gatherFixItems,
   inBatchIds,
+  isGuessedNote,
+  noteForStatus,
   readyToBill,
+  reopenedOnInvoice,
   suggestedFixNote,
   toggleQuickNote,
 } from "./fixes";
@@ -149,5 +158,89 @@ describe("suggestedFixNote", () => {
     expect(suggestedFixNote("Left side shim no deduction, Right side shim no deduction")).toBe("Shimmed, New blind installed");
     expect(suggestedFixNote("Missing pull tabs")).toBe("Pull tabs added");
     expect(suggestedFixNote("Bedroom blind rubbing")).toBe("");
+  });
+});
+
+describe("the guessed note", () => {
+  const item = { problem: "Bottom rail rubbing, needs shim", fix_note: "", status: "open" as const };
+
+  it("✓ Fixed on an empty note fills in the guess, and says so", () => {
+    const note = noteForStatus(item, "fixed");
+    expect(note).toBe("Shimmed");
+    expect(isGuessedNote({ ...item, fix_note: note })).toBe(true);
+    // Once anything is added it is the crew's note, not a guess.
+    expect(isGuessedNote({ ...item, fix_note: "Shimmed, Adjusted" })).toBe(false);
+    expect(isGuessedNote({ problem: "Bedroom blind rubbing", fix_note: "" })).toBe(false);
+  });
+
+  it("keeps what was typed", () => {
+    expect(noteForStatus({ ...item, fix_note: "Re-hung" }, "fixed")).toBe("Re-hung");
+    expect(noteForStatus({ ...item, status: "fixed", fix_note: "Shimmed left side" }, "open")).toBe("Shimmed left side");
+  });
+
+  it("Undo takes an untouched guess back out", () => {
+    expect(noteForStatus({ ...item, status: "fixed", fix_note: "Shimmed" }, "open")).toBe("");
+  });
+
+  it("Undo on Can't fix clears reason chips only, never a written reason", () => {
+    expect(noteForStatus({ ...item, status: "cant", fix_note: "Needs remake, No access" }, "open")).toBe("");
+    expect(noteForStatus({ ...item, status: "cant", fix_note: "Needs remake, tenant away" }, "open")).toBe(
+      "Needs remake, tenant away"
+    );
+    expect(CANT_REASONS).toContain("Needs a part");
+  });
+});
+
+describe("keeping a batch in step with its deficiencies", () => {
+  const live = new Set(["inv1"]);
+  const row = { status: "open" as FixItem["status"], invoice_id: null as string | null, deleted: false };
+
+  it("a note edited on the unit screen follows to the entry until it is billed", () => {
+    expect(followsDeficiencyNote(row, live)).toBe(true);
+    expect(followsDeficiencyNote({ ...row, invoice_id: "inv1" }, live)).toBe(false);
+    // The invoice was deleted: nothing holds the line any more.
+    expect(followsDeficiencyNote({ ...row, invoice_id: "gone" }, live)).toBe(true);
+    expect(followsDeficiencyNote({ ...row, deleted: true }, live)).toBe(false);
+  });
+
+  it("a deficiency removed as a mistake takes its waiting entry with it, not a fixed or billed one", () => {
+    expect(dropsWithDeficiency(row, live)).toBe(true);
+    expect(dropsWithDeficiency({ ...row, status: "cant" }, live)).toBe(true);
+    expect(dropsWithDeficiency({ ...row, status: "fixed" }, live)).toBe(false);
+    expect(dropsWithDeficiency({ ...row, invoice_id: "inv1" }, live)).toBe(false);
+  });
+
+  it("reopened after billing reads as on that invoice, not unbilled", () => {
+    const reopened = { ...row, invoice_id: "inv1" };
+    expect(reopenedOnInvoice(reopened, live)).toBe(true);
+    expect(reopenedOnInvoice({ ...reopened, status: "fixed" }, live)).toBe(false);
+    expect(reopenedOnInvoice(row, live)).toBe(false);
+  });
+});
+
+describe("batch counts", () => {
+  const base: FixItem = {
+    id: "i", batch_id: "b", project_id: "p", floor_id: "f", unit_id: "u", window_id: "w1",
+    unit_number: "101", blind_label: "LR", panels: 1, problem: "", fault: null, recut: false,
+    unit_was_blocked: false, status: "fixed", fix_note: "", qty: 1, billable: true, fixed_at: "x",
+    invoice_id: null, sort_order: 0, updated_at: "", deleted: false,
+  };
+
+  it("counts blinds, not deficiencies", () => {
+    expect(blindCount([base, { ...base, id: "j" }, { ...base, id: "k", window_id: "w2" }])).toBe(2);
+  });
+
+  it("bill rows are every fixed, unbilled entry, charged or not; invoices listed once", () => {
+    const items: FixItem[] = [
+      base,
+      { ...base, id: "ours", billable: false, fault: "measure" },
+      { ...base, id: "billed", invoice_id: "inv1" },
+      { ...base, id: "billed2", invoice_id: "inv1" },
+      { ...base, id: "open", status: "open" },
+    ];
+    expect(fixedUnbilled(items, new Set(["inv1"])).map((i) => i.id)).toEqual(["i", "ours"]);
+    expect(readyToBill(items, new Set(["inv1"])).map((i) => i.id)).toEqual(["i"]);
+    expect(billedInvoiceIds(items, new Set(["inv1"]))).toEqual(["inv1"]);
+    expect(billedInvoiceIds(items, new Set())).toEqual([]);
   });
 });

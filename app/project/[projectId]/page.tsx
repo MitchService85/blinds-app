@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { createFloor, duplicateFloor, getProject, listFloors, listUnits, updateProject } from "@/lib/db";
+import { createFloor, duplicateFloor, getProject, listFloors, listUnits, listWindows, updateProject } from "@/lib/db";
 import { nextFloorLabel } from "@/lib/floor-copy";
 import { Icon } from "@/components/icon";
 import { triggerSyncIfAvailable } from "@/components/trigger-sync";
@@ -16,7 +16,8 @@ import { PmAccessCard } from "@/components/pm-access-card";
 import { DeficiencyList } from "@/components/deficiency-list";
 import { FixBatchesCard } from "@/components/fix-batches-card";
 import { listDeficiencies, setDeficiencyStatus } from "@/lib/db";
-import { isCrewIssue } from "@/lib/issues";
+import { deficiencyOpen, isCrewIssue } from "@/lib/issues";
+import { windowTagLabel } from "@/lib/export/shared";
 import type { Deficiency } from "@/lib/types";
 import { BackButton } from "@/components/back-button";
 import { readPref, writePref } from "@/lib/local-pref";
@@ -76,7 +77,7 @@ const subscribeNever = () => () => {};
 const readBusinessOpen = () => readPref(BUSINESS_OPEN_KEY);
 const businessUnknown = () => null;
 
-const REMOTE_TABLES_JOB = ["projects", "floors", "units", "deficiencies"] as const;
+const REMOTE_TABLES_JOB = ["projects", "floors", "units", "windows", "deficiencies"] as const;
 
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -88,7 +89,10 @@ export default function ProjectPage() {
   const [saving, setSaving] = useState(false);
   const [editingInfo, setEditingInfo] = useState(false);
   const [deficiencies, setDeficiencies] = useState<Deficiency[]>([]);
+  // "1405 · Batch 4" and "LR1", so a PM's deficiency says which blind on
+  // which floor without opening anything.
   const [unitNumbers, setUnitNumbers] = useState<Map<string, string>>(new Map());
+  const [windowLabels, setWindowLabels] = useState<Map<string, string>>(new Map());
   const [tripsVersion, setTripsVersion] = useState(0);
   const [editingTags, setEditingTags] = useState(false);
   const remote = useRemoteVersion(REMOTE_TABLES_JOB);
@@ -108,10 +112,19 @@ export default function ProjectPage() {
     void (async () => {
       const [ds, fs] = await Promise.all([listDeficiencies(projectId), listFloors(projectId)]);
       const numbers = new Map<string, string>();
-      for (const f of fs) for (const u of await listUnits(f.id)) numbers.set(u.id, u.number);
+      const labels = new Map<string, string>();
+      // Only the units a PM deficiency is on need their blinds read.
+      const pmUnits = new Set(ds.filter((d) => deficiencyOpen(d) && !isCrewIssue(d)).map((d) => d.unit_id));
+      for (const f of fs) {
+        for (const u of await listUnits(f.id)) {
+          numbers.set(u.id, `${u.number} · ${f.label}`);
+          if (pmUnits.has(u.id)) for (const w of await listWindows(u.id)) labels.set(w.id, windowTagLabel(w));
+        }
+      }
       if (cancelled) return;
       setDeficiencies(ds);
       setUnitNumbers(numbers);
+      setWindowLabels(labels);
     })();
     return () => {
       cancelled = true;
@@ -181,6 +194,11 @@ export default function ProjectPage() {
   }
 
   if (!project) return <main className="p-4 text-sm text-neutral-500">Loading…</main>;
+
+  // The PM's open ones; the crew's own show on their units and in a
+  // deficiency batch. Counted once, so the heading can never say (0) over
+  // an empty list again.
+  const pmOpen = deficiencies.filter((d) => deficiencyOpen(d) && !isCrewIssue(d));
 
   /** Both fields in one write — two racing read-modify-write patches can
    * clobber each other (same lesson as the floor's order/trips fields). */
@@ -330,14 +348,13 @@ export default function ProjectPage() {
         )}
       </section>
 
-      {deficiencies.some((d) => d.status === "open") && (
+      {pmOpen.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-neutral-500">
-            Open PM deficiencies ({deficiencies.filter((d) => d.status === "open" && !isCrewIssue(d)).length})
-          </h2>
+          <h2 className="mb-2 text-sm font-semibold text-neutral-500">Open PM deficiencies ({pmOpen.length})</h2>
           <DeficiencyList
-            items={deficiencies.filter((d) => d.status === "open" && !isCrewIssue(d))}
+            items={pmOpen}
             unitNumber={(id) => unitNumbers.get(id) ?? "?"}
+            windowLabel={(id) => windowLabels.get(id) ?? "Blind"}
             onResolve={(id) => void handleDeficiency(id, "resolved")}
           />
         </section>
@@ -369,6 +386,9 @@ export default function ProjectPage() {
           <div className="flex flex-col gap-6 border-t border-neutral-200 p-4 dark:border-neutral-800">
             <MoneyCard project={project} onProjectChange={setProject} tripsVersion={tripsVersion} />
             <TripLog projectId={projectId} onChange={() => setTripsVersion((v) => v + 1)} />
+            {/* TODO(v2.8 integration): pass projectName={project.name} once
+                PmAccessCard has Fixer P's optional prop (the share-sheet
+                title) — not in this worktree yet, so it would not type-check. */}
             <PmAccessCard projectId={projectId} />
           </div>
         )}

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   deleteInvoice,
   getCompany,
+  getFixBatch,
   getInvoice,
   getProject,
   listAllInvoices,
@@ -51,6 +52,24 @@ export default function InvoicePage() {
   const [otherNumbers, setOtherNumbers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
+  // Made from a deficiency batch (?from=fixes/<id>): the arrow goes back to
+  // that batch, where the crew was, rather than dropping them on the job.
+  const from = useSearchParams().get("from") ?? "";
+  const fromBatch = /^fixes\/[\w-]+$/.test(from) ? from.slice("fixes/".length) : null;
+  const [batchName, setBatchName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!fromBatch) return;
+    let cancelled = false;
+    void getFixBatch(fromBatch).then((b) => {
+      if (!cancelled) setBatchName(b?.name ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [fromBatch]);
+  const back = fromBatch
+    ? { href: `/project/${projectId}/fixes/${fromBatch}`, label: `Back to ${batchName ?? "the deficiency batch"}` }
+    : { href: `/project/${projectId}`, label: "Back to the job" };
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +188,7 @@ export default function InvoicePage() {
   return (
     <main className="flex flex-1 flex-col gap-5 p-4 pb-28">
       <header className="flex items-center gap-3">
-        <BackButton href={`/project/${projectId}`} label="Back to the job" />
+        <BackButton href={back.href} label={back.label} />
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold break-words">{invoice.number || "Invoice"}</h1>
           <div className="text-sm text-neutral-500">
@@ -180,6 +199,15 @@ export default function InvoicePage() {
           {invoice.status}
         </span>
       </header>
+      {/* Said in words too: an arrow alone reads as "to the job" here. */}
+      {fromBatch && (
+        <Link
+          href={back.href}
+          className="-mt-3 flex min-h-11 items-center self-start text-sm font-medium text-blue-600"
+        >
+          ← {back.label}
+        </Link>
+      )}
 
       {duplicate && (
         <Banner tone="amber">

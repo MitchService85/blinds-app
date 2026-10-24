@@ -24,6 +24,13 @@ export const QUICK_NOTES = [
 ] as const;
 
 /**
+ * One-tap reasons for "Can't fix", from why a blind is left for another
+ * visit: the factory has to make it again, a part has to come, or nobody
+ * could let us in.
+ */
+export const CANT_REASONS = ["Needs remake", "Needs a part", "No access"] as const;
+
+/**
  * What was most likely done, read off the problem, so ✓ Fixed on a blind
  * with no note fills one in: a wrong deduct was fixed by the factory's new
  * blind, a shim by shimming. "" when the problem says neither.
@@ -35,6 +42,37 @@ export function suggestedFixNote(problem: string): string {
   if (/deduct|reduction/.test(p)) parts.push("New blind installed");
   if (/pull tab/.test(p)) parts.push("Pull tabs added");
   return parts.join(", ");
+}
+
+/**
+ * The note is still the one ✓ Fixed filled in by itself, so the screen can
+ * say it was a guess — a crew member reading "New blind installed" on a blind
+ * they shimmed would otherwise take it as something someone wrote.
+ */
+export function isGuessedNote(item: Pick<FixItem, "fix_note" | "problem">): boolean {
+  const note = item.fix_note.trim();
+  return note !== "" && note === suggestedFixNote(item.problem);
+}
+
+/**
+ * The note a fix carries into its new status. ✓ Fixed on an empty note fills
+ * in the guess; undoing it takes the guess back out (it was never written by
+ * anyone, and left there it would stop the next ✓ Fixed guessing afresh), as
+ * does undoing "Can't fix" when all it holds is reason chips. Anything typed
+ * stays.
+ */
+export function noteForStatus(
+  item: Pick<FixItem, "fix_note" | "problem" | "status">,
+  status: FixItem["status"]
+): string {
+  const note = item.fix_note;
+  if (status === "fixed") return note.trim() ? note : suggestedFixNote(item.problem);
+  if (status === "open" && item.status === "fixed" && isGuessedNote(item)) return "";
+  if (status === "open" && item.status === "cant") {
+    const parts = note.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.every((p) => CANT_REASONS.some((r) => r.toLowerCase() === p.toLowerCase()))) return "";
+  }
+  return note;
 }
 
 /** Whether a note already carries this quick note as one of its parts. */
@@ -135,6 +173,51 @@ export function inBatchIds(items: Pick<FixItem, "status" | "deficiency_id">[]): 
 /** Already on an invoice that still exists. A deleted draft frees its fixes. */
 export function isInvoiced(item: Pick<FixItem, "invoice_id">, liveInvoiceIds: Set<string>): boolean {
   return item.invoice_id !== null && liveInvoiceIds.has(item.invoice_id);
+}
+
+/**
+ * Opened again (on the unit screen, or by an undo) after it was billed. The
+ * invoice keeps its line — it went to the customer — so the entry keeps
+ * pointing at it, and the batch says so rather than looking unbilled.
+ */
+export function reopenedOnInvoice(item: Pick<FixItem, "status" | "invoice_id">, liveInvoiceIds: Set<string>): boolean {
+  return item.status !== "fixed" && isInvoiced(item, liveInvoiceIds);
+}
+
+/**
+ * Follows its deficiency's "what was done" when that is edited elsewhere —
+ * until it is on an invoice, whose line already says what was billed.
+ */
+export function followsDeficiencyNote(item: Pick<FixItem, "invoice_id" | "deleted">, liveInvoiceIds: Set<string>): boolean {
+  return !item.deleted && !isInvoiced(item, liveInvoiceIds);
+}
+
+/**
+ * Goes with its deficiency when that is removed as entered by mistake: still
+ * to do (or left as can't-fix) and not on an invoice. A fixed one stays — it
+ * is the record of work done, and may be what someone is about to bill.
+ */
+export function dropsWithDeficiency(item: Pick<FixItem, "status" | "invoice_id" | "deleted">, liveInvoiceIds: Set<string>): boolean {
+  return !item.deleted && item.status !== "fixed" && !isInvoiced(item, liveInvoiceIds);
+}
+
+/** Fixed and not on an invoice yet, charged or not — the rows to bill from. */
+export function fixedUnbilled(items: FixItem[], liveInvoiceIds: Set<string>): FixItem[] {
+  return items.filter((i) => i.status === "fixed" && !isInvoiced(i, liveInvoiceIds));
+}
+
+/** The live invoices a batch's fixes are on, in the order first billed. */
+export function billedInvoiceIds(items: Pick<FixItem, "invoice_id">[], liveInvoiceIds: Set<string>): string[] {
+  const out: string[] = [];
+  for (const i of items) {
+    if (i.invoice_id && liveInvoiceIds.has(i.invoice_id) && !out.includes(i.invoice_id)) out.push(i.invoice_id);
+  }
+  return out;
+}
+
+/** How many blinds a set of deficiencies is on — "7 deficiencies on 5 blinds". */
+export function blindCount(items: Pick<FixItem, "window_id">[]): number {
+  return new Set(items.map((i) => i.window_id)).size;
 }
 
 /** Fixed, chargeable, and not yet billed. */
