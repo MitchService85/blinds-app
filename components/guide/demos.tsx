@@ -482,7 +482,7 @@ export function ExportDemo({ onDone }: DemoProps) {
         <section className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
           <h3 className="font-semibold">Deficiency list</h3>
           <p className="mb-2 mt-0.5 text-xs text-neutral-500">
-            <b>Flagged blinds only</b> — not a measure sheet.
+            <b>Open deficiencies only</b> — not a measure sheet.
           </p>
           <button
             type="button"

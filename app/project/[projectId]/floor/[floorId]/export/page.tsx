@@ -110,7 +110,7 @@ export default function ExportPage() {
   );
   const assumed = rows.filter((r) => r.assumed).length;
 
-  /** Every blind on a floor — the denominator for "29 of 74 flagged". */
+  /** Every blind on a floor — "27 across 74 blinds" on the file. */
   function blindCount(f: Floor): number {
     const d = data.get(f.id);
     if (!d) return 0;
@@ -136,7 +136,7 @@ export default function ExportPage() {
       const mod = await import("@/lib/export/deficiencies-xlsx");
       const labels = floors.filter((f) => selected.has(f.id)).map((f) => f.label);
       const date = localDateISO();
-      // Says on the file what the file is. Flagged blinds only means a room
+      // Says on the file what the file is. Open deficiencies only means a room
       // measured BR1/BR2/BR3 with notes on the outer two shows BR1 and BR3
       // and no BR2 — which reads as an export that dropped blinds, and was
       // reported as one (44 Charles Batch 5, 2026-10-06).
@@ -144,7 +144,7 @@ export default function ExportPage() {
       const flagged = picked.reduce((n, f) => n + issueCount(f), 0);
       const total = picked.reduce((n, f) => n + blindCount(f), 0);
       const scope =
-        `Flagged blinds only — ${flagged} of ${total} on ${labels.join(", ")}. ` +
+        `Open deficiencies only — ${flagged} across ${total} blinds on ${labels.join(", ")}. ` +
         `Blinds with nothing wrong are left out, so tag numbers skip. ` +
         `This is not the factory measure sheet.`;
       const blob = await mod.deficienciesToBlob(
@@ -195,7 +195,7 @@ export default function ExportPage() {
       <section className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
         <h2 className="font-semibold">Deficiency list</h2>
         <p className="mt-1 mb-3 text-sm text-neutral-500">
-          <b>Flagged blinds only</b> — not a measure sheet. A blind with nothing wrong is left
+          <b>Open deficiencies only</b> — not a measure sheet. A blind with nothing wrong is left
           out, so the tags skip (BR1 and BR3 with no BR2). One row per panel, with a column for
           the PM to approve and one for the factory. Bay notes that say left or right land on
           that panel.
@@ -218,7 +218,7 @@ export default function ExportPage() {
                 />
                 <span className="flex-1 text-sm">{f.label}</span>
                 <span className="text-xs text-neutral-500">
-                  {n === 0 ? "no issues" : `${n} blind${n === 1 ? "" : "s"}`}
+                  {n === 0 ? "nothing open" : `${n} open deficienc${n === 1 ? "y" : "ies"}`}
                 </span>
               </label>
             );
