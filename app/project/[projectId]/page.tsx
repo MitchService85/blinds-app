@@ -386,10 +386,7 @@ export default function ProjectPage() {
           <div className="flex flex-col gap-6 border-t border-neutral-200 p-4 dark:border-neutral-800">
             <MoneyCard project={project} onProjectChange={setProject} tripsVersion={tripsVersion} />
             <TripLog projectId={projectId} onChange={() => setTripsVersion((v) => v + 1)} />
-            {/* TODO(v2.8 integration): pass projectName={project.name} once
-                PmAccessCard has Fixer P's optional prop (the share-sheet
-                title) — not in this worktree yet, so it would not type-check. */}
-            <PmAccessCard projectId={projectId} />
+            <PmAccessCard projectId={projectId} projectName={project.name} />
           </div>
         )}
       </section>
