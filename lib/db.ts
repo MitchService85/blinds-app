@@ -19,6 +19,7 @@ import { DEMO_COMPANY_ID, getCompanyIdSync, setCompanyIdCache } from "./tenant";
 import { carryUnitNumber, compareFloorLabels } from "./floor-copy";
 import { notifyLocalWrite } from "./sync-events";
 import { CREW, deficiencyOpen, hasLegacyIssue, legacyIssueId, legacyIssueOpen } from "./issues";
+import { dropsWithDeficiency, followsDeficiencyNote } from "./fixes";
 
 /**
  * Local-first IndexedDB store (Dexie). The UI reads/writes here only —
@@ -914,12 +915,20 @@ export async function saveIssue(d: Deficiency): Promise<Deficiency> {
   return writeRow(db.deficiencies, "deficiencies", d);
 }
 
-/** Entered by mistake: gone, not fixed. */
+/** Entered by mistake: gone, not fixed — and gone from any batch still waiting to fix it. */
 export async function removeIssue(id: string): Promise<void> {
   const existing = await db.deficiencies.get(id);
   if (!existing) return;
   await writeRow(db.deficiencies, "deficiencies", { ...existing, deleted: true }, "delete");
   await unblockIfClear(existing.unit_id);
+  const live = await liveInvoiceIds();
+  const items = await db.fix_items.filter((i) => i.deficiency_id === id && dropsWithDeficiency(i, live)).toArray();
+  for (const i of items) await writeRow(db.fix_items, "fix_items", { ...i, deleted: true }, "delete");
+}
+
+/** Invoices that still exist — a deleted draft frees the fixes it held (see isInvoiced). */
+async function liveInvoiceIds(): Promise<Set<string>> {
+  return new Set((await db.invoices.filter((i) => !i.deleted).toArray()).map((i) => i.id));
 }
 
 /** Open problems on a unit: deficiencies, plus any old-style window issue. */
@@ -961,7 +970,11 @@ export async function resolveIssue(
   }
 }
 
-/** Not fixed after all: open again, and the unit re-blocked if asked. */
+/**
+ * Not fixed after all: open again, and the unit re-blocked if asked. A batch
+ * entry that was already billed keeps its invoice_id — the line went to the
+ * customer — and the batch shows it as reopened on that invoice.
+ */
 export async function reopenIssue(id: string, opts: { reblock?: boolean; fromBatch?: boolean } = {}): Promise<void> {
   const d = await db.deficiencies.get(id);
   if (!d || d.deleted) return;
@@ -976,11 +989,23 @@ export async function reopenIssue(id: string, opts: { reblock?: boolean; fromBat
   }
 }
 
-/** Keep a fixed problem's "what was done" in step with its batch entry. */
-export async function setIssueFixNote(id: string, note: string): Promise<void> {
+/**
+ * Keep a fixed problem's "what was done" in step with its batch entry, both
+ * ways: written on the unit screen, it is copied to the entry unless that is
+ * already on an invoice (whose line says what was billed). The batch screen
+ * saves its own entry first and passes fromBatch, so a copy back cannot land
+ * a keystroke late over a newer note.
+ */
+export async function setIssueFixNote(id: string, note: string, opts: { fromBatch?: boolean } = {}): Promise<void> {
   const d = await db.deficiencies.get(id);
   if (!d || d.deleted) return;
   await writeRow(db.deficiencies, "deficiencies", { ...d, fix_note: note });
+  if (opts.fromBatch) return;
+  const live = await liveInvoiceIds();
+  const items = await db.fix_items
+    .filter((i) => i.deficiency_id === id && i.fix_note !== note && followsDeficiencyNote(i, live))
+    .toArray();
+  for (const i of items) await writeRow(db.fix_items, "fix_items", { ...i, fix_note: note });
 }
 
 /**
